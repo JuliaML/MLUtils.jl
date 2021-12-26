@@ -1,6 +1,9 @@
 using MLBase
+using SparseArrays
 using Test
 
 @testset "MLBase.jl" begin
-    # Write your tests here.
+    @testset "observation" begin
+        include("observation.jl")
+    end
 end

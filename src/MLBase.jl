@@ -1,5 +1,7 @@
 module MLBase
 
-# Write your package code here.
+export numobs, getobs, getobs!
+
+include("observation.jl")
 
 end
