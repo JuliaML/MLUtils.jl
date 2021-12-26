@@ -1,8 +1,8 @@
-using MLBase
+using MLUtils
 using SparseArrays
 using Test
 
-@testset "MLBase.jl" begin
+@testset "MLUtils.jl" begin
     @testset "observation" begin
         include("observation.jl")
     end

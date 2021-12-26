@@ -1,7 +1,7 @@
-# MLBase
+# MLUtils
 
-[![Build Status](https://github.com/JuliaML/MLBase.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/JuliaML/MLBase.jl/actions/workflows/CI.yml?query=branch%3Amain)
-[![Coverage](https://codecov.io/gh/JuliaML/MLBase.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JuliaML/MLBase.jl)
+[![Build Status](https://github.com/JuliaML/MLUtils.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/JuliaML/MLUtils.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Coverage](https://codecov.io/gh/JuliaML/MLUtils.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JuliaML/MLUtils.jl)
 
 
 This package embodies a community effort to provide common and extensible functionalities for Machine Learning packages in Julia.

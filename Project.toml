@@ -1,4 +1,4 @@
-name = "MLBase"
+name = "MLUtils"
 uuid = "f1d291b0-491e-4a28-83b9-f70985020b54"
 authors = ["Carlo Lucibello <carlo.lucibello@gmail.com> and contributors"]
 version = "0.1.0"

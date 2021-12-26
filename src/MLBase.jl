@@ -1,4 +1,4 @@
-module MLBase
+module MLUtils
 
 export numobs, getobs, getobs!
 
