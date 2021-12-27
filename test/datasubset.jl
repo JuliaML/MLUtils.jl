@@ -200,7 +200,7 @@ end
 end
 
 @testset "getobs!" begin
-    @test getobs!(nothing, datasubset(y, 1))[1] == "setosa"
+    @test getobs!(nothing, datasubset(y, 1)) == "setosa"
 
     @testset "DataSubset" begin
         xbuf1 = zeros(4,8)
