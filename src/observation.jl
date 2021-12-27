@@ -25,6 +25,8 @@ See also [`getobs!`](@ref) and [`numobs`](@ref)
 """
 function getobs end
 
+# Generic Fallbacks
+getobs(data) = data
 getobs(data, idx) = data[idx]
 
 """
@@ -41,6 +43,7 @@ of `copy!`. Thus, supporting a custom `getobs!` is optional
 and not required.
 """
 function getobs! end
+# getobs!(buffer, data) = getobs(data)
 getobs!(buffer, data, idx) = getobs(data, idx)
 
 # --------------------------------------------------------------------
@@ -74,18 +77,18 @@ end
 _check_numobs_error() =
     throw(DimensionMismatch("All data containers must have the same number of observations."))
 
-function _check_numobs(tup::Union{Tuple, NamedTuple})
-    length(tup) == 0 && return
-    n1 = numobs(tup[1])
-    for i=2:length(tup)
-        numobs(tup[i]) != n1 && _check_numobs_error()
+function _check_numobs(data::Union{Tuple, NamedTuple, Dict})
+    length(data) == 0 && return 0
+    n = numobs(data[first(keys(data))])
+    
+    for i in keys(data)
+        ni = numobs(data[i])
+        n == ni || _check_numobs_error()
     end
+    return n
 end
 
-function numobs(tup::Union{Tuple, NamedTuple})::Int
-    _check_numobs(tup)
-    return length(tup) == 0 ? 0 : numobs(tup[1])
-end
+numobs(data::Union{Tuple, NamedTuple}) = _check_numobs(data)
 
 function getobs(tup::Union{Tuple, NamedTuple}, indices)
     _check_numobs(tup)
@@ -101,3 +104,17 @@ function getobs!(buffers::Union{Tuple, NamedTuple},
                 getobs!(buffer, x, indices)
             end
 end
+
+## Dict
+
+numobs(data::Dict) = _check_numobs(data)
+
+function getobs(data::Dict, i)
+    Dict(k => getobs(v, i) for (k, v) in pairs(data))
+end
+
+function getobs!(buffers, data::Dict, i)
+    for (k, v) in pairs(data)
+        getobs!(buffers[k], v, i)
+    end
+ end

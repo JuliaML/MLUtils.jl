@@ -88,7 +88,7 @@ The following methods can also be provided and are optional:
 - `gettargets(data::MyType, idx)` :
     If `MyType` has a special way to query targets without
     needing to invoke `getobs`, then you can provide your own
-    logic here. This can be useful when the targets of your are
+    logic here. This can be useful when the targets of your data are
     always loaded as metadata, while the data itself remains on
     the hard disk until actually needed.
 
@@ -108,11 +108,6 @@ subset = DataSubset(X, 21:100)
 # getobs indexes into the subset
 @assert getobs(subset, 1:10) == X[:, 21:30]
 
-# Subsets also works for tuple of data. (useful for labeled data)
-subset = DataSubset((X,y), 1:100)
-@assert numobs(subset) == 100
-@assert typeof(subset) <: Tuple # Tuple of DataSubset
-
 # The lowercase version tries to avoid boxing into DataSubset
 # for types that provide a custom "subset", such as arrays.
 # Here it instead creates a native SubArray.
@@ -124,6 +119,11 @@ subset = datasubset(X, 1:100)
 subset = datasubset((X,y), 1:100)
 @assert numobs(subset) == 100
 @assert typeof(subset) <: Tuple # tuple of SubArray
+
+# `subset` also works for tuple of data. (useful for labeled data)
+subset = datasubset((X, y), 1:100)
+@assert numobs(subset) == 100
+@assert typeof(subset) <: Tuple # Tuple of DataSubset
 
 # Split dataset into training and test split
 train, test = splitobs(shuffleobs((X,y)), at = 0.7)
@@ -154,7 +154,9 @@ end
 DataSubset(data) = DataSubset(data, 1:numobs(data))
 
 # # don't nest subsets
-function DataSubset(subset::DataSubset, indices)
+DataSubset(subset::DataSubset) = subset
+
+function DataSubset(subset::DataSubset, indices::Union{Int,AbstractVector})
     DataSubset(subset.data, _view(subset.indices, indices))
 end
 
@@ -223,7 +225,7 @@ see `DataSubset` for more information.
 """
 datasubset(data, indices=1:numobs(data)) = DataSubset(data, indices)
 
-##### Arrays
+##### Arrays / SubArrays
 
 datasubset(A::SubArray) = A
 
@@ -231,6 +233,9 @@ function datasubset(A::AbstractArray{T,N}, idx) where {T,N}
     I = ntuple(_ -> :, N-1)
     return view(A, I..., idx)
 end
+
+getobs!(buffer, subset::SubArray) = getobs(subset)
+getobs!(buffer::AbstractArray, subset::SubArray) = buffer .= subset
 
 ##### Tuples / NamedTuples
 function datasubset(tup::Union{Tuple, NamedTuple}, indices)

@@ -43,21 +43,20 @@ end
     @test o.y == Y[1:2]
 end
 
-# @testset "dict" begin
-#     X, Y = rand(2, 3), rand(3)
-#     dataset = Dict("X" => X, "Y" => Y) 
-#     @test numobs(dataset) == 3
+@testset "dict" begin
+    X, Y = rand(2, 3), rand(3)
+    dataset = Dict("X" => X, "Y" => Y) 
+    @test numobs(dataset) == 3
 
-#     # o = @inferred getobs(dataset, 2) # not inferred
-#     o = getobs(dataset, 2)
-#     @test o["X"] == X[:,2]
-#     @test o["Y"] == Y[2]
+    @test_broken @inferred getobs(dataset, 2) # not inferred
+    o = getobs(dataset, 2)
+    @test o["X"] == X[:,2]
+    @test o["Y"] == Y[2]
 
-#     o = getobs(dataset, 1:2)
-#     @test o["X"] == X[:,1:2]
-#     @test o["Y"] == Y[1:2]
-# end
-
+    o = getobs(dataset, 1:2)
+    @test o["X"] == X[:,1:2]
+    @test o["Y"] == Y[1:2]
+end
 
 @testset "numobs" begin
     @test_throws MethodError numobs(X,X)

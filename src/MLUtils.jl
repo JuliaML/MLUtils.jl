@@ -9,7 +9,7 @@ include("randobs.jl")
 export randobs
 
 include("datasubset.jl")
-export DataSubset
+export datasubset, DataSubset
 
 
 end
