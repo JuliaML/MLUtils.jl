@@ -1,7 +1,10 @@
 module MLUtils
 
-export numobs, getobs, getobs!
 
 include("observation.jl")
+export numobs, getobs, getobs!
+
+include("randobs.jl")
+export randobs
 
 end

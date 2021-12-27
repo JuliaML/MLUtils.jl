@@ -6,4 +6,7 @@ using Test
     @testset "observation" begin
         include("observation.jl")
     end
+    @testset "randobs" begin
+        include("randobs.jl")
+    end
 end
