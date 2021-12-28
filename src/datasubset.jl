@@ -234,6 +234,8 @@ function datasubset(A::AbstractArray{T,N}, idx) where {T,N}
     return view(A, I..., idx)
 end
 
+getobs(a::SubArray) = getobs(a.parent, last(a.indices))
+
 getobs!(buffer, subset::SubArray) = getobs(subset)
 getobs!(buffer::AbstractArray, subset::SubArray) = buffer .= subset
 

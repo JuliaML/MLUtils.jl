@@ -1,18 +1,3 @@
-X = rand(4, 150)
-y = repeat(["setosa","versicolor","virginica"], inner = 50)
-Y = permutedims(hcat(y,y), [2,1])
-Xs = sprand(10,150,.5)
-ys = sprand(150,.5)
-Yt = hcat(y,y)
-yt = Y[1:1,:]
-Xv = view(X,:,:)
-yv = view(y,:)
-XX = rand(20,30,150)
-XXX = rand(3,20,30,150)
-X1 = hcat((1:150 for i = 1:10)...)'
-Y1 = collect(1:150)
-vars = (X, Xv, yv, XX, XXX, y)
-
 @testset "array" begin
     a = rand(2,3)
     @test numobs(a) == 3
@@ -44,18 +29,17 @@ end
 end
 
 @testset "dict" begin
-    X, Y = rand(2, 3), rand(3)
-    dataset = Dict("X" => X, "Y" => Y) 
-    @test numobs(dataset) == 3
+    dataset = Dict("X" => X, "y" => y) 
+    @test numobs(dataset) == 15
 
     @test_broken @inferred getobs(dataset, 2) # not inferred
     o = getobs(dataset, 2)
     @test o["X"] == X[:,2]
-    @test o["Y"] == Y[2]
+    @test o["y"] == y[2]
 
     o = getobs(dataset, 1:2)
     @test o["X"] == X[:,1:2]
-    @test o["Y"] == Y[1:2]
+    @test o["y"] == y[1:2]
 end
 
 @testset "numobs" begin
@@ -66,18 +50,18 @@ end
         @test_throws DimensionMismatch numobs((X,XX,rand(100)))
         @test_throws DimensionMismatch numobs((X,X'))
         for var in (Xs, ys, vars...)
-            @test @inferred(numobs(var)) === 150
+            @test @inferred(numobs(var)) === 15
         end
         @test @inferred(numobs(())) === 0
     end
 
     @testset "SubArray" begin
-        @test @inferred(numobs(view(X,:,:))) === 150
-        @test @inferred(numobs(view(X,:,:))) === 150
-        @test @inferred(numobs(view(XX,:,:,:))) === 150
-        @test @inferred(numobs(view(XXX,:,:,:,:))) === 150
-        @test @inferred(numobs(view(y,:))) === 150
-        @test @inferred(numobs(view(Y,:,:))) === 150
+        @test @inferred(numobs(view(X,:,:))) === 15
+        @test @inferred(numobs(view(X,:,:))) === 15
+        @test @inferred(numobs(view(XX,:,:,:))) === 15
+        @test @inferred(numobs(view(XXX,:,:,:,:))) === 15
+        @test @inferred(numobs(view(y,:))) === 15
+        @test @inferred(numobs(view(Y,:,:))) === 15
     end
 end
 
@@ -86,11 +70,11 @@ end
         # access outside numobs bounds
         @test_throws BoundsError getobs(X, -1)
         @test_throws BoundsError getobs(X, 0)
-        @test_throws BoundsError getobs(X, 151)
-        for i in (2, 2:20, [2,1,4])
+        @test_throws BoundsError getobs(X, 16)
+        for i in (2, 2:10, [2,1,4])
             @test getobs(XX, i) == XX[:, :, i]
         end
-        for i in (2, 1:150, 2:10, [2,5,7], [2,1])
+        for i in (2, 1:15, 2:10, [2,5,7], [2,1])
             @test typeof(getobs(Xv, i)) <: Array
             @test typeof(getobs(yv, i)) <: ((i isa Int) ? String : Array)
             @test all(getobs(Xv, i) .== X[:, i])
@@ -109,7 +93,7 @@ end
         @test typeof(getobs(Xs,1:5)) <: SparseMatrixCSC
         @test typeof(getobs(ys,2)) <: Float64
         @test typeof(getobs(ys,1:5)) <: SparseVector
-        for i in (2, 1:150, 2:10, [2,5,7], [2,1])
+        for i in (2, 1:15, 2:10, [2,5,7], [2,1])
             @test getobs(Xs,i) == Xs[:,i]
             @test getobs(ys,i) == ys[i]
         end
@@ -117,13 +101,13 @@ end
 
     @testset "Tuple" begin
         # bounds checking correctly
-        @test_throws BoundsError getobs((X,y), 151)
+        @test_throws BoundsError getobs((X,y), 16)
         # special case empty tuple
         @test @inferred(getobs((), 10)) === ()
-        tx, ty = getobs((Xv, yv), 10:50)
+        tx, ty = getobs((Xv, yv), 2:5)
         @test typeof(tx) <: Array
         @test typeof(ty) <: Array
-        for i in (1:150, 2:10, [2,5,7], [2,1])
+        for i in (1:15, 2:10, [2,5,7], [2,1])
             @test_throws DimensionMismatch getobs((X', y), i)
             @test @inferred(getobs((X,y), i))  == (X[:,i], y[i])
             @test @inferred(getobs((X,yv), i)) == (X[:,i], y[i])
@@ -155,7 +139,7 @@ end
         @test_throws BoundsError getobs!(Xbuf, X, 151)
         
         buff = zeros(4)
-        @test @inferred(getobs!(buff, X, 45)) == getobs(X, 45)
+        @test @inferred(getobs!(buff, X, 5)) == getobs(X, 5)
         
         buff = zeros(4, 8)
         @test @inferred(getobs!(buff, X, 3:10)) == getobs(X, 3:10)
@@ -192,9 +176,9 @@ end
         @test @inferred(getobs!((xbuf,ybuf),(X,y), 2:3)) === (xbuf,ybuf)
         @test xbuf == getobs(X, 2:3)
         @test ybuf == getobs(y, 2:3)
-        @test @inferred(getobs!((xbuf,ybuf),(X,y), [50,150])) === (xbuf,ybuf)
-        @test xbuf == getobs(X, [50,150])
-        @test ybuf == getobs(y, [50,150])
+        @test @inferred(getobs!((xbuf,ybuf),(X,y), [14,5])) === (xbuf,ybuf)
+        @test xbuf == getobs(X, [14,5])
+        @test ybuf == getobs(y, [14,5])
 
         @test getobs!((nothing,xbuf),(Xs,X), 3:4) == (getobs(Xs,3:4),xbuf)
         @test xbuf == getobs(X,3:4)
