@@ -90,6 +90,11 @@ end
 
 numobs(data::Union{Tuple, NamedTuple}) = _check_numobs(data)
 
+
+function getobs(tup::Union{Tuple, NamedTuple})
+    return map(x -> getobs(x), tup)
+end
+
 function getobs(tup::Union{Tuple, NamedTuple}, indices)
     _check_numobs(tup)
     return map(x -> getobs(x, indices), tup)
@@ -111,6 +116,10 @@ numobs(data::Dict) = _check_numobs(data)
 
 function getobs(data::Dict, i)
     Dict(k => getobs(v, i) for (k, v) in pairs(data))
+end
+
+function getobs(data::Dict)
+    Dict(k => getobs(v) for (k, v) in pairs(data))
 end
 
 function getobs!(buffers, data::Dict, i)

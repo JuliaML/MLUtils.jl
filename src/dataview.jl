@@ -101,6 +101,8 @@ struct ObsView{TElem,TData} <: DataView{TElem,TData}
     data::TData
 end
 
+const obsview = ObsView
+
 function ObsView(data::T) where {T}
     E = typeof(datasubset(data, 1))
     ObsView{E,T}(data)
@@ -127,3 +129,24 @@ function Base.showarg(io::IO, A::ObsView, toplevel)
 end
 
 # ------------------------------------------------------------
+
+
+# --------------------------------------------------------------------
+
+# # if subsetting a DataView, then DataView the subset instead.
+# for fun in (:DataSubset, :datasubset)
+#     @eval @generated function ($fun)(A::T, i, obsdim::$O) where T<:AbstractObsView
+#         quote
+#             @assert obsdim == A.obsdim
+#             ($(T.name.name))(($($fun))(parent(A), i, obsdim), obsdim)
+#         end
+#     end
+#     @eval function ($fun)(A::BatchView, i, obsdim::$O)
+#         @assert obsdim == A.obsdim
+#         length(i) < A.size && throw(ArgumentError("The chosen batch-size ($(A.size)) is greater than the number of observations ($(length(i)))"))
+#         BatchView(($fun)(parent(A), i, obsdim), A.size, -1, obsdim)
+#     end
+# end
+
+DataSubset(A::ObsView, i) = ObsView(DataSubset(parent(A), i))
+datasubset(A::ObsView, i) = ObsView(datasubset(parent(A), i))

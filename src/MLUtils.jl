@@ -19,6 +19,7 @@ include("splitobs.jl")
 export splitobs
 
 include("dataview.jl")
-export DataView, ObsView
+export DataView, ObsView,
+       obsview
 
 end

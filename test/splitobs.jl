@@ -58,9 +58,9 @@ end
         @test numobs.(splitobs(var, at=(2,3,4))) == (2,3,4,6)
     end
     # tests if all obs are still present and none duplicated
-    @test sum(sum.(splitobs(X1,at=.1))) == 120
-    @test sum(sum.(splitobs(X1,at=(.2,.1)))) == 120
-    @test sum(sum.(splitobs(X1,at=(.1,.4,.2)))) == 120
+    @test sum(sum.(splitobs(X1,at=.1))) == 1200
+    @test sum(sum.(splitobs(X1,at=(.2,.1)))) == 1200
+    @test sum(sum.(splitobs(X1,at=(.1,.4,.2)))) == 1200
 end
 
 @testset "Tuple of Array, SparseArray, and SubArray" begin

@@ -22,7 +22,7 @@ const vars = (X, Xv, yv, XX, XXX, y)
 const tuples = ((X,y), (X,Y), (XX,X,y), (XXX,XX,X,y))
 const Xs = sprand(10, 15, 0.5)
 const ys = sprand(15, 0.5)
-const X1 = hcat((1:15 for i = 1:1)...)'
+const X1 = hcat((1:15 for i = 1:10)...)'
 const Y1 = collect(1:15)
 
 struct EmptyType end
@@ -36,10 +36,10 @@ MLUtils.getobs(::CustomType, i::AbstractVector) = collect(i)
 # --------------------------------------------------------------------
 
 # @testset "MLUtils.jl" begin
-# @testset "observation" begin; include("observation.jl"); end
-# @testset "randobs" begin; include("randobs.jl"); end
-# @testset "datasubset" begin; include("datasubset.jl"); end
+@testset "observation" begin; include("observation.jl"); end
+@testset "randobs" begin; include("randobs.jl"); end
+@testset "datasubset" begin; include("datasubset.jl"); end
 @testset "splitobs" begin; include("splitobs.jl"); end
-# @testset "shuffleobs" begin; include("shuffleobs.jl"); end
-# @testset "dataview" begin; include("dataview.jl"); end
+@testset "shuffleobs" begin; include("shuffleobs.jl"); end
+@testset "dataview" begin; include("dataview.jl"); end
 # end
