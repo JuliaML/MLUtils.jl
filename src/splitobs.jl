@@ -8,26 +8,37 @@ cover the rest. These indices are applicable to any data
 container of size `n`.
 
 ```julia
-julia> splitobs(100, at = 0.7)
+julia> splitobs(100, at=0.7)
 (1:70, 71:100)
+```
+
+A tuple `at` can be passed for multiple splits:
+
+```julia    
+julia> splitobs(100, at=(0.1, 0.4))
+(1:10, 11:50, 51:100)
 ```
 """
 splitobs(n::Int; at) = _splitobs(n, at)
 
+_splitobs(n::Int, at::Integer) = _splitobs(n::Int, at / n) 
+_splitobs(n::Int, at::NTuple{N, <:Integer}) where {N} = _splitobs(n::Int, at ./ n) 
+
 _splitobs(n::Int, at::Tuple{}) = (1:n,)
 
-function _splitobs(n::Int, at::Number)
+function _splitobs(n::Int, at::AbstractFloat)
     0 <= at <= 1 || throw(ArgumentError("the parameter \"at\" must be in interval (0, 1)"))
-    n1 = clamp(round(Int, at*n), 1, n)
+    n1 = clamp(round(Int, at*n), 0, n)
     (1:n1, n1+1:n)
 end
 
-function _splitobs(n::Int, at::Tuple)
+function _splitobs(n::Int, at::NTuple{N,<:AbstractFloat}) where N
     at1 = first(at)
     a, b = _splitobs(n::Int, at1)
-    n1 = a[end] 
-    n2 = b[end]
-    rest = map(x -> n1 .+ x, _splitobs(n2-n1, Base.tail(at)))
+    n1 = a.stop 
+    n2 = b.stop
+    at2 = Base.tail(at) .* n ./ (n2 - n1)
+    rest = map(x -> n1 .+ x, _splitobs(n2-n1, at2))
     return (a, rest...)
 end
 
@@ -51,7 +62,7 @@ the first subset `train` will contain the first 70% of the
 observations and the second subset `test` the rest.
 
 ```julia
-train, test = splitobs(X, at = 0.7)
+train, test = splitobs(X, at=0.7)
 ```
 
 If `at` is a tuple of `Float64` then additional subsets will be
@@ -59,7 +70,7 @@ created. In this example `train` will have the first 50% of the
 observations, `val` will have next 30%, and `test` the last 20%
 
 ```julia
-train, val, test = splitobs(X, at = (0.5, 0.3))
+train, val, test = splitobs(X, at=(0.5, 0.3))
 ```
 
 It is also possible to call `splitobs` with multiple data
