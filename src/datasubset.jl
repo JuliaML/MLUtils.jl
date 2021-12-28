@@ -140,7 +140,7 @@ see also
 [`splitobs`](@ref), [`shuffleobs`](@ref),
 [`KFolds`](@ref), [`BatchView`](@ref), [`ObsView`](@ref),
 """
-struct DataSubset{T, I<:Union{Int,AbstractVector}}
+struct DataSubset{T, I<:Union{Int,AbstractVector}} <: AbstractDataContainer
     data::T
     indices::I
 
@@ -185,14 +185,11 @@ function Base.:(==)(s1::DataSubset, s2::DataSubset)
     s1.data == s2.data && all(i1==i2 for (i1,i2) in zip(s1.indices,s2.indices))
 end
 
-Base.length(subset::DataSubset) = length(subset.indices)
-
-Base.lastindex(subset::DataSubset) = length(subset)
-
+# override AbstractDataContainer defaults
 Base.getindex(subset::DataSubset, idx) =
     DataSubset(subset.data, _view(subset.indices, idx))
 
-numobs(subset::DataSubset) = length(subset)
+numobs(subset::DataSubset) = length(subset.indices)
 
 getobs(subset::DataSubset) = getobs(subset.data, subset.indices)
 

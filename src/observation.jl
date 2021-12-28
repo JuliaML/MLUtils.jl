@@ -5,10 +5,10 @@ Return the total number of observations contained in `data`.
 
 See also [`getobs`](@ref)
 """
-function nobs end
+function numobs end
 
 """
-    getobs(data, idx)
+    getobs(data, [idx])
 
 Return the observations corresponding to the observation-index `idx`.
 Note that `idx` can be any type as long as `data` has defined
@@ -47,6 +47,27 @@ function getobs! end
 getobs!(buffer, data, idx) = getobs(data, idx)
 
 # --------------------------------------------------------------------
+# AbstractDataContainer
+# Having an AbstractDataContainer allows to define sensible defaults
+# for Base (or other) interfaces based on our interface.
+# This makes it easier for developers by reducing boilerplate.
+
+abstract type AbstractDataContainer end
+
+Base.getindex(x::AbstractDataContainer, i) = getobs(x, i)
+Base.iterate(x::AbstractDataContainer, state = 1) =
+    (state > numobs(x)) ? nothing : (getobs(x, state), state + 1)
+Base.length(x::AbstractDataContainer) = numobs(x)
+Base.lastindex(x::AbstractDataContainer) = numobs(x)
+
+# --------------------------------------------------------------------
+# AbstractDataIterator
+# Might need this distinction later
+# e.g. shuffleobs can be anywhere in pipeline but
+#      eachbatch is usually at the end
+abstract type AbstractDataIterator <: AbstractDataContainer end
+
+# --------------------------------------------------------------------
 # Arrays
 # We are very opinionated with arrays: the observation dimension
 # is th last dimension. For different behavior wrap the array in 
@@ -80,7 +101,7 @@ _check_numobs_error() =
 function _check_numobs(data::Union{Tuple, NamedTuple, Dict})
     length(data) == 0 && return 0
     n = numobs(data[first(keys(data))])
-    
+
     for i in keys(data)
         ni = numobs(data[i])
         n == ni || _check_numobs_error()
@@ -91,9 +112,7 @@ end
 numobs(data::Union{Tuple, NamedTuple}) = _check_numobs(data)
 
 
-function getobs(tup::Union{Tuple, NamedTuple})
-    return map(x -> getobs(x), tup)
-end
+getobs(tup::Union{Tuple, NamedTuple}) = map(x -> getobs(x), tup)
 
 function getobs(tup::Union{Tuple, NamedTuple}, indices)
     _check_numobs(tup)
@@ -101,29 +120,27 @@ function getobs(tup::Union{Tuple, NamedTuple}, indices)
 end
 
 function getobs!(buffers::Union{Tuple, NamedTuple},
-                  tup::Union{Tuple, NamedTuple},
-                  indices)
+                 tup::Union{Tuple, NamedTuple},
+                 indices)
     _check_numobs(tup)
 
     return map(buffers, tup) do buffer, x
-                getobs!(buffer, x, indices)
-            end
+        getobs!(buffer, x, indices)
+    end
 end
 
 ## Dict
 
 numobs(data::Dict) = _check_numobs(data)
 
-function getobs(data::Dict, i)
-    Dict(k => getobs(v, i) for (k, v) in pairs(data))
-end
+getobs(data::Dict, i) = Dict(k => getobs(v, i) for (k, v) in pairs(data))
 
-function getobs(data::Dict)
-    Dict(k => getobs(v) for (k, v) in pairs(data))
-end
+getobs(data::Dict) = Dict(k => getobs(v) for (k, v) in pairs(data))
 
 function getobs!(buffers, data::Dict, i)
     for (k, v) in pairs(data)
         getobs!(buffers[k], v, i)
     end
- end
+
+    return buffers
+end
