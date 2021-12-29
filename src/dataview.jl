@@ -121,6 +121,8 @@ Base.length(A::ObsView) = numobs(A)
 Base.getindex(A::ObsView, i::Int) = datasubset(A.data, i)
 Base.getindex(A::ObsView, i::AbstractVector) = ObsView(datasubset(A.data, i))
 
+datasubset(A::ObsView, i) = A[i]
+
 function Base.showarg(io::IO, A::ObsView, toplevel)
     print(io, "obsview(")
     Base.showarg(io, parent(A), false)
@@ -131,55 +133,47 @@ end
 # ------------------------------------------------------------
 
 
-"""
-Helper function to compute sensible and compatible values for the
-`size` and `count`
-"""
-function _compute_batch_settings(source, size::Int = -1, count::Int = -1, upto = false)
-    num_observations = numobs(source)
-    @assert num_observations > 0
-    if upto && size > num_observations
-        size = num_observations
-    end
-    size  <= num_observations || throw(ArgumentError("Specified batch-size is too large for the given number of observations"))
-    count <= num_observations || throw(ArgumentError("Specified batch-count is too large for the given number of observations"))
-    if size > 0 && upto
-        while num_observations % size != 0 && size > 1
-            size = size - 1
-        end
-    end
-    if size <= 0 && count <= 0
-        # no batch settings specified, use default size and as many batches as possible
-        size = 1
-        count = floor(Int, num_observations / size)
-    elseif size <= 0
-        # use count to determine size. try use all observations
-        size = floor(Int, num_observations / count)
-    elseif count <= 0
-        # use size and as many batches as possible
-        count = floor(Int, num_observations / size)
-    else
-        # use count just for boundscheck
-        max_batchcount = floor(Int, num_observations / size)
-        count <= max_batchcount || throw(ArgumentError("Specified number of partitions is too large for the specified size"))
-        count = max_batchcount
-    end
+# """
+# Helper function to compute sensible and compatible values for the
+# `size` and `count`
+# """
+# function _compute_batch_settings(source, size::Int = -1, count::Int = -1, upto = false)
+#     num_observations = numobs(source)
+#     @assert num_observations > 0
+#     if upto && size > num_observations
+#         size = num_observations
+#     end
+#     size  <= num_observations || throw(ArgumentError("Specified batch-size is too large for the given number of observations"))
+#     count <= num_observations || throw(ArgumentError("Specified batch-count is too large for the given number of observations"))
+#     if size > 0 && upto
+#         while num_observations % size != 0 && size > 1
+#             size = size - 1
+#         end
+#     end
+#     if size <= 0 && count <= 0
+#         # no batch settings specified, use default size and as many batches as possible
+#         size = 1
+#         count = floor(Int, num_observations / size)
+#     elseif size <= 0
+#         # use count to determine size. try use all observations
+#         size = floor(Int, num_observations / count)
+#     elseif count <= 0
+#         # use size and as many batches as possible
+#         count = floor(Int, num_observations / size)
+#     else
+#         # use count just for boundscheck
+#         max_batchcount = floor(Int, num_observations / size)
+#         count <= max_batchcount || throw(ArgumentError("Specified number of partitions is too large for the specified size"))
+#         count = max_batchcount
+#     end
 
-    # check if the settings will result in all data points being used
-    unused = num_observations - size*count
-    if unused > 0
-        @warn "The specified values for size and/or count will result in $unused unused data points" maxlog=1
-    end
-    size::Int, count::Int
-end
-
-"""
-Helper function to translate a batch-index into a range of observations.
-"""
-function _batchrange(batchsize::Int, batchindex::Int)
-    startidx = (batchindex - 1) * batchsize + 1
-    startidx:(startidx + batchsize - 1)
-end
+#     # check if the settings will result in all data points being used
+#     unused = num_observations - size*count
+#     if unused > 0
+#         @warn "The specified values for size and/or count will result in $unused unused data points" maxlog=1
+#     end
+#     size::Int, count::Int
+# end
 
 # --------------------------------------------------------------------
 
@@ -308,33 +302,21 @@ struct BatchView{TElem,TData} <: DataView{TElem,TData}
     data::TData
     size::Int
     count::Int
+    partial::Bool
+    imax::Int
 end
 
-function BatchView(data::T, size::Int, count::Int, upto::Bool = false) where {T}
-    nsize, ncount = _compute_batch_settings(data, size, count, upto)
-    E = typeof(datasubset(data, 1:nsize))
-    BatchView{E,T}(data, nsize, ncount)
-end
-
-function BatchView(data::T, size::Int, upto::Bool = false) where {T}
-    BatchView(data, size, -1, upto)
-end
-
-function BatchView(A::BatchView, size::Int, count::Int, upto::Bool = false)
-    BatchView(parent(A), size, count, upto)
-end
-
-BatchView(data) = BatchView(data, -1, -1)
-
-function BatchView(data; size = -1, maxsize = -1, count = -1)
-    maxsize != -1 && size != -1 && throw(ArgumentError("Providing both \"size\" and \"maxsize\" is not supported"))
-    if maxsize != -1
-        # set upto to true in order to allow a flexible batch size
-        BatchView(data, maxsize, count, true)
-    else
-        # force given batch size
-        BatchView(data, size, count)
+function BatchView(data::T; size::Int=1, partial::Bool=true) where {T}
+    # nsize, ncount = _compute_batch_settings(data, size, count, upto)
+    n = numobs(data)
+    if n < size
+        @warn "Number of observations less than batch size, decreasing the batch size to $n"
+        size = n
     end
+    E = typeof(datasubset(data, 1:size))
+    imax = partial ? n : n - size + 1
+    count = partial ? ceil(Int, n / size) : floor(Int, n / size)
+    BatchView{E,T}(data, size, count, partial, imax)
 end
 
 """
@@ -343,33 +325,41 @@ end
 Return the fixed size of each batch in `data`.
 """
 batchsize(A::BatchView) = A.size
-numobs(A::BatchView) = A.count * A.size
+numobs(A::BatchView) = A.count
 Base.parent(A::BatchView) = A.data
 Base.length(A::BatchView) = A.count
 Base.getindex(A::BatchView, batchindex::Int) =
-    datasubset(A.data, _batchrange(A.size, batchindex))
+    datasubset(A.data, _batchrange(A, batchindex))
 
 function Base.getindex(A::BatchView, batchindices::AbstractVector)
-    obsindices = union((_batchrange(A.size, bi) for bi in batchindices)...)::Vector{Int}
-    BatchView(datasubset(A.data, obsindices), A.size, -1)
+    obsindices = union((_batchrange(A, bi) for bi in batchindices)...)::Vector{Int}
+    BatchView(datasubset(A.data, obsindices); A.size, A.partial)
 end
+
+
+# Helper function to translate a batch-index into a range of observations.
+function _batchrange(a::BatchView, batchindex::Int)
+    (batchindex > a.count || batchindex < 0) && throw(BoundsError())
+    startidx = (batchindex - 1) * a.size + 1
+    endidx = min(numobs(a.data), startidx + a.size -1) 
+    return startidx:endidx
+end
+
 
 @doc (@doc BatchView)
 const batchview = BatchView
+
+datasubset(A::BatchView, i) = A[i]
 
 function Base.showarg(io::IO, A::BatchView, toplevel)
     print(io, "batchview(")
     Base.showarg(io, parent(A), false)
     print(io, ", ")
-    print(io, A.size, ", ")
-    print(io, A.count)
+    print(io, "size=$(A.size), ")
+    print(io, "partial=$(A.partial)")
     print(io, ')')
-    toplevel && print(io, " with eltype ", nameof(eltype(A))) # simpify
+    toplevel && print(io, " with eltype ", nameof(eltype(A))) # simplify
 end
 
 # --------------------------------------------------------------------
 
-DataSubset(A::ObsView, i) = ObsView(DataSubset(parent(A), i))
-datasubset(A::ObsView, i) = ObsView(datasubset(parent(A), i))
-DataSubset(A::BatchView, i) = BatchView(DataSubset(parent(A), i), A.size, -1)
-datasubset(A::BatchView, i) = BatchView(datasubset(parent(A), i), A.size, -1)

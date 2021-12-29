@@ -36,10 +36,10 @@ MLUtils.getobs(::CustomType, i::AbstractVector) = collect(i)
 # --------------------------------------------------------------------
 
 # @testset "MLUtils.jl" begin
-@testset "observation" begin; include("observation.jl"); end
-@testset "randobs" begin; include("randobs.jl"); end
-@testset "datasubset" begin; include("datasubset.jl"); end
-@testset "splitobs" begin; include("splitobs.jl"); end
-@testset "shuffleobs" begin; include("shuffleobs.jl"); end
+# @testset "observation" begin; include("observation.jl"); end
+# @testset "randobs" begin; include("randobs.jl"); end
+# @testset "datasubset" begin; include("datasubset.jl"); end
+# @testset "splitobs" begin; include("splitobs.jl"); end
+# @testset "shuffleobs" begin; include("shuffleobs.jl"); end
 @testset "dataview" begin; include("dataview.jl"); end
 # end
