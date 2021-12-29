@@ -31,12 +31,12 @@
             @test @inferred(getobs(subset)) == getobs(var)
             @test @inferred(DataSubset(subset)) === subset
             @test @inferred(DataSubset(subset, 1:15)) === subset
-            @test subset[end] == datasubset(var, 15)
-            @test @inferred(subset[15]) == datasubset(var, 15)
-            @test @inferred(subset[2:5]) == datasubset(var, 2:5)
+            @test subset[end] == MLUtils._datasubset(var, 15)
+            @test @inferred(subset[15]) == MLUtils._datasubset(var, 15)
+            @test @inferred(subset[2:5]) == MLUtils._datasubset(var, 2:5)
             for idx in (1:10, [1,10,15,3], [2])
-                @test DataSubset(var)[idx] == datasubset(var, idx)
-                @test DataSubset(var)[idx] == datasubset(var, collect(idx))
+                @test DataSubset(var)[idx] == MLUtils._datasubset(var, idx)
+                @test DataSubset(var)[idx] == MLUtils._datasubset(var, collect(idx))
                 subset = @inferred(DataSubset(var, idx))
                 @test typeof(subset) <: DataSubset{typeof(var), typeof(idx)}
                 @test subset.data === var
@@ -44,8 +44,8 @@
                 @test @inferred(numobs(subset)) === length(idx)
                 @test @inferred(getobs(subset)) == getobs(var, idx)
                 @test @inferred(DataSubset(subset)) === subset
-                @test @inferred(subset[1]) == datasubset(var, idx[1])
-                @test numobs(subset[1:1]) == numobs(DataSubset(var, view(idx, 1:1)))
+                @test @inferred(subset[1]) == MLUtils._datasubset(var, idx[1])
+                @test numobs(subset[1:1]) == numobs(DataSubset(var, MLUtils._datasubset(idx, 1:1)))
             end
         end
     end
@@ -69,12 +69,12 @@ end
             subset = @inferred(DataSubset(var, 5:12))
             @test typeof(@inferred(getobs(subset))) <: Array{Float64,2}
             @test @inferred(numobs(subset)) == length(subset) == 8
-            @test @inferred(subset[2:5]) == datasubset(X, 6:9)
-            @test @inferred(subset[3:6]) != datasubset(X, 6:9)
+            @test @inferred(subset[2:5]) == MLUtils._datasubset(X, 6:9)
+            @test @inferred(subset[3:6]) != MLUtils._datasubset(X, 6:9)
             @test @inferred(getobs(subset, 2:5)) == X[:, 6:9]
             @test @inferred(getobs(subset, [3,1,4])) == X[:, [7,5,8]]
             @test typeof(subset[2:5]) <: SubArray
-            @test @inferred(subset[collect(2:5)]) == datasubset(X, collect(6:9))
+            @test @inferred(subset[collect(2:5)]) == MLUtils._datasubset(X, collect(6:9))
             @test typeof(subset[collect(2:5)]) <: SubArray
             @test @inferred(getobs(subset)) == getobs(subset[1:end]) == X[:, 5:12]
         end
@@ -85,11 +85,11 @@ end
             subset = @inferred(DataSubset(var, 6:10))
             @test typeof(getobs(subset)) <: Array{String,1}
             @test @inferred(numobs(subset)) == length(subset) == 5
-            @test @inferred(subset[2:3]) == datasubset(y, 7:8)
+            @test @inferred(subset[2:3]) == MLUtils._datasubset(y, 7:8)
             @test @inferred(getobs(subset, 2:3)) == y[7:8]
             @test @inferred(getobs(subset, [2,1,4])) == y[[7,6,9]]
             @test typeof(subset[2:3]) <: SubArray
-            @test @inferred(subset[collect(2:3)]) == datasubset(y, collect(7:8))
+            @test @inferred(subset[collect(2:3)]) == MLUtils._datasubset(y, collect(7:8))
             @test typeof(subset[collect(2:3)]) <: SubArray
             @test @inferred(getobs(subset)) == getobs(subset[1:end]) == y[6:10]
         end
@@ -98,47 +98,47 @@ end
 
 @testset "datasubset" begin
     @testset "Array and SubArray" begin
-        @test @inferred(datasubset(X)) == Xv
-        @test @inferred(datasubset(X)) == Xv
-        @test @inferred(datasubset(X)) == Xv
-        @test typeof(datasubset(X)) <: SubArray
-        @test @inferred(datasubset(Xv)) === Xv
-        @test @inferred(datasubset(XX)) == XX
-        @test @inferred(datasubset(XXX)) == XXX
-        @test typeof(datasubset(XXX)) <: SubArray
-        @test @inferred(datasubset(y)) == y
-        @test typeof(datasubset(y)) <: SubArray
-        @test @inferred(datasubset(yv)) === yv
+    #     @test @inferred(datasubset(X)) == Xv
+    #     @test @inferred(datasubset(X)) == Xv
+    #     @test @inferred(datasubset(X)) == Xv
+    #     @test typeof(datasubset(X)) <: SubArray
+    #     @test @inferred(datasubset(Xv)) === Xv
+    #     @test @inferred(datasubset(XX)) == XX
+    #     @test @inferred(datasubset(XXX)) == XXX
+    #     @test typeof(datasubset(XXX)) <: SubArray
+    #     @test @inferred(datasubset(y)) == y
+    #     @test typeof(datasubset(y)) <: SubArray
+    #     @test @inferred(datasubset(yv)) === yv
         for i in (2, 1:15, 2:10, [2,5,7], [2,1])
-            @test @inferred(datasubset(X,i))   === view(X,:,i)
-            @test @inferred(datasubset(Xv,i))  === view(X,:,i)
-            @test @inferred(datasubset(Xv,i))  === view(Xv,:,i)
-            @test @inferred(datasubset(XX,i))  === view(XX,:,:,i)
-            @test @inferred(datasubset(XXX,i)) === view(XXX,:,:,:,i)
-            @test @inferred(datasubset(y,i))   === view(y,i)
-            @test @inferred(datasubset(yv,i))  === view(y,i)
-            @test @inferred(datasubset(yv,i))  === view(yv,i)
-            @test @inferred(datasubset(Y,i))   === view(Y,:,i)
+            @test @inferred(datasubset(X)[i])   == view(X,:,i)
+            @test @inferred(datasubset(Xv)[i])  == view(X,:,i)
+            @test @inferred(datasubset(Xv)[i])  == view(Xv,:,i)
+            @test @inferred(datasubset(XX)[i])  == view(XX,:,:,i)
+            @test @inferred(datasubset(XXX)[i]) == view(XXX,:,:,:,i)
+            @test @inferred(datasubset(y)[i])   == view(y,i)
+            @test @inferred(datasubset(yv)[i])  == view(y,i)
+            @test @inferred(datasubset(yv)[i])  == view(yv,i)
+            @test @inferred(datasubset(Y)[i])   == view(Y,:,i)
         end
     end
 
     @testset "Tuple of Array and Subarray" begin
-        @test @inferred(datasubset((X,y)))   == (X,y)
-        @test @inferred(datasubset((X,yv)))  == (X,yv)
-        @test @inferred(datasubset((Xv,y)))  == (Xv,y)
-        @test @inferred(datasubset((Xv,yv))) == (Xv,yv)
-        @test @inferred(datasubset((X,Y)))   == (X,Y)
-        @test @inferred(datasubset((XX,X,y))) == (XX,X,y)
+        # @test @inferred(datasubset((X,y)))   == (X,y)
+        # @test @inferred(datasubset((X,yv)))  == (X,yv)
+        # @test @inferred(datasubset((Xv,y)))  == (Xv,y)
+        # @test @inferred(datasubset((Xv,yv))) == (Xv,yv)
+        # @test @inferred(datasubset((X,Y)))   == (X,Y)
+        # @test @inferred(datasubset((XX,X,y))) == (XX,X,y)
         for i in (1:15, 2:10, [2,5,7], [2,1])
-            @test @inferred(datasubset((X,y),i))   === (view(X,:,i), view(y,i))
-            @test @inferred(datasubset((Xv,y),i))  === (view(X,:,i), view(y,i))
-            @test @inferred(datasubset((X,yv),i))  === (view(X,:,i), view(y,i))
-            @test @inferred(datasubset((Xv,yv),i)) === (view(X,:,i), view(y,i))
-            @test @inferred(datasubset((XX,X,y),i)) === (view(XX,:,:,i), view(X,:,i),view(y,i))
+            @test @inferred(datasubset((X,y))[i])   == (view(X,:,i), view(y,i))
+            @test @inferred(datasubset((Xv,y))[i])  == (view(X,:,i), view(y,i))
+            @test @inferred(datasubset((X,yv))[i])  == (view(X,:,i), view(y,i))
+            @test @inferred(datasubset((Xv,yv))[i]) == (view(X,:,i), view(y,i))
+            @test @inferred(datasubset((XX,X,y))[i]) == (view(XX,:,:,i), view(X,:,i),view(y,i))
             # compare if obs match in tuple
-            x1, y1 = getobs(datasubset((X1,Y1), i))
+            x1, y1 = getobs(datasubset((X1,Y1))[i])
             @test all(x1' .== y1)
-            x1, y1, z1 = getobs(datasubset((X1,Y1,X1), i))
+            x1, y1, z1 = getobs(datasubset((X1,Y1,X1))[i])
             @test all(x1' .== y1)
             @test all(x1 .== z1)
         end

@@ -226,9 +226,6 @@ end
 
 getobs(a::SubArray) = getobs(a.parent, last(a.indices))
 
-getobs!(buffer, subset::SubArray) = getobs(subset)
-getobs!(buffer::AbstractArray, subset::SubArray) = buffer .= subset
-
 ##### Tuples / NamedTuples
 function _datasubset(tup::Union{Tuple, NamedTuple}, indices)
     map(data -> _datasubset(data, indices), tup)

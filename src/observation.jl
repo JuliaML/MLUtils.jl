@@ -27,7 +27,7 @@ function getobs end
 
 # Generic Fallbacks
 getobs(data) = data
-getobs(data, idx) = data[idx]
+# getobs(data, idx) = data[idx]
 
 """
     getobs!(buffer, data, idx)
@@ -55,17 +55,11 @@ getobs!(buffer, data, idx) = getobs(data, idx)
 abstract type AbstractDataContainer end
 
 Base.getindex(x::AbstractDataContainer, i) = getobs(x, i)
-Base.iterate(x::AbstractDataContainer, state = 1) =
-    (state > numobs(x)) ? nothing : (getobs(x, state), state + 1)
 Base.length(x::AbstractDataContainer) = numobs(x)
-Base.lastindex(x::AbstractDataContainer) = numobs(x)
 
-# --------------------------------------------------------------------
-# AbstractDataIterator
-# Might need this distinction later
-# e.g. shuffleobs can be anywhere in pipeline but
-#      eachbatch is usually at the end
-abstract type AbstractDataIterator <: AbstractDataContainer end
+Base.iterate(x::AbstractDataContainer, state = 1) =
+    (state > length(x)) ? nothing : (x[state], state + 1)
+Base.lastindex(x::AbstractDataContainer) = length(x)
 
 # --------------------------------------------------------------------
 # Arrays
@@ -89,6 +83,11 @@ getobs(A::AbstractArray{<:Any, 0}, idx) = A[idx]
 function getobs!(buffer::AbstractArray, A::AbstractArray{<:Any, N}, idx) where N
     I = ntuple(_ -> :, N-1)
     buffer .= A[I..., idx]
+    return buffer
+end
+
+function getobs!(buffer::AbstractArray, A::AbstractArray)
+    buffer .= A
     return buffer
 end
 
