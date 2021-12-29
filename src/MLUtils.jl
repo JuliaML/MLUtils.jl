@@ -1,5 +1,6 @@
 module MLUtils
 using Random
+import StatsBase: sample
 
 include("utils.jl")
 
@@ -31,5 +32,10 @@ export eachobs,
 include("folds.jl")
 export kfolds,
        leavepout
+
+include("resample.jl")
+export labelmap, 
+        oversample,
+        undersample
 
 end
