@@ -49,6 +49,6 @@ end
     @test oy isa Vector 
     @test size(ox) == (2, 3)
     @test size(oy) == (3,)
-    @test oy == ["c", "a", "b"]
+    @test oy == ["a", "a", "b"]
     @test ox[:,2:3] == x[:,4:5]
 end
