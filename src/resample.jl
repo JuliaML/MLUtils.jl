@@ -193,6 +193,8 @@ function undersample(data, classes; shuffle::Bool=true)
     return datasubset(data, inds)
 end
 
+undersample(data::Tuple; kws...) = undersample(data, data[end]; kws...)
+
 
 """
     labelmap(classes) -> Dict
