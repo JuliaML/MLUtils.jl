@@ -85,12 +85,6 @@ The following methods can also be provided and are optional:
     return value of `getobs(::MyType, ...)`, since this is how
     `buffer` is preallocated by default.
 
-- `gettargets(data::MyType, idx)` :
-    If `MyType` has a special way to query targets without
-    needing to invoke `getobs`, then you can provide your own
-    logic here. This can be useful when the targets of your data are
-    always loaded as metadata, while the data itself remains on
-    the hard disk until actually needed.
 
 Examples
 =========
@@ -126,7 +120,7 @@ subset = datasubset((X, y), 1:100)
 @assert typeof(subset) <: Tuple # Tuple of DataSubset
 
 # Split dataset into training and test split
-train, test = splitobs(shuffleobs((X,y)), at = 0.7)
+train, test = splitobs(shuffleobs((X, y)), at=0.7)
 @assert typeof(train) <: Tuple # of SubArray
 @assert typeof(test)  <: Tuple # of SubArray
 @assert numobs(train) == 105
@@ -138,7 +132,7 @@ see also
 
 [`datasubset`](@ref),  [`getobs`](@ref), [`numobs`](@ref),
 [`splitobs`](@ref), [`shuffleobs`](@ref),
-[`KFolds`](@ref), [`BatchView`](@ref), [`ObsView`](@ref),
+[`kfolds`](@ref), [`batchview`](@ref).
 """
 struct DataSubset{T, I<:Union{Int,AbstractVector}} <: AbstractDataContainer
     data::T
@@ -157,7 +151,7 @@ DataSubset(data) = DataSubset(data, 1:numobs(data))
 DataSubset(subset::DataSubset) = subset
 
 function DataSubset(subset::DataSubset, indices::Union{Int,AbstractVector})
-    DataSubset(subset.data, _view(subset.indices, indices))
+    DataSubset(subset.data, subset.indices[indices])
 end
 
 function Base.show(io::IO, subset::DataSubset)
@@ -182,29 +176,28 @@ end
 # we don't care how the indices are stored, just that they match
 # in order and values
 function Base.:(==)(s1::DataSubset, s2::DataSubset)
-    s1.data == s2.data && all(i1==i2 for (i1,i2) in zip(s1.indices,s2.indices))
+    s1.data == s2.data && s1.indices == s2.indices
 end
 
 # override AbstractDataContainer defaults
 Base.getindex(subset::DataSubset, idx) =
-    DataSubset(subset.data, _view(subset.indices, idx))
+    _datasubset(subset.data, subset.indices[idx])
 
 numobs(subset::DataSubset) = length(subset.indices)
 
 getobs(subset::DataSubset) = getobs(subset.data, subset.indices)
-
-getobs(subset::DataSubset, idx) = getobs(subset.data, _view(subset.indices, idx))
+getobs(subset::DataSubset, idx) = getobs(subset.data, subset.indices[idx])
 
 getobs!(buffer, subset::DataSubset) = getobs!(buffer, subset.data, subset.indices)
+getobs!(buffer, subset::DataSubset, idx) = getobs!(buffer, subset.data, subset.indices[idx])
 
-getobs!(buffer, subset::DataSubset, idx) = getobs!(buffer, subset.data, _view(subset.indices, idx))
 
-
+const datasubset = DataSubset
 
 # --------------------------------------------------------------------
 
 """
-    datasubset(data, [indices])
+    _datasubset(data, [indices])
 
 Returns a lazy subset of the observations in `data` that
 correspond to the given `indices`. No data will be copied except
@@ -220,13 +213,13 @@ corresponding to the given `indices` in their native type, use
 
 see `DataSubset` for more information.
 """
-datasubset(data, indices=1:numobs(data)) = DataSubset(data, indices)
+_datasubset(data, indices=1:numobs(data)) = DataSubset(data, indices)
 
 ##### Arrays / SubArrays
 
-datasubset(A::SubArray) = A
+_datasubset(A::SubArray) = A
 
-function datasubset(A::AbstractArray{T,N}, idx) where {T,N}
+function _datasubset(A::AbstractArray{T,N}, idx) where {T,N}
     I = ntuple(_ -> :, N-1)
     return view(A, I..., idx)
 end
@@ -237,6 +230,6 @@ getobs!(buffer, subset::SubArray) = getobs(subset)
 getobs!(buffer::AbstractArray, subset::SubArray) = buffer .= subset
 
 ##### Tuples / NamedTuples
-function datasubset(tup::Union{Tuple, NamedTuple}, indices)
-    map(data -> datasubset(data, indices), tup)
+function _datasubset(tup::Union{Tuple, NamedTuple}, indices)
+    map(data -> _datasubset(data, indices), tup)
 end

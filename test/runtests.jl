@@ -31,8 +31,7 @@ struct CustomType end
 MLUtils.numobs(::CustomType) = 15
 MLUtils.getobs(::CustomType, i::Int) = i
 MLUtils.getobs(::CustomType, i::AbstractVector) = collect(i)
-# MLUtils.gettargets(::CustomType, i::Int) = "obs $i"
-# MLUtils.gettargets(::CustomType, i::AbstractVector) = "batch $i"
+
 # --------------------------------------------------------------------
 
 # @testset "MLUtils.jl" begin
