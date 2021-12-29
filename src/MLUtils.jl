@@ -24,5 +24,12 @@ export DataView,
        batchview, BatchView, 
        batchsize
 
+include("dataiterator.jl")
+export eachobs, 
+       eachbatch
+
+include("folds.jl")
+export kfolds,
+       leavepout
 
 end

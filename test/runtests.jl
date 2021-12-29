@@ -42,4 +42,6 @@ MLUtils.getobs(::CustomType, i::AbstractVector) = collect(i)
 @testset "splitobs" begin; include("splitobs.jl"); end
 @testset "shuffleobs" begin; include("shuffleobs.jl"); end
 @testset "dataview" begin; include("dataview.jl"); end
+@testset "dataiterator" begin; include("dataiterator.jl"); end
+@testset "folds" begin; include("folds.jl"); end
 # end

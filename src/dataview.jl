@@ -204,7 +204,7 @@ end
 for (x,y) in batchview((X,Y), size = 20, partial=false)
     @assert typeof(x) <: SubArray{Float64,2}
     @assert typeof(y) <: SubArray{String,1}
-    @assert numobs(x) === numobs(y) === 20
+    @assert numobs(x) == numobs(y) == 20
 end
 
 
