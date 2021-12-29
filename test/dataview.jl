@@ -99,30 +99,6 @@
     end
 end
 
-# @testset "_compute_batch_settings" begin
-#     @test MLUtils._compute_batch_settings(X) === (1,15)
-#     @test MLUtils._compute_batch_settings(Xv) === (1,15)
-#     @test MLUtils._compute_batch_settings(Xs) === (1,15)
-#     @test MLUtils._compute_batch_settings(DataSubset(X)) === (1,15)
-#     @test MLUtils._compute_batch_settings((X,y)) === (1,15)
-#     @test MLUtils._compute_batch_settings((Xv,yv)) === (1,15)
-
-#     @test_throws ArgumentError MLUtils._compute_batch_settings(X, 160)
-#     @test_throws ArgumentError MLUtils._compute_batch_settings(X, 1, 160)
-#     @test_throws ArgumentError MLUtils._compute_batch_settings(X, 10, 20)
-
-#     for inner in (Xs, ys, vars...), var in (inner, DataSubset(inner))
-#         @test MLUtils._compute_batch_settings(var,3) === (3,5)
-#         @test MLUtils._compute_batch_settings(var,0,3) === (5,3)
-#         @test MLUtils._compute_batch_settings(var,-1,3) === (5,3)
-#         @test MLUtils._compute_batch_settings(var,3,3) === (3,5)
-#         @test MLUtils._compute_batch_settings(var,5,1) === (5,3)
-#         @test MLUtils._compute_batch_settings(var,5) === (5,3)
-#         @test MLUtils._compute_batch_settings(var,0,5) === (3,5)
-#         @test MLUtils._compute_batch_settings(var,-1,5) === (3,5)
-#     end
-# end
-
 @testset "BatchView" begin
     @test BatchView <: AbstractVector
     @test BatchView <: DataView
