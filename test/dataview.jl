@@ -124,12 +124,9 @@ end
 # end
 
 @testset "BatchView" begin
-    # @test BatchView <: AbstractVector
-    # @test BatchView <: LearnBase.DataView
-    # @test BatchView <: LearnBase.AbstractBatchView
-    # @test BatchView <: LearnBase.AbstractBatchIterator
-    # @test BatchView <: LearnBase.AbstractDataIterator
-    # @test batchview == BatchView
+    @test BatchView <: AbstractVector
+    @test BatchView <: DataView
+    @test batchview == BatchView
     # @test_throws MethodError oversample(BatchView(X))
     # @test_throws MethodError undersample(BatchView(X))
     # @test_throws MethodError stratifiedobs(BatchView(X))

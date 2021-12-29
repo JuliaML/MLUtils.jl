@@ -48,7 +48,7 @@ Aside from the `AbstractArray` interface following additional
 methods are provided:
 
 - **`getobs(data::ObsView, indices::AbstractVector)`** :
-    Returns a `Vector` of indivdual observations specified by
+    Returns a `Vector` of individual observations specified by
     `indices`.
 
 - **`numobs(data::ObsView)`** :
@@ -66,7 +66,7 @@ Examples
 =========
 
 ```julia
-X, Y = MLDataUtils.load_iris()
+X, Y = MLUtils.load_iris()
 
 A = obsview(X)
 @assert typeof(A) <: ObsView <: AbstractVector
@@ -130,66 +130,24 @@ function Base.showarg(io::IO, A::ObsView, toplevel)
     toplevel && print(io, " with eltype ", nameof(eltype(A))) # simplify
 end
 
-# ------------------------------------------------------------
-
-
-# """
-# Helper function to compute sensible and compatible values for the
-# `size` and `count`
-# """
-# function _compute_batch_settings(source, size::Int = -1, count::Int = -1, upto = false)
-#     num_observations = numobs(source)
-#     @assert num_observations > 0
-#     if upto && size > num_observations
-#         size = num_observations
-#     end
-#     size  <= num_observations || throw(ArgumentError("Specified batch-size is too large for the given number of observations"))
-#     count <= num_observations || throw(ArgumentError("Specified batch-count is too large for the given number of observations"))
-#     if size > 0 && upto
-#         while num_observations % size != 0 && size > 1
-#             size = size - 1
-#         end
-#     end
-#     if size <= 0 && count <= 0
-#         # no batch settings specified, use default size and as many batches as possible
-#         size = 1
-#         count = floor(Int, num_observations / size)
-#     elseif size <= 0
-#         # use count to determine size. try use all observations
-#         size = floor(Int, num_observations / count)
-#     elseif count <= 0
-#         # use size and as many batches as possible
-#         count = floor(Int, num_observations / size)
-#     else
-#         # use count just for boundscheck
-#         max_batchcount = floor(Int, num_observations / size)
-#         count <= max_batchcount || throw(ArgumentError("Specified number of partitions is too large for the specified size"))
-#         count = max_batchcount
-#     end
-
-#     # check if the settings will result in all data points being used
-#     unused = num_observations - size*count
-#     if unused > 0
-#         @warn "The specified values for size and/or count will result in $unused unused data points" maxlog=1
-#     end
-#     size::Int, count::Int
-# end
-
 # --------------------------------------------------------------------
 
 """
-    BatchView(data, [size|maxsize], [count])
+    BatchView(data, size; partial=true)
+    BatchView(data; size=1, partial=true)
+
 
 Description
 ============
 
 Create a view of the given `data` that represents it as a vector
 of batches. Each batch will contain an equal amount of
-observations in them. The number of batches and the batch-size
-can be specified using (keyword) parameters `count` and `size`.
+observations in them. The batch-size
+can be specified using the  parameter `size`.
 In the case that the size of the dataset is not dividable by the
-specified (or inferred) `size`, the remaining observations will
-be ignored with a warning.
+specified `size`, the remaining observations will
+be ignored if `partial=false`. If  `partial=true` instead 
+the last batch size can be slight smaller.
 
 Note that any data access is delayed until `getindex` is called,
 and even `getindex` returns the result of [`datasubset`](@ref)
@@ -197,9 +155,7 @@ which in general avoids data movement until [`getobs`](@ref) is
 called.
 
 If used as an iterator, the object will iterate over the dataset
-once, effectively denoting an epoch. Each iteration will return a
-mini-batch of constant [`numobs`](@ref), which effectively allows
-to iterator over [`data`](@ref) one batch at a time.
+once, effectively denoting an epoch. 
 
 Arguments
 ==========
@@ -211,27 +167,8 @@ Arguments
 - **`size`** : The batch-size of each batch. I.e. the number of
     observations that each batch must contain.
 
-- **`maxsize`** : The maximum batch-size of each batch. I.e. the
-    number of observations that each batch should contain. If the
-    number of total observation is not divideable by the size it
-    will be reduced until it is.
-
-- **`count`** : The number of batches that the view will contain.
-
-
-Methods
-========
-
-Aside from the `AbstractArray` interface following additional
-methods are provided.
-
-- **`getobs(data::BatchView, batchindices)`** :
-    Returns a `Vector` of the batches specified by `batchindices`.
-
-- **`numobs(data::BatchView)`** :
-    Returns the total number of observations in `data`. Note that
-    unless the batch-size is 1, this number will differ from
-    `length`.
+- **`partial`** : If `partial=false` and the number of observations is 
+    not divisible by the batch size, then the last mini-batch is dropped.
 
 Details
 ========
@@ -245,8 +182,8 @@ Examples
 =========
 
 ```julia
-using MLDataUtils
-X, Y = MLDataUtils.load_iris()
+using MLUtils
+X, Y = MLUtils.load_iris()
 
 A = batchview(X, size = 30)
 @assert typeof(A) <: BatchView <: AbstractVector
@@ -264,31 +201,17 @@ end
 # Note that the iris dataset has 150 observations,
 # which means that with a batchsize of 20, the last
 # 10 observations will be ignored
-for (x,y) in batchview((X,Y), size = 20)
+for (x,y) in batchview((X,Y), size = 20, partial=false)
     @assert typeof(x) <: SubArray{Float64,2}
     @assert typeof(y) <: SubArray{String,1}
     @assert numobs(x) === numobs(y) === 20
 end
 
-# 10 batches of size 15 observations
-for (x,y) in batchview((X,Y), maxsize = 20)
-    @assert typeof(x) <: SubArray{Float64,2}
-    @assert typeof(y) <: SubArray{String,1}
-    @assert numobs(x) === numobs(y) === 15
-end
 
 # randomly assign observations to one and only one batch.
-for (x,y) in batchview(shuffleobs((X,Y)))
+for (x,y) in batchview(shuffleobs((X,Y)), size=20)
     @assert typeof(x) <: SubArray{Float64,2}
     @assert typeof(y) <: SubArray{String,1}
-end
-
-# iterate over the first 2 batches of 15 observation each
-for (x,y) in batchview((X,Y), size=15, count=2)
-    @assert typeof(x) <: SubArray{Float64,2}
-    @assert typeof(y) <: SubArray{String,1}
-    @assert size(x) == (4, 15)
-    @assert size(y) == (15,)
 end
 ```
 
