@@ -16,6 +16,14 @@ useful when the data is not located in memory, but on the hard
 drive or some remote location. In such a scenario one wants to
 load the required data only when needed.
 
+Any data access is delayed until `getindex` is called, 
+and even `getindex` returns the result of
+[`datasubset`](@ref) which in general avoids data movement until
+[`getobs`](@ref) is called.
+If used as an iterator, the view will iterate over the dataset
+once, effectively denoting an epoch. Each iteration will return a
+lazy subset to the current observation.
+
 This type is usually not constructed manually, but instead
 instantiated by calling [`obsview`](@ref),
 [`shuffleobs`](@ref), or [`splitobs`](@ref)
@@ -35,11 +43,10 @@ Methods
 ========
 
 - **`getindex`** : Returns the observation(s) of the given
-    index/indices as a new `ObsView`. No data is copied aside
+    index/indices. No data is copied aside
     from the required indices.
 
-- **`numobs`** : Returns the total number observations in the subset
-    (**not** the whole data set underneath).
+- **`numobs`** : Returns the total number observations in the subset.
 
 - **`getobs`** : Returns the underlying data that the
     `ObsView` represents at the given relative indices. Note
@@ -86,44 +93,52 @@ Examples
 =========
 
 ```julia
-X, y = MLUtils.load_iris()
+X, Y = MLUtils.load_iris()
 
 # The iris set has 150 observations and 4 features
 @assert size(X) == (4,150)
 
 # Represents the 80 observations as a ObsView
-subset = ObsView(X, 21:100)
-@assert numobs(subset) == 80
-@assert typeof(subset) <: ObsView
-# getobs indexes into the subset
-@assert getobs(subset, 1:10) == X[:, 21:30]
+v = obsview(X, 21:100)
+@assert numobs(v) == 80
+@assert typeof(v) <: ObsView
+# getobs indexes into v
+@assert getobs(v, 1:10) == X[:, 21:30]
 
-# The lowercase version tries to avoid boxing into ObsView
+# Use `datasubset` to avoid boxing into ObsView
 # for types that provide a custom "subset", such as arrays.
 # Here it instead creates a native SubArray.
-subset = obsview(X, 1:100)
-@assert numobs(subset) == 100
-@assert typeof(subset) <: SubArray
+v = datasubset(X, 1:100)
+@assert numobs(v) == 100
+@assert typeof(v) <: SubArray
 
 # Also works for tuples of arbitrary length
-subset = obsview((X,y), 1:100)
+subset = datasubset((X, Y), 1:100)
 @assert numobs(subset) == 100
 @assert typeof(subset) <: Tuple # tuple of SubArray
 
-# `subset` also works for tuple of data. (useful for labeled data)
-subset = obsview((X, y), 1:100)
-@assert numobs(subset) == 100
-@assert typeof(subset) <: Tuple # Tuple of ObsView
+# Use as iterator
+for x in obsview(X)
+    @assert typeof(x) <: SubArray{Float64,1}
+end
 
-# Split dataset into training and test split
-train, test = splitobs(shuffleobs((X, y)), at=0.7)
-@assert typeof(train) <: Tuple # of SubArray
-@assert typeof(test)  <: Tuple # of SubArray
-@assert numobs(train) == 105
-@assert numobs(test) == 45
+# iterate over each individual labeled observation
+for (x, y) in obsview((X, Y))
+    @assert typeof(x) <: SubArray{Float64,1}
+    @assert typeof(y) <: String
+end
+
+# same but in random order
+for (x, y) in obsview(shuffleobs((X, Y)))
+    @assert typeof(x) <: SubArray{Float64,1}
+    @assert typeof(y) <: String
+end
+
+# Indexing: take first 10 observations
+x, y = obsview((X, Y))[1:10]
 ```
 
-see also
+See also
 =========
 
 [`obsview`](@ref),  [`getobs`](@ref), [`numobs`](@ref),
@@ -207,15 +222,15 @@ of the indices. It is similar to calling `ObsView(data,
 be extended for custom types of `data` that also want to provide
 their own subset-type.
 
-In case `data` is some `Tuple`, the constructor will be mapped
+In case `data` is a tuple, the constructor will be mapped
 over its elements. That means that the constructor returns a
-`Tuple` of `ObsView` instead of a `ObsView` of `Tuple`.
+tuple of `ObsView` instead of a `ObsView` of tuples.
 
 If instead you want to get the subset of observations
 corresponding to the given `indices` in their native type, use
 `getobs`.
 
-see `ObsView` for more information.
+See [`obsview`](@ref) for more information.
 """
 datasubset(data, indices=1:numobs(data)) = ObsView(data, indices)
 

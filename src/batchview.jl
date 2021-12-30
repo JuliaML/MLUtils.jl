@@ -130,7 +130,7 @@ Base.getindex(A::BatchView, batchindex::Int) =
 
 function Base.getindex(A::BatchView, batchindices::AbstractVector)
     obsindices = union((_batchrange(A, bi) for bi in batchindices)...)::Vector{Int}
-    BatchView(datasubset(A.data, obsindices); A.size, A.partial)
+    datasubset(A.data, obsindices)
 end
 
 datasubset(A::BatchView) = A

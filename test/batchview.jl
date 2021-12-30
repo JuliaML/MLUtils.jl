@@ -62,8 +62,8 @@ using MLUtils: datasubset
         for var in (vars..., tuples...)
             A = BatchView(var, size=5)
             @test @inferred(getobs(A)) == var
-            @test A[2:3].data == datasubset(var, [6:15;])
-            @test A[[1,3]].data == datasubset(var, [1:5..., 11:15...])
+            @test A[2:3] == datasubset(var, [6:15;])
+            @test A[[1,3]] == datasubset(var, [1:5..., 11:15...])
         end
     end
 
