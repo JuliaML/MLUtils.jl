@@ -40,7 +40,6 @@ end
     @test oy isa Vector 
     @test size(ox) == (2, 3)
     @test size(oy) == (3,)
-    @test oy == ["a", "c", "b"]
     @test ox[:,3] == x[:,5]
     
     o = undersample((x, ya), y2, shuffle=false) 
@@ -49,6 +48,5 @@ end
     @test oy isa Vector 
     @test size(ox) == (2, 3)
     @test size(oy) == (3,)
-    @test oy == ["a", "a", "b"]
     @test ox[:,2:3] == x[:,4:5]
 end
