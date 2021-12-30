@@ -1,4 +1,4 @@
-using MLUtils: _datasubset
+using MLUtils: datasubset
 
 @testset "ObsView" begin
     # @test ObsView <: AbstractVector
@@ -45,11 +45,11 @@ using MLUtils: _datasubset
             @test @inferred(numobs(A)) == 15
             @test @inferred(length(A)) == 15
             @test @inferred(size(A)) == (15,)
-            @test @inferred(A[2:3]) == MLUtils._datasubset(var, 2:3)
-            @test @inferred(A[[1,3]]) == MLUtils._datasubset(var, [1,3])
-            @test @inferred(A[1]) == MLUtils._datasubset(var, 1)
-            @test @inferred(A[11]) == MLUtils._datasubset(var, 11)
-            @test @inferred(A[15]) == MLUtils._datasubset(var, 15)
+            @test @inferred(A[2:3]) == MLUtils.datasubset(var, 2:3)
+            @test @inferred(A[[1,3]]) == MLUtils.datasubset(var, [1,3])
+            @test @inferred(A[1]) == MLUtils.datasubset(var, 1)
+            @test @inferred(A[11]) == MLUtils.datasubset(var, 11)
+            @test @inferred(A[15]) == MLUtils.datasubset(var, 15)
             @test A[end] == A[15]
             @test @inferred(getobs(A,1)) == getobs(var, 1)
             @test @inferred(getobs(A,11)) == getobs(var, 11)
@@ -70,25 +70,25 @@ using MLUtils: _datasubset
 
     @testset "subsetting" begin
         for var_raw in (vars..., tuples..., Xs, ys)
-            for var in (var_raw, DataSubset(var_raw))
+            for var in (var_raw, ObsView(var_raw))
                 A = ObsView(var)
-                @test getobs(@inferred(datasubset(A))) == @inferred(getobs(A))
+                @test getobs(@inferred(obsview(A))) == @inferred(getobs(A))
     
-                S = @inferred(datasubset(A, 1:5))
+                S = @inferred(obsview(A, 1:5))
                 @test typeof(S) <: ObsView
                 @test @inferred(length(S)) == 5
                 @test @inferred(size(S)) == (5,)
                 @test @inferred(A[1:5]) == S[:]
                 @test @inferred(getobs(A,1:5)) == getobs(S)
-                @test @inferred(getobs(S)) == getobs(ObsView(datasubset(var,1:5)))
+                @test @inferred(getobs(S)) == getobs(ObsView(obsview(var,1:5)))
     
-                S = @inferred(DataSubset(A, 1:5))
-                @test typeof(S) <: DataSubset
+                S = @inferred(ObsView(A, 1:5))
+                @test typeof(S) <: ObsView
             end
         end
         A = ObsView(X)
         @test typeof(A.data) <: Array
-        S = @inferred(datasubset(A))
+        S = @inferred(obsview(A))
         @test typeof(S) <: ObsView
         @test @inferred(length(S)) == 15
         @test typeof(S.data) <: Array
@@ -152,11 +152,11 @@ end
             @test @inferred(length(A)) == 3
             @test @inferred(batchsize(A)) == 5
             @test @inferred(size(A)) == (3,)
-            @test @inferred(getobs(A[2:3])) == getobs(BatchView(datasubset(var, 6:15), size=5))
-            @test @inferred(getobs(A[[1,3]])) == getobs(BatchView(datasubset(var, [1:5..., 11:15...]), size=5))
-            @test @inferred(A[1]) == _datasubset(var, 1:5)
-            @test @inferred(A[2]) == _datasubset(var, 6:10)
-            @test @inferred(A[3]) == _datasubset(var, 11:15)
+            @test @inferred(getobs(A[2:3])) == getobs(BatchView(obsview(var, 6:15), size=5))
+            @test @inferred(getobs(A[[1,3]])) == getobs(BatchView(obsview(var, [1:5..., 11:15...]), size=5))
+            @test @inferred(A[1]) == datasubset(var, 1:5)
+            @test @inferred(A[2]) == datasubset(var, 6:10)
+            @test @inferred(A[3]) == datasubset(var, 11:15)
             @test A[end] == A[3]
             @test @inferred(getobs(A,1)) == getobs(var, 1:5)
             @test @inferred(getobs(A,2)) == getobs(var, 6:10)
@@ -166,8 +166,8 @@ end
         for var in (vars..., tuples...)
             A = BatchView(var, size=5)
             @test @inferred(getobs(A)) == var
-            @test A[2:3].data == _datasubset(var, [6:15;])
-            @test A[[1,3]].data == _datasubset(var, [1:5..., 11:15...])
+            @test A[2:3].data == datasubset(var, [6:15;])
+            @test A[[1,3]].data == datasubset(var, [1:5..., 11:15...])
         end
     end
 
@@ -176,24 +176,24 @@ end
         # for var in (vars..., tuples..., Xs, ys)
             for var in (vars[1], )
             A = BatchView(var, size=3)
-            @test getobs(@inferred(datasubset(A))) == @inferred(getobs(A))
-            @test_throws BoundsError datasubset(A,1:6)
+            @test getobs(@inferred(obsview(A))) == @inferred(getobs(A))
+            @test_throws BoundsError obsview(A,1:6)
             
-            S = @inferred(datasubset(A, 1:2))
-            @test typeof(S) <: DataSubset
+            S = @inferred(obsview(A, 1:2))
+            @test typeof(S) <: ObsView
             @test @inferred(numobs(S)) == 2
             @test @inferred(length(S)) == numobs(S)
             @test @inferred(size(S)) == (length(S),)
             @test getobs(@inferred(A[1:2])) == getobs(S)
             @test @inferred(getobs(A,1:2)) == getobs(S)
-            @test @inferred(getobs(S)) == getobs(BatchView(datasubset(var,1:6),size=3))
+            @test @inferred(getobs(S)) == getobs(BatchView(obsview(var,1:6),size=3))
             
-            S = @inferred(DataSubset(A, 1:2))
-            @test typeof(S) <: DataSubset
+            S = @inferred(ObsView(A, 1:2))
+            @test typeof(S) <: ObsView
         end
         A = BatchView(X, size=3)
         @test typeof(A.data) <: Array
-        S = @inferred(_datasubset(A))
+        S = @inferred(datasubset(A))
         S === A
     end
 
