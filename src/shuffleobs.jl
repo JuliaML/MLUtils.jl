@@ -31,5 +31,5 @@ for more information.
 shuffleobs(data) = shuffleobs(Random.GLOBAL_RNG, data)
 
 function shuffleobs(rng::AbstractRNG, data)
-    datasubset(data, randperm(rng, numobs(data)))
+    _datasubset(data, randperm(rng, numobs(data)))
 end

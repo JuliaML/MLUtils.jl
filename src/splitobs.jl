@@ -95,5 +95,5 @@ the target distribution.
 """
 function splitobs(data; at)
     n = numobs(data)
-    map(idx -> datasubset(data, idx), splitobs(n; at))
+    map(idx -> _datasubset(data, idx), splitobs(n; at))
 end

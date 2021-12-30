@@ -20,10 +20,6 @@ This type is usually not constructed manually, but instead
 instantiated by calling [`datasubset`](@ref),
 [`shuffleobs`](@ref), or [`splitobs`](@ref)
 
-In case `data` is some `Tuple`, the constructor will be mapped
-over its elements. That means that the constructor returns a
-`Tuple` of `DataSubset` instead of a `DataSubset` of `Tuple`.
-
 Arguments
 ==========
 
@@ -72,7 +68,7 @@ The following methods can also be provided and are optional:
     If that is not the behaviour that you want for your type,
     you need to provide this method as well.
 
-- `datasubset(data::MyType, idx)` :
+- `_datasubset(data::MyType, idx)` :
     If your custom type has its own kind of subset type, you can
     return it here. An example for such a case are `SubArray` for
     representing a subset of some `AbstractArray`.
@@ -134,8 +130,8 @@ see also
 [`splitobs`](@ref), [`shuffleobs`](@ref),
 [`kfolds`](@ref), [`batchview`](@ref).
 """
-struct DataSubset{T, I<:Union{Int,AbstractVector}} <: AbstractDataContainer
-    data::T
+struct DataSubset{Tdata, I<:Union{Int,AbstractVector}} <: AbstractDataContainer
+    data::Tdata
     indices::I
 
     function DataSubset(data::T, indices::I) where {T,I}
@@ -191,7 +187,9 @@ getobs(subset::DataSubset, idx) = getobs(subset.data, subset.indices[idx])
 getobs!(buffer, subset::DataSubset) = getobs!(buffer, subset.data, subset.indices)
 getobs!(buffer, subset::DataSubset, idx) = getobs!(buffer, subset.data, subset.indices[idx])
 
+Base.parent(x::DataSubset) = x.data
 
+@doc (@doc DataSubset)
 const datasubset = DataSubset
 
 # --------------------------------------------------------------------
@@ -206,6 +204,10 @@ of the indices. It is similar to calling `DataSubset(data,
 `data` is `Array` or `SubArray`. Furthermore, this function may
 be extended for custom types of `data` that also want to provide
 their own subset-type.
+
+In case `data` is some `Tuple`, the constructor will be mapped
+over its elements. That means that the constructor returns a
+`Tuple` of `DataSubset` instead of a `DataSubset` of `Tuple`.
 
 If instead you want to get the subset of observations
 corresponding to the given `indices` in their native type, use

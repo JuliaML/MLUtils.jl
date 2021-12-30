@@ -20,8 +20,7 @@ include("splitobs.jl")
 export splitobs
 
 include("dataview.jl")
-export DataView,
-       obsview, ObsView,
+export obsview, ObsView,
        batchview, BatchView, 
        batchsize
 

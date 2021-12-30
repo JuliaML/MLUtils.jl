@@ -56,6 +56,7 @@ abstract type AbstractDataContainer end
 
 Base.getindex(x::AbstractDataContainer, i) = getobs(x, i)
 Base.length(x::AbstractDataContainer) = numobs(x)
+Base.size(x::AbstractDataContainer) = (length(x),)
 
 Base.iterate(x::AbstractDataContainer, state = 1) =
     (state > length(x)) ? nothing : (x[state], state + 1)
