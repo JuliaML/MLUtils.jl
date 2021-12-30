@@ -1,5 +1,5 @@
 """
-    DataSubset(data, [indices])
+    ObsView(data, [indices])
 
 Description
 ============
@@ -9,20 +9,24 @@ storing which observation-indices the subset spans. Furthermore,
 subsequent subsettings are accumulated without needing to access
 actual data.
 
-The main purpose for the existence of `DataSubset` is to delay
+The main purpose for the existence of `ObsView` is to delay
 data access and movement until an actual batch of data (or single
 observation) is needed for some computation. This is particularily
 useful when the data is not located in memory, but on the hard
 drive or some remote location. In such a scenario one wants to
 load the required data only when needed.
 
-This type is usually not constructed manually, but instead
-instantiated by calling [`datasubset`](@ref),
-[`shuffleobs`](@ref), or [`splitobs`](@ref)
+Any data access is delayed until `getindex` is called, 
+and even `getindex` returns the result of
+[`datasubset`](@ref) which in general avoids data movement until
+[`getobs`](@ref) is called.
+If used as an iterator, the view will iterate over the dataset
+once, effectively denoting an epoch. Each iteration will return a
+lazy subset to the current observation.
 
-In case `data` is some `Tuple`, the constructor will be mapped
-over its elements. That means that the constructor returns a
-`Tuple` of `DataSubset` instead of a `DataSubset` of `Tuple`.
+This type is usually not constructed manually, but instead
+instantiated by calling [`obsview`](@ref),
+[`shuffleobs`](@ref), or [`splitobs`](@ref)
 
 Arguments
 ==========
@@ -39,14 +43,13 @@ Methods
 ========
 
 - **`getindex`** : Returns the observation(s) of the given
-    index/indices as a new `DataSubset`. No data is copied aside
+    index/indices. No data is copied aside
     from the required indices.
 
-- **`numobs`** : Returns the total number observations in the subset
-    (**not** the whole data set underneath).
+- **`numobs`** : Returns the total number observations in the subset.
 
 - **`getobs`** : Returns the underlying data that the
-    `DataSubset` represents at the given relative indices. Note
+    `ObsView` represents at the given relative indices. Note
     that these indices are in "subset space", and in general will
     not directly correspond to the same indices in the underlying
     data set.
@@ -54,7 +57,7 @@ Methods
 Details
 ========
 
-For `DataSubset` to work on some data structure, the desired type
+For `ObsView` to work on some data structure, the desired type
 `MyType` must implement the following interface:
 
 - `getobs(data::MyType, idx)` :
@@ -85,90 +88,92 @@ The following methods can also be provided and are optional:
     return value of `getobs(::MyType, ...)`, since this is how
     `buffer` is preallocated by default.
 
-- `gettargets(data::MyType, idx)` :
-    If `MyType` has a special way to query targets without
-    needing to invoke `getobs`, then you can provide your own
-    logic here. This can be useful when the targets of your data are
-    always loaded as metadata, while the data itself remains on
-    the hard disk until actually needed.
 
 Examples
 =========
 
 ```julia
-X, y = MLUtils.load_iris()
+X, Y = MLUtils.load_iris()
 
 # The iris set has 150 observations and 4 features
 @assert size(X) == (4,150)
 
-# Represents the 80 observations as a DataSubset
-subset = DataSubset(X, 21:100)
-@assert numobs(subset) == 80
-@assert typeof(subset) <: DataSubset
-# getobs indexes into the subset
-@assert getobs(subset, 1:10) == X[:, 21:30]
+# Represents the 80 observations as a ObsView
+v = obsview(X, 21:100)
+@assert numobs(v) == 80
+@assert typeof(v) <: ObsView
+# getobs indexes into v
+@assert getobs(v, 1:10) == X[:, 21:30]
 
-# The lowercase version tries to avoid boxing into DataSubset
+# Use `datasubset` to avoid boxing into ObsView
 # for types that provide a custom "subset", such as arrays.
 # Here it instead creates a native SubArray.
-subset = datasubset(X, 1:100)
-@assert numobs(subset) == 100
-@assert typeof(subset) <: SubArray
+v = datasubset(X, 1:100)
+@assert numobs(v) == 100
+@assert typeof(v) <: SubArray
 
 # Also works for tuples of arbitrary length
-subset = datasubset((X,y), 1:100)
+subset = datasubset((X, Y), 1:100)
 @assert numobs(subset) == 100
 @assert typeof(subset) <: Tuple # tuple of SubArray
 
-# `subset` also works for tuple of data. (useful for labeled data)
-subset = datasubset((X, y), 1:100)
-@assert numobs(subset) == 100
-@assert typeof(subset) <: Tuple # Tuple of DataSubset
+# Use as iterator
+for x in obsview(X)
+    @assert typeof(x) <: SubArray{Float64,1}
+end
 
-# Split dataset into training and test split
-train, test = splitobs(shuffleobs((X,y)), at = 0.7)
-@assert typeof(train) <: Tuple # of SubArray
-@assert typeof(test)  <: Tuple # of SubArray
-@assert numobs(train) == 105
-@assert numobs(test) == 45
+# iterate over each individual labeled observation
+for (x, y) in obsview((X, Y))
+    @assert typeof(x) <: SubArray{Float64,1}
+    @assert typeof(y) <: String
+end
+
+# same but in random order
+for (x, y) in obsview(shuffleobs((X, Y)))
+    @assert typeof(x) <: SubArray{Float64,1}
+    @assert typeof(y) <: String
+end
+
+# Indexing: take first 10 observations
+x, y = obsview((X, Y))[1:10]
 ```
 
-see also
+See also
 =========
 
-[`datasubset`](@ref),  [`getobs`](@ref), [`numobs`](@ref),
+[`obsview`](@ref),  [`getobs`](@ref), [`numobs`](@ref),
 [`splitobs`](@ref), [`shuffleobs`](@ref),
-[`KFolds`](@ref), [`BatchView`](@ref), [`ObsView`](@ref),
+[`kfolds`](@ref), [`batchview`](@ref).
 """
-struct DataSubset{T, I<:Union{Int,AbstractVector}} <: AbstractDataContainer
-    data::T
+struct ObsView{Tdata, I<:Union{Int,AbstractVector}} <: AbstractDataContainer
+    data::Tdata
     indices::I
 
-    function DataSubset(data::T, indices::I) where {T,I}
+    function ObsView(data::T, indices::I) where {T,I}
         1 <= minimum(indices) || throw(BoundsError(data, indices))
         maximum(indices) <= numobs(data) || throw(BoundsError(data, indices))
         new{T,I}(data, indices)
     end
 end
 
-DataSubset(data) = DataSubset(data, 1:numobs(data))
+ObsView(data) = ObsView(data, 1:numobs(data))
 
 # # don't nest subsets
-DataSubset(subset::DataSubset) = subset
+ObsView(subset::ObsView) = subset
 
-function DataSubset(subset::DataSubset, indices::Union{Int,AbstractVector})
-    DataSubset(subset.data, _view(subset.indices, indices))
+function ObsView(subset::ObsView, indices::Union{Int,AbstractVector})
+    ObsView(subset.data, subset.indices[indices])
 end
 
-function Base.show(io::IO, subset::DataSubset)
+function Base.show(io::IO, subset::ObsView)
     if get(io, :compact, false)
-        print(io, "DataSubset{", typeof(subset.data), "} with " , numobs(subset), " observations")
+        print(io, "ObsView{", typeof(subset.data), "} with " , numobs(subset), " observations")
     else
         print(io, summary(subset), "\n ", numobs(subset), " observations")
     end
 end
 
-function Base.summary(subset::DataSubset)
+function Base.summary(subset::ObsView)
     io = IOBuffer()
     print(io, typeof(subset).name.name, "(")
     Base.showarg(io, subset.data, false)
@@ -181,46 +186,53 @@ end
 # compare if both subsets cover the same observations of the same data
 # we don't care how the indices are stored, just that they match
 # in order and values
-function Base.:(==)(s1::DataSubset, s2::DataSubset)
-    s1.data == s2.data && all(i1==i2 for (i1,i2) in zip(s1.indices,s2.indices))
+function Base.:(==)(s1::ObsView, s2::ObsView)
+    s1.data == s2.data && s1.indices == s2.indices
 end
 
+Base.IteratorEltype(::Type{<:ObsView}) = Base.EltypeUnknown()
+
 # override AbstractDataContainer defaults
-Base.getindex(subset::DataSubset, idx) =
-    DataSubset(subset.data, _view(subset.indices, idx))
+Base.getindex(subset::ObsView, idx) =
+    datasubset(subset.data, subset.indices[idx])
 
-numobs(subset::DataSubset) = length(subset.indices)
+numobs(subset::ObsView) = length(subset.indices)
 
-getobs(subset::DataSubset) = getobs(subset.data, subset.indices)
+getobs(subset::ObsView) = getobs(subset.data, subset.indices)
+getobs(subset::ObsView, idx) = getobs(subset.data, subset.indices[idx])
 
-getobs(subset::DataSubset, idx) = getobs(subset.data, _view(subset.indices, idx))
+getobs!(buffer, subset::ObsView) = getobs!(buffer, subset.data, subset.indices)
+getobs!(buffer, subset::ObsView, idx) = getobs!(buffer, subset.data, subset.indices[idx])
 
-getobs!(buffer, subset::DataSubset) = getobs!(buffer, subset.data, subset.indices)
+Base.parent(x::ObsView) = x.data
 
-getobs!(buffer, subset::DataSubset, idx) = getobs!(buffer, subset.data, _view(subset.indices, idx))
-
-
+@doc (@doc ObsView)
+const obsview = ObsView
 
 # --------------------------------------------------------------------
 
 """
     datasubset(data, [indices])
 
-Returns a lazy subset of the observations in `data` that
+Returns a lazy view of the observations in `data` that
 correspond to the given `indices`. No data will be copied except
-of the indices. It is similar to calling `DataSubset(data,
+of the indices. It is similar to calling `ObsView(data,
 [indices])`, but returns a `SubArray` if the type of
 `data` is `Array` or `SubArray`. Furthermore, this function may
 be extended for custom types of `data` that also want to provide
 their own subset-type.
 
+In case `data` is a tuple, the constructor will be mapped
+over its elements. That means that the constructor returns a
+tuple of `ObsView` instead of a `ObsView` of tuples.
+
 If instead you want to get the subset of observations
 corresponding to the given `indices` in their native type, use
 `getobs`.
 
-see `DataSubset` for more information.
+See [`obsview`](@ref) for more information.
 """
-datasubset(data, indices=1:numobs(data)) = DataSubset(data, indices)
+datasubset(data, indices=1:numobs(data)) = ObsView(data, indices)
 
 ##### Arrays / SubArrays
 
@@ -232,9 +244,6 @@ function datasubset(A::AbstractArray{T,N}, idx) where {T,N}
 end
 
 getobs(a::SubArray) = getobs(a.parent, last(a.indices))
-
-getobs!(buffer, subset::SubArray) = getobs(subset)
-getobs!(buffer::AbstractArray, subset::SubArray) = buffer .= subset
 
 ##### Tuples / NamedTuples
 function datasubset(tup::Union{Tuple, NamedTuple}, indices)

@@ -10,8 +10,9 @@ export numobs, getobs, getobs!
 include("randobs.jl")
 export randobs
 
-include("datasubset.jl")
-export datasubset, DataSubset
+include("obsview.jl")
+export obsview, ObsView,
+       datasubset
 
 include("shuffleobs.jl")
 export shuffleobs
@@ -19,10 +20,8 @@ export shuffleobs
 include("splitobs.jl")
 export splitobs
 
-include("dataview.jl")
-export DataView,
-       obsview, ObsView,
-       batchview, BatchView, 
+include("batchview.jl")
+export batchview, BatchView, 
        batchsize
 
 include("dataiterator.jl")

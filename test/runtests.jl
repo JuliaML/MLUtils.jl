@@ -31,17 +31,17 @@ struct CustomType end
 MLUtils.numobs(::CustomType) = 15
 MLUtils.getobs(::CustomType, i::Int) = i
 MLUtils.getobs(::CustomType, i::AbstractVector) = collect(i)
-# MLUtils.gettargets(::CustomType, i::Int) = "obs $i"
-# MLUtils.gettargets(::CustomType, i::AbstractVector) = "batch $i"
+
 # --------------------------------------------------------------------
 
 # @testset "MLUtils.jl" begin
 @testset "observation" begin; include("observation.jl"); end
 @testset "randobs" begin; include("randobs.jl"); end
-@testset "datasubset" begin; include("datasubset.jl"); end
+@testset "obsview" begin; include("obsview.jl"); end
 @testset "splitobs" begin; include("splitobs.jl"); end
 @testset "shuffleobs" begin; include("shuffleobs.jl"); end
-@testset "dataview" begin; include("dataview.jl"); end
+@testset "batchview" begin; include("batchview.jl"); end
 @testset "dataiterator" begin; include("dataiterator.jl"); end
 @testset "folds" begin; include("folds.jl"); end
+@testset "resample" begin; include("resample.jl"); end
 # end

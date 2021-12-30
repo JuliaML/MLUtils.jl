@@ -16,16 +16,16 @@ end
 
 
 @testset "named tuple" begin
-    X, Y = rand(2, 3), rand(3)
-    dataset = (x=X, y=Y)
+    X2, Y2 = rand(2, 3), rand(3)
+    dataset = (x=X2, y=Y2)
     @test numobs(dataset) == 3
     o = @inferred getobs(dataset, 2)
-    @test o.x == X[:,2]
-    @test o.y == Y[2]
+    @test o.x == X2[:,2]
+    @test o.y == Y2[2]
 
     o = @inferred getobs(dataset, 1:2)
-    @test o.x == X[:,1:2]
-    @test o.y == Y[1:2]
+    @test o.x == X2[:,1:2]
+    @test o.y == Y2[1:2]
 end
 
 @testset "dict" begin
@@ -132,7 +132,8 @@ end
 @testset "getobs!" begin
     @testset "Array and Subarray" begin
         Xbuf = similar(X)
-        @test_throws MethodError getobs!(Xbuf, X)
+        getobs!(Xbuf, X)
+        @test Xbuf == X
         # access outside numobs bounds
         @test_throws BoundsError getobs!(Xbuf, X, -1)
         @test_throws BoundsError getobs!(Xbuf, X, 0)

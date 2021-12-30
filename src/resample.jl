@@ -79,7 +79,7 @@ julia> getobs(oversample(data, data.Y))
    8 │ 0.457043  0.490688   b
 ```
 
-See [`DataSubset`](@ref) for more information on data subsets.
+See [`ObsView`](@ref) for more information on data subsets.
 See also [`undersample`](@ref) and [`stratifiedobs`](@ref).
 """
 function oversample(data, classes; fraction=1, shuffle::Bool=true)
@@ -176,7 +176,7 @@ julia> getobs(undersample(data, data.Y))
    4 │ 0.457043  0.490688   b
 ```
 
-See [`DataSubset`](@ref) for more information on data subsets.
+See [`ObsView`](@ref) for more information on data subsets.
 See also [`oversample`](@ref) and [`stratifiedobs`](@ref).
 """
 function undersample(data, classes; shuffle::Bool=true)
