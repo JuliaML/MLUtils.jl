@@ -31,12 +31,12 @@
             @test @inferred(getobs(subset)) == getobs(var)
             @test @inferred(ObsView(subset)) === subset
             @test @inferred(ObsView(subset, 1:15)) === subset
-            @test subset[end] == MLUtils.datasubset(var, 15)
-            @test @inferred(subset[15]) == MLUtils.datasubset(var, 15)
-            @test @inferred(subset[2:5]) == MLUtils.datasubset(var, 2:5)
+            @test subset[end] == datasubset(var, 15)
+            @test @inferred(subset[15]) == datasubset(var, 15)
+            @test @inferred(subset[2:5]) == datasubset(var, 2:5)
             for idx in (1:10, [1,10,15,3], [2])
-                @test ObsView(var)[idx] == MLUtils.datasubset(var, idx)
-                @test ObsView(var)[idx] == MLUtils.datasubset(var, collect(idx))
+                @test ObsView(var)[idx] == datasubset(var, idx)
+                @test ObsView(var)[idx] == datasubset(var, collect(idx))
                 subset = @inferred(ObsView(var, idx))
                 @test typeof(subset) <: ObsView{typeof(var), typeof(idx)}
                 @test subset.data === var
@@ -44,8 +44,8 @@
                 @test @inferred(numobs(subset)) === length(idx)
                 @test @inferred(getobs(subset)) == getobs(var, idx)
                 @test @inferred(ObsView(subset)) === subset
-                @test @inferred(subset[1]) == MLUtils.datasubset(var, idx[1])
-                @test numobs(subset[1:1]) == numobs(ObsView(var, MLUtils.datasubset(idx, 1:1)))
+                @test @inferred(subset[1]) == datasubset(var, idx[1])
+                @test numobs(subset[1:1]) == numobs(ObsView(var, datasubset(idx, 1:1)))
             end
         end
     end
@@ -69,12 +69,12 @@ end
             subset = @inferred(ObsView(var, 5:12))
             @test typeof(@inferred(getobs(subset))) <: Array{Float64,2}
             @test @inferred(numobs(subset)) == length(subset) == 8
-            @test @inferred(subset[2:5]) == MLUtils.datasubset(X, 6:9)
-            @test @inferred(subset[3:6]) != MLUtils.datasubset(X, 6:9)
+            @test @inferred(subset[2:5]) == datasubset(X, 6:9)
+            @test @inferred(subset[3:6]) != datasubset(X, 6:9)
             @test @inferred(getobs(subset, 2:5)) == X[:, 6:9]
             @test @inferred(getobs(subset, [3,1,4])) == X[:, [7,5,8]]
             @test typeof(subset[2:5]) <: SubArray
-            @test @inferred(subset[collect(2:5)]) == MLUtils.datasubset(X, collect(6:9))
+            @test @inferred(subset[collect(2:5)]) == datasubset(X, collect(6:9))
             @test typeof(subset[collect(2:5)]) <: SubArray
             @test @inferred(getobs(subset)) == getobs(subset[1:end]) == X[:, 5:12]
         end
@@ -85,11 +85,11 @@ end
             subset = @inferred(ObsView(var, 6:10))
             @test typeof(getobs(subset)) <: Array{String,1}
             @test @inferred(numobs(subset)) == length(subset) == 5
-            @test @inferred(subset[2:3]) == MLUtils.datasubset(y, 7:8)
+            @test @inferred(subset[2:3]) == datasubset(y, 7:8)
             @test @inferred(getobs(subset, 2:3)) == y[7:8]
             @test @inferred(getobs(subset, [2,1,4])) == y[[7,6,9]]
             @test typeof(subset[2:3]) <: SubArray
-            @test @inferred(subset[collect(2:3)]) == MLUtils.datasubset(y, collect(7:8))
+            @test @inferred(subset[collect(2:3)]) == datasubset(y, collect(7:8))
             @test typeof(subset[collect(2:3)]) <: SubArray
             @test @inferred(getobs(subset)) == getobs(subset[1:end]) == y[6:10]
         end
@@ -190,5 +190,109 @@ end
         @test xbuf == getobs(X,6:7)
         @test getobs!((nothing,xbuf),(s1,s2), 2:3) == (getobs(Xs,6:7),xbuf)
         @test getobs!((nothing,xbuf),(s1,s2), 2:3) == (getobs(Xs,6:7),xbuf)
+    end
+end
+
+@testset "ObsView other" begin
+    # @test ObsView <: AbstractVector
+    # @test ObsView <: DataView
+    # @test ObsView <: AbstractObsView
+    # @test ObsView <: AbstractObsIterator
+    # @test ObsView <: AbstractDataIterator
+    @test obsview === ObsView
+
+    @testset "constructor" begin
+        # @test_throws DimensionMismatch ObsView((rand(2,10),rand(9)))
+        # @test_throws DimensionMismatch ObsView((rand(2,10),rand(4,9,10),rand(9)))
+        @test_throws MethodError ObsView(EmptyType())
+        @test_throws MethodError ObsView((EmptyType(),EmptyType()))
+        @test_throws MethodError ObsView((EmptyType(),EmptyType()))
+        for var in (vars..., Xs, ys)
+            A = @inferred(ObsView(var))
+        end
+        for var in (vars..., tuples..., Xs, ys)
+            A = ObsView(var)
+            @test @inferred(parent(A)) === var
+            @test @inferred(ObsView(A)) == A
+            @test @inferred(ObsView(var)) == A
+        end
+    end
+
+    @testset "typestability" begin
+        for var in (vars..., tuples..., Xs, ys)
+            @test typeof(@inferred(ObsView(var))) <: ObsView
+            @test typeof(@inferred(ObsView(var))) <: ObsView
+        end
+        for tup in tuples
+            @test typeof(@inferred(ObsView(tup))) <: ObsView
+        end
+        @test typeof(@inferred(ObsView(CustomType()))) <: ObsView
+    end
+
+    @testset "AbstractArray interface" begin
+        for var in (vars..., tuples..., Xs, ys)
+            # for var in (vars[1], )
+            A = ObsView(var)
+            @test_throws BoundsError A[-1]
+            @test_throws BoundsError A[16]
+            @test @inferred(numobs(A)) == 15
+            @test @inferred(length(A)) == 15
+            @test @inferred(size(A)) == (15,)
+            @test @inferred(A[2:3]) == datasubset(var, 2:3)
+            @test @inferred(A[[1,3]]) == datasubset(var, [1,3])
+            @test @inferred(A[1]) == datasubset(var, 1)
+            @test @inferred(A[11]) == datasubset(var, 11)
+            @test @inferred(A[15]) == datasubset(var, 15)
+            @test A[end] == A[15]
+            @test @inferred(getobs(A,1)) == getobs(var, 1)
+            @test @inferred(getobs(A,11)) == getobs(var, 11)
+            @test @inferred(getobs(A,15)) == getobs(var, 15)
+            @test typeof(@inferred(collect(A))) <: Vector
+        end
+        for var in vars
+            A = ObsView(var)
+            @test getobs(A) == var
+            @test getobs.(A) == [getobs(var,i) for i in 1:numobs(var)]
+        end
+        for var in tuples
+            A = ObsView(var)
+            @test getobs(A) == var
+            @test getobs.(A) == [map(x->getobs(x,i), var) for i in 1:numobs(var)]
+        end
+    end
+
+    @testset "subsetting" begin
+        for var_raw in (vars..., tuples..., Xs, ys)
+            for var in (var_raw, ObsView(var_raw))
+                A = ObsView(var)
+                @test getobs(@inferred(obsview(A))) == @inferred(getobs(A))
+    
+                S = @inferred(obsview(A, 1:5))
+                @test typeof(S) <: ObsView
+                @test @inferred(length(S)) == 5
+                @test @inferred(size(S)) == (5,)
+                @test @inferred(A[1:5]) == S[:]
+                @test @inferred(getobs(A,1:5)) == getobs(S)
+                @test @inferred(getobs(S)) == getobs(ObsView(obsview(var,1:5)))
+    
+                S = @inferred(ObsView(A, 1:5))
+                @test typeof(S) <: ObsView
+            end
+        end
+        A = ObsView(X)
+        @test typeof(A.data) <: Array
+        S = @inferred(obsview(A))
+        @test typeof(S) <: ObsView
+        @test @inferred(length(S)) == 15
+        @test typeof(S.data) <: Array
+    end
+
+    @testset "iteration" begin
+        count = 0
+        for (i,x) in enumerate(ObsView(X1))
+            @test all(i .== x)
+            count += 1
+        end
+        @test count == 15
     end
 end
