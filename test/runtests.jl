@@ -42,6 +42,7 @@ MLUtils.getobs(::CustomType, i::AbstractVector) = collect(i)
 @testset "folds" begin; include("folds.jl"); end
 @testset "observation" begin; include("observation.jl"); end
 @testset "obsview" begin; include("obsview.jl"); end
+@testset "obstransform" begin; include("obstransform.jl"); end
 @testset "randobs" begin; include("randobs.jl"); end
 @testset "resample" begin; include("resample.jl"); end
 @testset "shuffleobs" begin; include("shuffleobs.jl"); end

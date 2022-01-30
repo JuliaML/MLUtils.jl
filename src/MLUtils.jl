@@ -2,6 +2,7 @@ module MLUtils
 
 using Random
 using Statistics
+using ShowCases: ShowLimit
 import StatsBase: sample
 
 include("observation.jl")
@@ -9,6 +10,12 @@ export numobs,
        getobs, 
        getobs!
 
+include("obstransform.jl")
+export mapobs, 
+       filterobs, 
+       groupobs,
+       joinobs
+       
 include("batchview.jl")
 export batchsize,
        batchview, BatchView
