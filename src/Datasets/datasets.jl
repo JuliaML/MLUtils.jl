@@ -1,4 +1,4 @@
-DATAPATH = joinpath(@__DIR__, "..", "data")
+DATAPATH = joinpath(@__DIR__, "data")
 
 """
     load_iris() -> X, y, names

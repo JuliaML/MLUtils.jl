@@ -1,4 +1,5 @@
 using MLUtils
+using MLUtils.Datasets
 using SparseArrays
 using Random, Statistics
 using Test
@@ -45,6 +46,7 @@ MLUtils.getobs(::CustomType, i::AbstractVector) = collect(i)
 @testset "dataiterator" begin; include("dataiterator.jl"); end
 @testset "folds" begin; include("folds.jl"); end
 @testset "resample" begin; include("resample.jl"); end
-@testset "datasets" begin; include("datasets.jl"); end
+@testset "Datasets/datasets" begin; include("Datasets/datasets.jl"); end
+@testset "Datasets/generators" begin; include("Datasets/generators.jl"); end
 
 # end
