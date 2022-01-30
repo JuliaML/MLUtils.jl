@@ -35,6 +35,7 @@ MLUtils.getobs(::CustomType, i::AbstractVector) = collect(i)
 # --------------------------------------------------------------------
 
 # @testset "MLUtils.jl" begin
+
 @testset "observation" begin; include("observation.jl"); end
 @testset "randobs" begin; include("randobs.jl"); end
 @testset "obsview" begin; include("obsview.jl"); end
@@ -44,4 +45,6 @@ MLUtils.getobs(::CustomType, i::AbstractVector) = collect(i)
 @testset "dataiterator" begin; include("dataiterator.jl"); end
 @testset "folds" begin; include("folds.jl"); end
 @testset "resample" begin; include("resample.jl"); end
+@testset "datasets" begin; include("datasets.jl"); end
+
 # end
