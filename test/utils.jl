@@ -4,6 +4,8 @@
   @test @inferred(unsqueeze(x, 2)) == reshape(x, 2, 1, 3, 2)
   @test @inferred(unsqueeze(x, 3)) == reshape(x, 2, 3, 1, 2)
   @test @inferred(unsqueeze(x, 4)) == reshape(x, 2, 3, 2, 1)
+
+  @test unsqueeze(2)(x) == unsqueeze(x, 2)
 end
 
 @testset "stack and unstack" begin
@@ -34,4 +36,44 @@ end
   # generic iterable
   @test batch(ones(2) for i=1:3) == ones(2, 3)
   @test unbatch(ones(2, 3)) == [ones(2) for i=1:3]
+end
+
+@testset "flatten" begin
+    x = randn(Float32, 10, 10, 3, 2)
+    @test size(flatten(x)) == (300, 2)
+end
+
+@testset "normalise" begin
+    x = randn(Float32, 3, 2, 2)
+    @test normalise(x) == normalise(x; dims=3)
+end
+
+@testset "chunk" begin
+    cs = chunk(collect(1:10), 3)
+    @test length(cs) == 3
+    @test cs[1] == [1, 2, 3, 4]
+    @test cs[2] == [5, 6, 7, 8]
+    @test cs[3] == [9, 10]
+end
+
+@testset "frequencies" begin
+    d = frequencies(['a','b','b'])
+    @test d == Dict('a' => 1, 'b' => 2)
+end
+
+@testset "rpad" begin
+    @test rpad([1, 2], 4, 0) == [1, 2, 0, 0]
+    @test rpad([1, 2, 3], 2, 0) == [1,2,3]
+end
+
+@testset "batchseq" begin
+    bs = batchseq([[1, 2, 3], [4, 5]], 0)
+    @test bs[1] == [1, 4]
+    @test bs[2] == [2, 5]
+    @test bs[3] == [3, 0]
+
+    bs = batchseq([[1, 2, 3], [4, 5]], -1)
+    @test bs[1] == [1, 4]
+    @test bs[2] == [2, 5]
+    @test bs[3] == [3, -1]
 end

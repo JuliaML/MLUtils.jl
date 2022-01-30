@@ -1,6 +1,7 @@
 module MLUtils
 
 using Random
+using Statistics
 import StatsBase: sample
 
 include("observation.jl")
@@ -40,11 +41,16 @@ export splitobs
 
 include("utils.jl")
 export batch,
+       batchseq,
+       chunk,
+       flatten,
        frequencies,
+       normalise,
        stack,
        unbatch,
        unsqueeze,
        unstack
+       # rpad
 
 include("Datasets/Datasets.jl")
 export Datasets

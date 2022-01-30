@@ -122,8 +122,6 @@ julia> chunk(collect(1:10), 3)
 """
 chunk(xs, n) = collect(Iterators.partition(xs, ceil(Int, length(xs)/n)))
 
-batchindex(xs, i) = (reverse(Base.tail(reverse(axes(xs))))..., i)
-
 """
     frequencies(xs)
 
@@ -139,16 +137,12 @@ Dict{Char, Int64} with 2 entries:
 ```
 """
 function frequencies(xs)
-  fs = Dict{eltype(xs),Int}()
-  for x in xs
-    fs[x] = get(fs, x, 0) + 1
-  end
-  return fs
+    fs = Dict{eltype(xs),Int}()
+    for x in xs
+        fs[x] = get(fs, x, 0) + 1
+    end
+    return fs
 end
-
-head(x::Tuple) = reverse(Base.tail(reverse(x)))
-
-squeezebatch(x) = reshape(x, head(size(x)))
 
 """
     batch(xs)
@@ -174,8 +168,11 @@ function batch(xs)
     return data
 end
 
+batchindex(xs, i) = (reverse(Base.tail(reverse(axes(xs))))..., i)
+
+
 """
-  unbatch(x)
+    unbatch(x)
 
 Reverse of the [`batch`](@ref) operation,
 unstacking the last dimension of the array `x`.
@@ -241,3 +238,38 @@ function batchseq(xs, pad = nothing, n = maximum(length(x) for x in xs))
     xs_ = [rpad(x, n, pad) for x in xs]
     [batch([xs_[j][i] for j = 1:length(xs_)]) for i = 1:n]
 end
+
+"""
+    flatten(x::AbstractArray)
+
+Reshape arbitrarly-shaped input into a matrix-shaped output,
+preserving the size of the last dimension.
+See also [`unsqueeze`](@ref).
+
+# Examples
+
+```jldoctest
+julia> rand(3,4,5) |> flatten |> size
+(12, 5)
+```
+"""
+function flatten(x::AbstractArray)
+    return reshape(x, :, size(x)[end])
+end
+
+"""
+    normalise(x; dims=ndims(x), ϵ=1e-5)
+
+Normalise `x` to mean 0 and standard deviation 1 across the dimension(s) given by `dims`.
+Per default, `dims` is the last dimension. 
+`ϵ` is a small additive factor added to the denominator for numerical stability.
+"""
+function normalise(x::AbstractArray; dims=ndims(x), ϵ=ofeltype(x, 1e-5))
+    μ = mean(x, dims=dims)
+    #   σ = std(x, dims=dims, mean=μ, corrected=false) # use this when Zygote#478 gets merged
+    σ = std(x, dims=dims, corrected=false)
+    return (x .- μ) ./ (σ .+ ϵ)
+end
+
+ofeltype(x, y) = convert(float(eltype(x)), y)
+epseltype(x) = eps(float(eltype(x)))

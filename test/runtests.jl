@@ -46,6 +46,7 @@ MLUtils.getobs(::CustomType, i::AbstractVector) = collect(i)
 @testset "resample" begin; include("resample.jl"); end
 @testset "shuffleobs" begin; include("shuffleobs.jl"); end
 @testset "splitobs" begin; include("splitobs.jl"); end
+@testset "utils" begin; include("utils.jl"); end
 
 @testset "Datasets/datasets" begin; include("Datasets/datasets.jl"); end
 @testset "Datasets/generators" begin; include("Datasets/generators.jl"); end
