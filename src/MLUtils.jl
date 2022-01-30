@@ -1,29 +1,17 @@
 module MLUtils
 
 using Random
+using Statistics
 import StatsBase: sample
 
-include("utils.jl")
-
 include("observation.jl")
-export numobs, getobs, getobs!
-
-include("randobs.jl")
-export randobs
-
-include("obsview.jl")
-export obsview, ObsView,
-       datasubset
-
-include("shuffleobs.jl")
-export shuffleobs
-
-include("splitobs.jl")
-export splitobs
+export numobs, 
+       getobs, 
+       getobs!
 
 include("batchview.jl")
-export batchview, BatchView, 
-       batchsize
+export batchsize,
+       batchview, BatchView
 
 include("dataiterator.jl")
 export eachobs, 
@@ -33,11 +21,38 @@ include("folds.jl")
 export kfolds,
        leavepout
 
+include("obsview.jl")
+export datasubset,
+       obsview, ObsView
+
+include("randobs.jl")
+export randobs
+
 include("resample.jl")
 export labelmap, 
-        oversample,
-        undersample
+       oversample,
+       undersample
+
+include("shuffleobs.jl")
+export shuffleobs
+
+include("splitobs.jl")
+export splitobs
+
+include("utils.jl")
+export batch,
+       batchseq,
+       chunk,
+       flatten,
+       frequencies,
+       normalise,
+       stack,
+       unbatch,
+       unsqueeze,
+       unstack
+       # rpad
 
 include("Datasets/Datasets.jl")
+export Datasets
 
 end

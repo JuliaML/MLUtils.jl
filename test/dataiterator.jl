@@ -7,7 +7,7 @@
         @test x == X[:,i]
     end
 
-    b = zeros(size(x, 1))
+    b = zeros(size(X, 1))
     for (i,x) in enumerate(eachobs(X, buffer=b))
         @test x == X[:,i]
     end
