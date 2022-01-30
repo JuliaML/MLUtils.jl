@@ -1,5 +1,4 @@
 # Adapted from Knet's src/data.jl (author: Deniz Yuret)
-using Random: AbstractRNG, shuffle!, GLOBAL_RNG
 
 struct DataLoader{D,R<:AbstractRNG}
     data::D
@@ -13,7 +12,7 @@ struct DataLoader{D,R<:AbstractRNG}
 end
 
 """
-    Flux.DataLoader(data; batchsize=1, shuffle=false, partial=true, rng=GLOBAL_RNG)
+    DataLoader(data; batchsize=1, shuffle=false, partial=true, rng=GLOBAL_RNG)
 
 An object that iterates over mini-batches of `data`, 
 each mini-batch containing `batchsize` observations
@@ -34,7 +33,7 @@ The original data is preserved in the `data` field of the DataLoader.
 ```jldoctest
 julia> Xtrain = rand(10, 100);
 
-julia> array_loader = Flux.DataLoader(Xtrain, batchsize=2);
+julia> array_loader = DataLoader(Xtrain, batchsize=2);
 
 julia> for x in array_loader
          @assert size(x) == (10, 2)
@@ -44,7 +43,7 @@ julia> for x in array_loader
 julia> array_loader.data === Xtrain
 true
 
-julia> tuple_loader = Flux.DataLoader((Xtrain,), batchsize=2);  # similar, but yielding 1-element tuples
+julia> tuple_loader = DataLoader((Xtrain,), batchsize=2);  # similar, but yielding 1-element tuples
 
 julia> for x in tuple_loader
          @assert x isa Tuple{Matrix}
@@ -53,7 +52,7 @@ julia> for x in tuple_loader
 
 julia> Ytrain = rand('a':'z', 100);  # now make a DataLoader yielding 2-element named tuples
 
-julia> train_loader = Flux.DataLoader((data=Xtrain, label=Ytrain), batchsize=5, shuffle=true);
+julia> train_loader = DataLoader((data=Xtrain, label=Ytrain), batchsize=5, shuffle=true);
 
 julia> for epoch in 1:100
          for (x, y) in train_loader  # access via tuple destructuring
@@ -69,7 +68,7 @@ true
 julia> first(train_loader).label == Ytrain[1:5]  # because of shuffle=true
 false
 
-julia> foreach(println∘summary, Flux.DataLoader(rand(Int8, 10, 64), batchsize=30))  # partial=false would omit last
+julia> foreach(println∘summary, DataLoader(rand(Int8, 10, 64), batchsize=30))  # partial=false would omit last
 10×30 Matrix{Int8}
 10×30 Matrix{Int8}
 10×4 Matrix{Int8}
@@ -78,7 +77,7 @@ julia> foreach(println∘summary, Flux.DataLoader(rand(Int8, 10, 64), batchsize=
 function DataLoader(data; batchsize=1, shuffle=false, partial=true, rng=GLOBAL_RNG)
     batchsize > 0 || throw(ArgumentError("Need positive batchsize"))
 
-    n = _nobs(data)
+    n = numobs(data)
     if n < batchsize
         @warn "Number of observations less than batchsize, decreasing the batchsize to $n"
         batchsize = n
@@ -95,7 +94,7 @@ end
     end
     nexti = min(i + d.batchsize, d.nobs)
     ids = d.indices[i+1:nexti]
-    batch = _getobs(d.data, ids)
+    batch = getobs(d.data, ids)
     return (batch, nexti)
 end
 
@@ -103,21 +102,5 @@ function Base.length(d::DataLoader)
     n = d.nobs / d.batchsize
     d.partial ? ceil(Int,n) : floor(Int,n)
 end
-
-_nobs(data::AbstractArray) = size(data)[end]
-
-function _nobs(data::Union{Tuple, NamedTuple})
-    length(data) > 0 || throw(ArgumentError("Need at least one data input"))
-    n = _nobs(data[1])
-    for i in keys(data)
-        ni = _nobs(data[i])
-        n == ni || throw(DimensionMismatch("All data inputs should have the same number of observations, i.e. size in the last dimension. " * 
-            "But data[$(repr(first(keys(data))))] ($(summary(data[1]))) has $n, while data[$(repr(i))] ($(summary(data[i]))) has $ni."))
-    end
-    return n
-end
-
-_getobs(data::AbstractArray, i) = data[ntuple(i -> Colon(), Val(ndims(data) - 1))..., i]
-_getobs(data::Union{Tuple, NamedTuple}, i) = map(Base.Fix2(_getobs, i), data)
 
 Base.eltype(::DataLoader{D}) where D = D
