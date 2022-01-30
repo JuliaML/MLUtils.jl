@@ -1,7 +1,6 @@
 module MLUtils
 
 using Random
-using DelimitedFiles: readdlm
 import StatsBase: sample
 
 include("utils.jl")
@@ -39,11 +38,6 @@ export labelmap,
         oversample,
         undersample
 
-include("datasets.jl")
-export load_iris,
-       load_line,
-       load_sin,
-       load_spiral,
-       load_poly
+include("Datasets/Datasets.jl")
 
 end
