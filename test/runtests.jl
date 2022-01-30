@@ -39,6 +39,7 @@ MLUtils.getobs(::CustomType, i::AbstractVector) = collect(i)
 
 @testset "batchview" begin; include("batchview.jl"); end
 @testset "dataiterator" begin; include("dataiterator.jl"); end
+@testset "dataloader" begin; include("dataloader.jl"); end
 @testset "folds" begin; include("folds.jl"); end
 @testset "observation" begin; include("observation.jl"); end
 @testset "obsview" begin; include("obsview.jl"); end
