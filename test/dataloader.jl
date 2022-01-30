@@ -83,4 +83,17 @@
     d = DataLoader(CustomType(), batchsize=2)
     @test first(d) == [1, 2]
     @test length(collect(d)) == 8
+
+    @testset "Dict" begin
+        data = Dict("x" => rand(2,4), "y" => rand(4))
+        dloader = DataLoader(data, batchsize=2)
+        @test eltype(dloader) == Dict{String, Array{Float64}}
+        c = collect(dloader)
+        @test c[1] == Dict("x" => data["x"][:,1:2], "y" => data["y"][1:2])
+        @test c[2] == Dict("x" => data["x"][:,3:4], "y" => data["y"][3:4])
+
+        data = Dict("x" => rand(2,4), "y" => rand(2,4))
+        dloader = DataLoader(data, batchsize=2)
+        @test eltype(dloader) == Dict{String, Matrix{Float64}}
+    end
 end
