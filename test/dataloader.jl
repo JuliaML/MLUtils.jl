@@ -78,4 +78,9 @@
     end
     # specify the rng
     d = map(identity, DataLoader(X, batchsize=2; shuffle=true, rng=Random.seed!(Random.default_rng(), 5)))
+
+    # numobs/getobs compatibility
+    d = DataLoader(CustomType(), batchsize=2)
+    @test first(d) == [1, 2]
+    @test length(collect(d)) == 8
 end

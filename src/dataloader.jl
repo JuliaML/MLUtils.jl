@@ -103,4 +103,10 @@ function Base.length(d::DataLoader)
     d.partial ? ceil(Int,n) : floor(Int,n)
 end
 
-Base.eltype(::DataLoader{D}) where D = D
+
+Base.eltype(::Type{<:DataLoader{D}}) where D = batchtype(D) 
+
+batchtype(D::Type) = Any
+batchtype(D::Type{<:AbstractArray}) = D
+batchtype(D::Type{<:Tuple})= Tuple{batchtype.(D.parameters)...}
+batchtype(D::Type{<:NamedTuple{K,V}}) where {K,V} = NamedTuple{K,batchtype(V)}
