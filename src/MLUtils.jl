@@ -4,6 +4,8 @@ using Random
 using Statistics
 using ShowCases: ShowLimit
 import StatsBase: sample
+using Base: @propagate_inbounds
+using Random: AbstractRNG, shuffle!, GLOBAL_RNG
 
 include("observation.jl")
 export numobs, 
@@ -23,6 +25,9 @@ export batchsize,
 include("dataiterator.jl")
 export eachobs, 
        eachbatch
+
+include("dataloader.jl")
+export DataLoader
 
 include("folds.jl")
 export kfolds,
