@@ -67,4 +67,6 @@ export batch,
 include("Datasets/Datasets.jl")
 export Datasets
 
+include("deprecations.jl")
+
 end
