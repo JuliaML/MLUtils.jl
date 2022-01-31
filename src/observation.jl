@@ -13,13 +13,15 @@ function numobs end
 Return the observations corresponding to the observation-index `idx`.
 Note that `idx` can be any type as long as `data` has defined
 `getobs` for that type.
+
 The returned observation(s) should be in the form intended to
 be passed as-is to some learning algorithm. There is no strict
 interface requirement on how this "actual data" must look like.
+
 Every author behind some custom data container can make this
 decision themselves.
-The output should be consistent when `idx` is a scalar vs vector.
 
+The output should be consistent when `idx` is a scalar vs vector.
 
 See also [`getobs!`](@ref) and [`numobs`](@ref) 
 """
@@ -35,9 +37,10 @@ getobs(data) = data
 Inplace version of `getobs(data, idx)`. If this method
 is defined for the type of `data`, then `buffer` should be used
 to store the result, instead of allocating a dedicated object.
+
 Implementing this function is optional. In the case no such
 method is provided for the type of `data`, then `buffer` will be
-*ignored* and the result of `getobs` returned. This could be
+*ignored* and the result of [`getobs`](@ref) returned. This could be
 because the type of `data` may not lend itself to the concept
 of `copy!`. Thus, supporting a custom `getobs!` is optional
 and not required.

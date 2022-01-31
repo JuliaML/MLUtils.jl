@@ -1,41 +1,69 @@
 @testset "unsqueeze" begin
-  x = randn(2, 3, 2)
-  @test @inferred(unsqueeze(x, 1)) == reshape(x, 1, 2, 3, 2)
-  @test @inferred(unsqueeze(x, 2)) == reshape(x, 2, 1, 3, 2)
-  @test @inferred(unsqueeze(x, 3)) == reshape(x, 2, 3, 1, 2)
-  @test @inferred(unsqueeze(x, 4)) == reshape(x, 2, 3, 2, 1)
+    x = randn(2, 3, 2)
+    @test @inferred(unsqueeze(x, 1)) == reshape(x, 1, 2, 3, 2)
+    @test @inferred(unsqueeze(x, 2)) == reshape(x, 2, 1, 3, 2)
+    @test @inferred(unsqueeze(x, 3)) == reshape(x, 2, 3, 1, 2)
+    @test @inferred(unsqueeze(x, 4)) == reshape(x, 2, 3, 2, 1)
 
-  @test unsqueeze(2)(x) == unsqueeze(x, 2)
+    @test unsqueeze(2)(x) == unsqueeze(x, 2)
 end
 
 @testset "stack and unstack" begin
-  x = randn(3,3)
-  stacked = stack([x, x], 2)
-  @test size(stacked) == (3,2,3)
+    x = randn(3,3)
+    stacked = stack([x, x], 2)
+    @test size(stacked) == (3,2,3)
 
-  stacked_array=[ 8 9 3 5; 9 6 6 9; 9 1 7 2; 7 4 10 6 ]
-  unstacked_array=[[8, 9, 9, 7], [9, 6, 1, 4], [3, 6, 7, 10], [5, 9, 2, 6]]
-  @test unstack(stacked_array, 2) == unstacked_array
-  @test stack(unstacked_array, 2) == stacked_array
-  @test stack(unstack(stacked_array, 1), 1) == stacked_array
+    stacked_array=[ 8 9 3 5; 9 6 6 9; 9 1 7 2; 7 4 10 6 ]
+    unstacked_array=[[8, 9, 9, 7], [9, 6, 1, 4], [3, 6, 7, 10], [5, 9, 2, 6]]
+    @test unstack(stacked_array, 2) == unstacked_array
+    @test stack(unstacked_array, 2) == stacked_array
+    @test stack(unstack(stacked_array, 1), 1) == stacked_array
 end
 
 @testset "batch and unbatch" begin
-  stacked_array=[ 8 9 3 5
-                  9 6 6 9
-                  9 1 7 2
-                  7 4 10 6 ]
-  unstacked_array=[[8, 9, 9, 7], [9, 6, 1, 4], [3, 6, 7, 10], [5, 9, 2, 6]]
-  @test unbatch(stacked_array) == unstacked_array
-  @test batch(unstacked_array) == stacked_array
+    stacked_array=[ 8 9 3 5
+                    9 6 6 9
+                    9 1 7 2
+                    7 4 10 6 ]
+    unstacked_array=[[8, 9, 9, 7], [9, 6, 1, 4], [3, 6, 7, 10], [5, 9, 2, 6]]
+    @test unbatch(stacked_array) == unstacked_array
+    @test batch(unstacked_array) == stacked_array
 
-  # no-op for vector of non-arrays
-  @test batch([1,2,3]) == [1,2,3]
-  @test unbatch([1,2,3]) == [1,2,3]
+    # no-op for vector of non-arrays
+    @test batch([1,2,3]) == [1,2,3]
+    @test unbatch([1,2,3]) == [1,2,3]
 
-  # generic iterable
-  @test batch(ones(2) for i=1:3) == ones(2, 3)
-  @test unbatch(ones(2, 3)) == [ones(2) for i=1:3]
+    # generic iterable
+    @test batch(ones(2) for i=1:3) == ones(2, 3)
+    @test unbatch(ones(2, 3)) == [ones(2) for i=1:3]
+
+    @testset "tuple" begin
+        @test batch([(1,2), (3,4)]) == ([1,3], [2,4])
+        @test batch([([1,2], [3,4]), ([5,6],[7,8])]) == ([1 5
+                                                          2 6], 
+                                                         [3 7
+                                                          4 8])      
+    end
+
+    @testset "named tuple" begin
+        @test batch([(a=1,b=2), (a=3,b=4)]) == (a=[1,3], b=[2,4])
+        @test batch([(a=1,b=2), (b=4,a=3)]) == (a=[1,3], b=[2,4])
+        nt = [(a=[1,2], b=[3,4]), (a=[5,6],b=[7,8])]
+        @test batch(nt) == (a = [1 5
+                                2 6], 
+                            b = [3 7
+                                4 8])      
+    end
+
+    @testset "dict" begin
+        @test batch([Dict(:a=>1,:b=>2), Dict(:a=>3,:b=>4)]) == Dict(:a=>[1,3], :b=>[2,4])
+        @test batch([Dict(:a=>1,:b=>2), Dict(:b=>4,:a=>3)]) == Dict(:a=>[1,3], :b=>[2,4])
+        d = [Dict(:a=>[1,2], :b=>[3,4]), Dict(:a=>[5,6],:b=>[7,8])]
+        @test batch(d) == Dict(:a => [1 5
+                                      2 6], 
+                                :b => [3 7
+                                      4 8])    
+    end
 end
 
 @testset "flatten" begin

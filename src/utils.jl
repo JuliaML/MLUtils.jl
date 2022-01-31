@@ -147,18 +147,32 @@ end
 """
     batch(xs)
 
-Batch the arrays in `xs` into a single array.
-See also [`unbatch`](@ref)
+Batch the arrays in `xs` into a single array with 
+an extra dimension.
+
+If the elements of `xs` are tuples, named tuples, or dicts, 
+the output will be of the same type. 
+
+See also [`unbatch`](@ref).
+
 # Examples
+
 ```jldoctest
-julia> batch([[1,2,3],[4,5,6]])
+julia> batch([[1,2,3], 
+              [4,5,6]])
 3×2 Matrix{Int64}:
  1  4
  2  5
  3  6
+
+julia> batch([(a=[1,2], b=[3,4])
+               (a=[5,6], b=[7,8])]) 
+(a = [1 5; 2 6], b = [3 7; 4 8])
 ```
 """
 function batch(xs)
+# Fallback for generric iterables
+    @assert length(xs) > 0 "Input should be non-empty" 
     data = first(xs) isa AbstractArray ?
         similar(first(xs), size(first(xs))..., length(xs)) :
         Vector{eltype(xs)}(undef, length(xs))
@@ -170,6 +184,32 @@ end
 
 batchindex(xs, i) = (reverse(Base.tail(reverse(axes(xs))))..., i)
 
+function batch(xs::AbstractVector{<:AbstractArray{T,N}}) where {T, N}
+    return stack(xs, N+1)
+end
+
+function batch(xs::Vector{<:Tuple})
+    @assert length(xs) > 0 "Input should be non-empty"
+    n = length(first(xs))
+    @assert all(length.(xs) .== n) "Cannot batch tuples with different lengths"
+    return ntuple(i -> batch([x[i] for x in xs]), n)
+end
+
+function batch(xs::Vector{<:NamedTuple})
+    @assert length(xs) > 0 "Input should be non-empty"
+    all_keys = [sort(collect(keys(x))) for x in xs]
+    ks = all_keys[1]
+    @assert all(==(ks), all_keys) "Cannot batch named tuples with different keys"
+    NamedTuple(k => batch([x[k] for x in xs]) for k in ks)
+end
+
+function batch(xs::Vector{<:Dict})
+    @assert length(xs) > 0 "Input should be non-empty"
+    all_keys = [sort(collect(keys(x))) for x in xs]
+    ks = all_keys[1]
+    @assert all(==(ks), all_keys) "cannot batch dicts with different keys"
+    Dict(k => batch([x[k] for x in xs]) for k in ks)
+end
 
 """
     unbatch(x)
