@@ -1,16 +1,16 @@
 # Some general utility functions. Many of them were part of Flux.jl
 
 """
-    unsqueeze(xs, dim)
+    unsqueeze(x; dims)
 
-Return `xs` reshaped into an array one dimensionality higher than `xs`,
-where `dim` indicates in which dimension `xs` is extended.
+Return `x` reshaped into an array one dimensionality higher than `x`,
+where `dims` indicates in which dimension `x` is extended.
 See also [`flatten`](@ref), [`stack`](@ref).
 
 # Examples
 
 ```jldoctest
-julia> unsqueeze([1 2; 3 4], 2)
+julia> unsqueeze([1 2; 3 4], dims=2)
 2×1×2 Array{Int64, 3}:
 [:, :, 1] =
  1
@@ -25,37 +25,38 @@ julia> xs = [[1, 2], [3, 4], [5, 6]]
  [3, 4]
  [5, 6]
 
-julia> unsqueeze(xs, 1)
+julia> unsqueeze(xs, dims=1)
 1×3 Matrix{Vector{Int64}}:
  [1, 2]  [3, 4]  [5, 6]
 ```
 """
-function unsqueeze(xs::AbstractArray, dim::Integer)
-    sz = ntuple(i -> i < dim ? size(xs, i) : i == dim ? 1 : size(xs, i - 1), ndims(xs) + 1)
-    return reshape(xs, sz)
+function unsqueeze(x::AbstractArray; dims::Int)
+    sz = ntuple(i -> i < dims ? size(x, i) : i == dims ? 1 : size(x, i - 1), ndims(x) + 1)
+    return reshape(x, sz)
 end
 
 """
-    unsqueeze(dim)
+    unsqueeze(; dims)
 
-Returns a function which, acting on an array, inserts a dimension of size 1 at `dim`.
+Returns a function which, acting on an array, inserts a dimension of size 1 at `dims`.
 
 # Examples
 
 ```jldoctest
-julia> rand(21, 22, 23) |> unsqueeze(2) |> size
+julia> rand(21, 22, 23) |> unsqueeze(dims=2) |> size
 (21, 1, 22, 23)
 ```
 """
-unsqueeze(dim::Integer) = Base.Fix2(unsqueeze, dim)
+unsqueeze(; dims::Int) = Base.Fix2(_unsqueeze, dims)
+_unsqueeze(x, dims) = unsqueeze(x; dims)
 
-Base.show_function(io::IO, u::Base.Fix2{typeof(unsqueeze)}, ::Bool) = print(io, "unsqueeze(", u.x, ")")
+Base.show_function(io::IO, u::Base.Fix2{typeof(_unsqueeze)}, ::Bool) = print(io, "unsqueeze(dims=", u.x, ")")
 
 """
-    stack(xs, dim)
+    stack(xs; dims)
 
-Concatenate the given `Array` of `Array`s `xs` into a single `Array` along the
-given dimension `dim`.
+Concatenate the given array of arrays `xs` into a single array along the
+given dimension `dims`.
 
 # Examples
 
@@ -66,30 +67,43 @@ julia> xs = [[1, 2], [3, 4], [5, 6]]
  [3, 4]
  [5, 6]
 
-julia> stack(xs, 1)
+julia> stack(xs, dims=1)
 3×2 Matrix{Int64}:
  1  2
  3  4
  5  6
 
-julia> cat(xs, dims=1)
-3-element Vector{Vector{Int64}}:
- [1, 2]
- [3, 4]
- [5, 6]
+julia> stack(xs, dims=2)
+2×3 Matrix{Int64}:
+ 1  3  5
+ 2  4  6
+
+julia> stack(xs, dims=3)
+2×1×3 Array{Int64, 3}:
+[:, :, 1] =
+ 1
+ 2
+
+[:, :, 2] =
+ 3
+ 4
+
+[:, :, 3] =
+ 5
+ 6
 ```
 """
-stack(xs, dim) = cat(unsqueeze.(xs, dim)..., dims=dim)
+stack(xs; dims::Int) = cat(unsqueeze.(xs; dims)...; dims)
 
 """
-    unstack(xs, dim)
+    unstack(xs; dims)
 
-Unroll the given `xs` into an `Array` of `Array`s along the given dimension `dim`.
+Unroll the given `xs` into an array of arrays along the given dimension `dims`.
 
 # Examples
 
 ```jldoctest
-julia> unstack([1 3 5 7; 2 4 6 8], 2)
+julia> unstack([1 3 5 7; 2 4 6 8], dims=2)
 4-element Vector{Vector{Int64}}:
  [1, 2]
  [3, 4]
@@ -97,7 +111,7 @@ julia> unstack([1 3 5 7; 2 4 6 8], 2)
  [7, 8]
 ```
 """
-unstack(xs, dim) = [copy(selectdim(xs, dim, i)) for i in 1:size(xs, dim)]
+unstack(xs; dims::Int) = [copy(selectdim(xs, dims, i)) for i in 1:size(xs, dims)]
 
 """
     chunk(xs, n)
@@ -185,7 +199,7 @@ end
 batchindex(xs, i) = (reverse(Base.tail(reverse(axes(xs))))..., i)
 
 function batch(xs::AbstractVector{<:AbstractArray{T,N}}) where {T, N}
-    return stack(xs, N+1)
+    return stack(xs, dims=N+1)
 end
 
 function batch(xs::Vector{<:Tuple})
@@ -229,7 +243,7 @@ julia> unbatch([1 3 5 7;
  [5, 6]
  [7, 8]
 """
-unbatch(x::AbstractArray) = unstack(x, ndims(x))
+unbatch(x::AbstractArray) = unstack(x, dims=ndims(x))
 unbatch(x::AbstractVector) = x
 
 """
