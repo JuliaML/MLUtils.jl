@@ -28,3 +28,10 @@ end
     # test_plot = scatterplot(xtmp[1, 1:97], xtmp[2, 1:97], title="Spiral Function", color=:blue, name="pos")
     # print(scatterplot!(test_plot, xtmp[1, 98:194], xtmp[2, 98:194], color=:yellow, name="neg" ))
 end
+
+@testset "make_regression" begin
+    n = 50
+    xtmp, ytmp = make_regression(n; noise = 0.)
+
+    @test length(xtmp) == length(ytmp) == n
+end
