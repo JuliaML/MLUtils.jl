@@ -5,6 +5,7 @@
 
 Return `x` reshaped into an array one dimensionality higher than `x`,
 where `dims` indicates in which dimension `x` is extended.
+
 See also [`flatten`](@ref), [`stack`](@ref).
 
 # Examples
@@ -58,6 +59,8 @@ Base.show_function(io::IO, u::Base.Fix2{typeof(_unsqueeze)}, ::Bool) = print(io,
 Concatenate the given array of arrays `xs` into a single array along the
 given dimension `dims`.
 
+See also [`stack`](@ref) and [`batch`](@ref).
+
 # Examples
 
 ```jldoctest
@@ -100,6 +103,8 @@ stack(xs; dims::Int) = cat(unsqueeze.(xs; dims)...; dims)
 
 Unroll the given `xs` into an array of arrays along the given dimension `dims`.
 
+See also [`stack`](@ref) and [`unbatch`](@ref).
+
 # Examples
 
 ```jldoctest
@@ -137,20 +142,21 @@ julia> chunk(collect(1:10), 3)
 chunk(xs, n) = collect(Iterators.partition(xs, ceil(Int, length(xs)/n)))
 
 """
-    frequencies(xs)
+    group_counts(xs)
 
 Count the number of times that each element of `xs` appears.
 
+See also [`group_indices`](@ref)
 # Examples
 
 ```jldoctest
-julia> frequencies(['a','b','b'])
+julia> group_counts(['a','b','b'])
 Dict{Char, Int64} with 2 entries:
   'a' => 1
   'b' => 2
 ```
 """
-function frequencies(xs)
+function group_counts(xs)
     fs = Dict{eltype(xs),Int}()
     for x in xs
         fs[x] = get(fs, x, 0) + 1
@@ -230,6 +236,7 @@ end
 
 Reverse of the [`batch`](@ref) operation,
 unstacking the last dimension of the array `x`.
+
 See also [`unstack`](@ref).
 
 # Examples
@@ -298,6 +305,7 @@ end
 
 Reshape arbitrarly-shaped input into a matrix-shaped output,
 preserving the size of the last dimension.
+
 See also [`unsqueeze`](@ref).
 
 # Examples
@@ -314,8 +322,9 @@ end
 """
     normalise(x; dims=ndims(x), ϵ=1e-5)
 
-Normalise `x` to mean 0 and standard deviation 1 across the dimension(s) given by `dims`.
+Normalise the array `x` to mean 0 and standard deviation 1 across the dimension(s) given by `dims`.
 Per default, `dims` is the last dimension. 
+
 `ϵ` is a small additive factor added to the denominator for numerical stability.
 """
 function normalise(x::AbstractArray; dims=ndims(x), ϵ=ofeltype(x, 1e-5))

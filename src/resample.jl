@@ -83,7 +83,7 @@ See [`ObsView`](@ref) for more information on data subsets.
 See also [`undersample`](@ref) and [`stratifiedobs`](@ref).
 """
 function oversample(data, classes; fraction=1, shuffle::Bool=true)
-    lm = labelmap(classes)
+    lm = group_indices(classes)
 
     maxcount = maximum(length, values(lm))
     fraccount = round(Int, fraction * maxcount)
@@ -180,7 +180,7 @@ See [`ObsView`](@ref) for more information on data subsets.
 See also [`oversample`](@ref) and [`stratifiedobs`](@ref).
 """
 function undersample(data, classes; shuffle::Bool=true)
-    lm = labelmap(classes)
+    lm = group_indices(classes)
     mincount = minimum(length, values(lm))
 
     inds = Int[]
@@ -197,22 +197,26 @@ undersample(data::Tuple; kws...) = undersample(data, data[end]; kws...)
 
 
 """
-    labelmap(classes) -> Dict
+    group_indices(x) -> Dict
 
-Computes the indices of all elements that belong to each class. 
-This information is useful for resampling strategies, such as stratified sampling
+Computes the indices of elements in the vector `x` for each distinct value. 
+This information is useful for resampling strategies, such as stratified sampling.
+
+See also [`group_counts`](@ref).
+
+# Examples
 
 ```julia
-julia> true_targets = [:yes,:no,:maybe,:yes];
+julia> x = [:yes, :no, :maybe, :yes];
 
-julia> labelmap(true_targets)
+julia> group_indices(x)
 Dict{Symbol, Vector{Int64}} with 3 entries:
   :yes   => [1, 4]
   :maybe => [3]
   :no    => [2]
 
 """
-function labelmap(classes::T) where T<:AbstractVector
+function group_indices(classes::T) where T<:AbstractVector
     dict = Dict{eltype(T), Vector{Int}}()
     for (idx, elem) in enumerate(classes)
         if !haskey(dict, elem)
