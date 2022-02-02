@@ -119,9 +119,9 @@ julia> unstack([1 3 5 7; 2 4 6 8], dims=2)
 unstack(xs; dims::Int) = [copy(selectdim(xs, dims, i)) for i in 1:size(xs, dims)]
 
 """
-    chunk(xs, n)
+    chunk(x, n)
 
-Split `xs` into `n` parts.
+Split `x` into `n` parts.
 
 # Examples
 
@@ -142,27 +142,60 @@ julia> chunk(collect(1:10), 3)
 chunk(xs, n) = collect(Iterators.partition(xs, ceil(Int, length(xs)/n)))
 
 """
-    group_counts(xs)
+    group_counts(x)
 
-Count the number of times that each element of `xs` appears.
+Count the number of times that each element of `x` appears.
 
 See also [`group_indices`](@ref)
 # Examples
 
 ```jldoctest
-julia> group_counts(['a','b','b'])
+julia> group_counts(['a', 'b', 'b'])
 Dict{Char, Int64} with 2 entries:
   'a' => 1
   'b' => 2
 ```
 """
-function group_counts(xs)
-    fs = Dict{eltype(xs),Int}()
-    for x in xs
-        fs[x] = get(fs, x, 0) + 1
+function group_counts(x)
+    fs = Dict{eltype(x),Int}()
+    for a in x
+        fs[a] = get(fs, a, 0) + 1
     end
     return fs
 end
+
+"""
+    group_indices(x) -> Dict
+
+Computes the indices of elements in the vector `x` for each distinct value contained. 
+This information is useful for resampling strategies, such as stratified sampling.
+
+See also [`group_counts`](@ref).
+
+# Examples
+
+```julia
+julia> x = [:yes, :no, :maybe, :yes];
+
+julia> group_indices(x)
+Dict{Symbol, Vector{Int64}} with 3 entries:
+  :yes   => [1, 4]
+  :maybe => [3]
+  :no    => [2]
+
+"""
+function group_indices(classes::T) where T<:AbstractVector
+    dict = Dict{eltype(T), Vector{Int}}()
+    for (idx, elem) in enumerate(classes)
+        if !haskey(dict, elem)
+            push!(dict, elem => [idx])
+        else
+            push!(dict[elem], idx)
+        end
+    end
+    return dict
+end
+
 
 """
     batch(xs)
