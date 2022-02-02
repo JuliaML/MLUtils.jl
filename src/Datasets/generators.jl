@@ -74,8 +74,9 @@ ground_truth is a boolean that indicates whether the ground truth is returned. I
 function make_regression(n::Int = 100, n_features::Int = 1; noise::Float64 = 0.01, ground_truth::Bool = false)
     X = randn(n, n_features)
     coef = rand(1:100)*rand(Float64, n_features)
-    intercept = rand(1:100)*rand(Float64, n_features)
-    y = X.*coef .+ intercept .+ noise*randn(n, n_features)
+    intercept = rand(1:100)*rand(Float64)
+    ϵ = noise * randn(n)
+    y = X*coef .+ intercept + noise*randn(n)
 
     if ground_truth == false
         return X, y

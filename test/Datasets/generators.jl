@@ -29,9 +29,20 @@ end
     # print(scatterplot!(test_plot, xtmp[1, 98:194], xtmp[2, 98:194], color=:yellow, name="neg" ))
 end
 
-@testset "make_regression" begin
+@testset "make_regression with ground_truth = false" begin
     n = 50
     xtmp, ytmp = make_regression(n; noise = 0.)
 
     @test length(xtmp) == length(ytmp) == n
+end
+
+@testset "make_regression with ground_truth = true" begin
+    n = 50
+    n_features = 3
+    xtmp, ytmp, ground_truth = make_regression(n, n_features; noise = 0., ground_truth = true)
+
+    @test length(xtmp) == n * n_features
+    @test length(ytmp) == n
+    @test length(ground_truth[:coef]) == n_features
+    @test length(ground_truth[:intercept]) == 1
 end
