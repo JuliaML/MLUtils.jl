@@ -3,3 +3,6 @@
 @deprecate unstack(x, dims) unstack(x; dims=dims)
 @deprecate unsqueeze(x::AbstractArray, dims::Int) unsqueeze(x; dims=dims)
 @deprecate unsqueeze(dims::Int) unsqueeze(dims=dims)
+@deprecate labelmap(x) group_indices(x)
+@deprecate frequencies(x) group_counts(x)
+

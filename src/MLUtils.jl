@@ -41,7 +41,7 @@ include("randobs.jl")
 export randobs
 
 include("resample.jl")
-export labelmap, 
+export group_indices, 
        oversample,
        undersample
 
@@ -56,7 +56,7 @@ export batch,
        batchseq,
        chunk,
        flatten,
-       frequencies,
+       group_counts,
        normalise,
        stack,
        unbatch,

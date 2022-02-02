@@ -84,8 +84,8 @@ end
     @test cs[3] == [9, 10]
 end
 
-@testset "frequencies" begin
-    d = frequencies(['a','b','b'])
+@testset "group_counts" begin
+    d = group_counts(['a','b','b'])
     @test d == Dict('a' => 1, 'b' => 2)
 end
 
