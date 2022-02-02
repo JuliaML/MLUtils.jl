@@ -64,3 +64,22 @@ function make_spiral(n::Int = 97, a::Real = 6.5, theta::Real = 16.0, b::Real=104
     x[2, :] .+= noise .* f_rand.()
     x, y
 end
+
+"""
+    make_regression(n, n_features; noise = 0.01, ground_truth = false) -> X, y, ground_truth
+
+Generates `n` noisy samples of `n_features` dimensions for regression tasks.
+ground_truth is a boolean that indicates whether the ground truth is returned. If `true`, the ground truth is returned as a Dict.
+"""
+function make_regression(n::Int = 100, n_features::Int = 1; noise::Float64 = 0.01, ground_truth::Bool = false)
+    X = randn(n, n_features)
+    coef = rand(1:100)*rand(Float64, n_features)
+    intercept = rand(1:100)*rand(Float64, n_features)
+    y = X.*coef .+ intercept .+ noise*randn(n, n_features)
+
+    if ground_truth == false
+        return X, y
+    else
+        return X, y, Dict([("coef", coef),  ("intercept", intercept)])
+    end
+end
