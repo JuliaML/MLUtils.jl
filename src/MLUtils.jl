@@ -3,32 +3,38 @@ module MLUtils
 using Random
 using Statistics
 using ShowCases: ShowLimit
+using FLoops: @floop
+using FLoops.Transducers: Executor
+using FoldsThreads: TaskPoolEx
 import StatsBase: sample
 using Base: @propagate_inbounds
 using Random: AbstractRNG, shuffle!, GLOBAL_RNG
 import ChainRulesCore: rrule
-using ChainRulesCore: @non_differentiable, unthunk, AbstractZero, 
+using ChainRulesCore: @non_differentiable, unthunk, AbstractZero,
                       NoTangent, ZeroTangent, ProjectTo
 
 
 include("observation.jl")
-export numobs, 
-       getobs, 
+export numobs,
+       getobs,
        getobs!
 
 include("obstransform.jl")
-export mapobs, 
-       filterobs, 
+export mapobs,
+       filterobs,
        groupobs,
-       joinobs,
-       shuffleobs
+       joinobs
 
 include("batchview.jl")
 export batchsize,
        BatchView
 
-include("eachobs.jl")
-export eachobs
+include("dataiterator.jl")
+export eachobs,
+       eachbatch
+
+include("parallel.jl")
+export eachobsparallel
 
 include("dataloader.jl")
 export DataLoader
@@ -45,7 +51,8 @@ include("randobs.jl")
 export randobs
 
 include("resample.jl")
-export oversample,
+export labelmap,
+       oversample,
        undersample
 
 include("splitobs.jl")
@@ -57,7 +64,7 @@ export batch,
        chunk,
        flatten,
        group_counts,
-       group_indices, 
+       group_indices,
        normalise,
        stack,
        unbatch,
@@ -67,7 +74,7 @@ export batch,
 
 include("Datasets/Datasets.jl")
 using .Datasets
-export Datasets, 
+export Datasets,
        load_iris
 
 include("deprecations.jl")
