@@ -80,6 +80,6 @@ function make_regression(n::Int = 100, n_features::Int = 1; noise::Float64 = 0.0
     if ground_truth == false
         return X, y
     else
-        return X, y, Dict([("coef", coef),  ("intercept", intercept)])
+        return X, y, (; coef,  intercept)
     end
 end
