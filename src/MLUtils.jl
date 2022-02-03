@@ -22,9 +22,8 @@ include("batchview.jl")
 export batchsize,
        batchview, BatchView
 
-include("dataiterator.jl")
-export eachobs, 
-       eachbatch
+include("eachobs.jl")
+export eachobs
 
 include("dataloader.jl")
 export DataLoader
