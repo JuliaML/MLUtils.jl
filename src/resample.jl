@@ -142,7 +142,7 @@ X_bal, Y_bal = undersample(X, Y)
 ```
 
 For this function to work, the type of `data` must implement
-[`nobs`](@ref) and [`getobs`](@ref). For example, the following
+[`numobs`](@ref) and [`getobs`](@ref). For example, the following
 code allows `undersample` to work on a `DataFrame`.
 
 ```julia

@@ -35,7 +35,7 @@ export kfolds,
 
 include("obsview.jl")
 export datasubset,
-       obsview, ObsView
+       ObsView
 
 include("randobs.jl")
 export randobs

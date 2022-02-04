@@ -165,7 +165,7 @@ Return a "subset" of `data` that spans all observations, but
 has the order of the observations shuffled.
 
 The values of `data` itself are not copied. Instead only the
-indices are shuffled. This function calls [`obsview`](@ref) to
+indices are shuffled. This function calls [`datasubset`](@ref) to
 accomplish that, which means that the return value is likely of a
 different type than `data`.
 

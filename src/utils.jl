@@ -16,9 +16,11 @@ julia> unsqueeze([1 2; 3 4], dims=2)
 [:, :, 1] =
  1
  3
+
 [:, :, 2] =
  2
  4
+
 
 julia> xs = [[1, 2], [3, 4], [5, 6]]
 3-element Vector{Vector{Int64}}:

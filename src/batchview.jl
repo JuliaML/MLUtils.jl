@@ -2,10 +2,6 @@
     BatchView(data, batchsize; partial=true)
     BatchView(data; batchsize=1, partial=true)
 
-
-Description
-============
-
 Create a view of the given `data` that represents it as a vector
 of batches. Each batch will contain an equal amount of
 observations in them. The batch-size
@@ -13,18 +9,21 @@ can be specified using the  parameter `batchsize`.
 In the case that the size of the dataset is not dividable by the
 specified `batchsize`, the remaining observations will
 be ignored if `partial=false`. If  `partial=true` instead 
-the last batch-size can be slight smaller.
+the last batch-size can be slightly smaller.
 
 Note that any data access is delayed until `getindex` is called,
-and even `getindex` returns the result of [`obsview`](@ref)
+and even `getindex` returns an [`ObsView`](@ref)
 which in general avoids data movement until [`getobs`](@ref) is
 called.
 
 If used as an iterator, the object will iterate over the dataset
 once, effectively denoting an epoch. 
 
-Arguments
-==========
+For `BatchView` to work on some data structure, the type of the
+given variable `data` must implement the data container
+interface. See [`ObsView`](@ref) for more info.
+
+# Arguments
 
 - **`data`** : The object describing the dataset. Can be of any
     type as long as it implements [`getobs`](@ref) and
@@ -37,16 +36,7 @@ Arguments
 - **`partial`** : If `partial=false` and the number of observations is 
     not divisible by the batch-size, then the last mini-batch is dropped.
 
-Details
-========
-
-For `BatchView` to work on some data structure, the type of the
-given variable `data` must implement the data container
-interface. See `?ObsView` for more info.
-
-
-Examples
-=========
+# Examples
 
 ```julia
 using MLUtils
@@ -81,12 +71,6 @@ for (x,y) in batchview(shuffleobs((X,Y)), batchsize=20)
     @assert typeof(y) <: SubArray{String,1}
 end
 ```
-
-see also
-=========
-
-[`eachbatch`](@ref), [`ObsView`](@ref), [`shuffleobs`](@ref),
-[`getobs`](@ref), [`numobs`](@ref), [`ObsView`](@ref)
 """
 struct BatchView{TElem,TData} <: AbstractDataContainer
     data::TData

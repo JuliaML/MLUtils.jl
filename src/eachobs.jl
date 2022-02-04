@@ -29,7 +29,7 @@ for x in eachobs(X)
 end
 
 # mini-batch iterations
-for x in eachbatch(X, batchsize=10)
+for x in eachobs(X, batchsize=10)
     # loop entered 10 times
     @assert typeof(x) <: Matrix{Float64}
     @assert size(x) == (4,10)
