@@ -37,6 +37,9 @@ include("obsview.jl")
 export datasubset,
        obsview, ObsView
 
+include("randobs.jl")
+export randobs
+
 include("resample.jl")
 export oversample,
        undersample
