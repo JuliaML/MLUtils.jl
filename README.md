@@ -1,15 +1,17 @@
 # MLUtils.jl
 
-[![Build Status](https://github.com/JuliaML/MLUtils.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/JuliaML/MLUtils.jl/actions/workflows/CI.yml?query=branch%3Amain)
-[![Coverage](https://codecov.io/gh/JuliaML/MLUtils.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JuliaML/MLUtils.jl)
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaML.github.io/MLUtils.jl/stable)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://JuliaML.github.io/MLUtils.jl/dev)
+[![](https://github.com/JuliaML/MLUtils.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/JuliaML/MLUtils.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![](https://codecov.io/gh/JuliaML/MLUtils.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JuliaML/MLUtils.jl)
 
-`MLUtils.jl` defines interfaces and implement commonly used utilities for Machine Learning pipelines.
+`MLUtils.jl` defines interfaces and implements common utilities for Machine Learning pipelines.
 
 ## Features
 
 - An extensible dataset interface  (`numobs` and `getobs`).
 - Data iteration and dataloaders (`eachobs` and `DataLoader`).
-- Lazy data views (`datasubset`). 
+- Lazy data views (`obsview`). 
 - Resampling procedures (`undersample` and `oversample`).
 - Train/test splits (`splitobs`) 
 - Data partitioning and aggregation tools (`batch`, `unbatch`, `chunk`, `group_counts`, `group_indices`).
