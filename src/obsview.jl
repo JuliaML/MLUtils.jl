@@ -15,7 +15,7 @@ load the required data only when needed.
 
 Any data access is delayed until `getindex` is called, 
 and even `getindex` returns the result of
-[`datasubset`](@ref) which in general avoids data movement until
+[`obsview`](@ref) which in general avoids data movement until
 [`getobs`](@ref) is called.
 If used as an iterator, the view will iterate over the dataset
 once, effectively denoting an epoch. Each iteration will return a
@@ -65,7 +65,7 @@ The following methods can also be provided and are optional:
     If that is not the behaviour that you want for your type,
     you need to provide this method as well.
 
-- `datasubset(data::MyType, idx)` :
+- `obsview(data::MyType, idx)` :
     If your custom type has its own kind of subset type, you can
     return it here. An example for such a case are `SubArray` for
     representing a subset of some `AbstractArray`.
@@ -92,15 +92,15 @@ v = ObsView(X, 21:100)
 # getobs indexes into v
 @assert getobs(v, 1:10) == X[:, 21:30]
 
-# Use `datasubset` to avoid boxing into ObsView
+# Use `obsview` to avoid boxing into ObsView
 # for types that provide a custom "subset", such as arrays.
 # Here it instead creates a native SubArray.
-v = datasubset(X, 1:100)
+v = obsview(X, 1:100)
 @assert numobs(v) == 100
 @assert typeof(v) <: SubArray
 
 # Also works for tuples of arbitrary length
-subset = datasubset((X, Y), 1:100)
+subset = obsview((X, Y), 1:100)
 @assert numobs(subset) == 100
 @assert typeof(subset) <: Tuple # tuple of SubArray
 
@@ -127,7 +127,7 @@ x, y = ObsView((X, Y))[1:10]
 
 # See also
 
-[`datasubset`](@ref),  [`getobs`](@ref), [`numobs`](@ref),
+[`obsview`](@ref),  [`getobs`](@ref), [`numobs`](@ref),
 [`splitobs`](@ref), [`shuffleobs`](@ref),
 [`kfolds`](@ref), [`batchview`](@ref).
 """
@@ -180,7 +180,7 @@ Base.IteratorEltype(::Type{<:ObsView}) = Base.EltypeUnknown()
 
 # override AbstractDataContainer defaults
 Base.getindex(subset::ObsView, idx) =
-    datasubset(subset.data, subset.indices[idx])
+    obsview(subset.data, subset.indices[idx])
 
 numobs(subset::ObsView) = length(subset.indices)
 
@@ -196,7 +196,7 @@ Base.parent(x::ObsView) = x.data
 # --------------------------------------------------------------------
 
 """
-    datasubset(data, [indices])
+    obsview(data, [indices])
 
 Returns a lazy view of the observations in `data` that
 correspond to the given `indices`. No data will be copied except
@@ -216,13 +216,13 @@ corresponding to the given `indices` in their native type, use
 
 See [`ObsView`](@ref) for more information.
 """
-datasubset(data, indices=1:numobs(data)) = ObsView(data, indices)
+obsview(data, indices=1:numobs(data)) = ObsView(data, indices)
 
 ##### Arrays / SubArrays
 
-datasubset(A::SubArray) = A
+obsview(A::SubArray) = A
 
-function datasubset(A::AbstractArray{T,N}, idx) where {T,N}
+function obsview(A::AbstractArray{T,N}, idx) where {T,N}
     I = ntuple(_ -> :, N-1)
     return view(A, I..., idx)
 end
@@ -230,6 +230,6 @@ end
 getobs(a::SubArray) = getobs(a.parent, last(a.indices))
 
 ##### Tuples / NamedTuples
-function datasubset(tup::Union{Tuple, NamedTuple}, indices)
-    map(data -> datasubset(data, indices), tup)
+function obsview(tup::Union{Tuple, NamedTuple}, indices)
+    map(data -> obsview(data, indices), tup)
 end

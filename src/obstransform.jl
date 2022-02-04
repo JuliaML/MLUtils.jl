@@ -91,7 +91,7 @@ numobs(fdata) == 5
 ```
 """
 function filterobs(f, data; iterfn = _iterobs)
-    return datasubset(data, [i for (i, obs) in enumerate(iterfn(data)) if f(obs)])
+    return obsview(data, [i for (i, obs) in enumerate(iterfn(data)) if f(obs)])
 end
 
 _iterobs(data) = [getobs(data, i) for i = 1:numobs(data)]
@@ -121,7 +121,7 @@ function groupobs(f, data)
             push!(groups[group], i)
         end
     end
-    return Dict(group => datasubset(data, idxs) for (group, idxs) in groups)
+    return Dict(group => obsview(data, idxs) for (group, idxs) in groups)
 end
 
 # joinumobs
@@ -165,7 +165,7 @@ Return a "subset" of `data` that spans all observations, but
 has the order of the observations shuffled.
 
 The values of `data` itself are not copied. Instead only the
-indices are shuffled. This function calls [`datasubset`](@ref) to
+indices are shuffled. This function calls [`obsview`](@ref) to
 accomplish that, which means that the return value is likely of a
 different type than `data`.
 
@@ -191,5 +191,5 @@ for more information.
 shuffleobs(data) = shuffleobs(Random.GLOBAL_RNG, data)
 
 function shuffleobs(rng::AbstractRNG, data)
-    datasubset(data, randperm(rng, numobs(data)))
+    obsview(data, randperm(rng, numobs(data)))
 end

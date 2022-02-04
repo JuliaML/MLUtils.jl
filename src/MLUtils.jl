@@ -34,7 +34,7 @@ export kfolds,
        leavepout
 
 include("obsview.jl")
-export datasubset,
+export obsview,
        ObsView
 
 include("randobs.jl")

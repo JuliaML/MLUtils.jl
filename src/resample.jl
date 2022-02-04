@@ -103,7 +103,7 @@ function oversample(data, classes; fraction=1, shuffle::Bool=true)
     end
 
     shuffle && shuffle!(inds)
-    return datasubset(data, inds)
+    return obsview(data, inds)
 end
 
 oversample(data::Tuple; kws...) = oversample(data, data[end]; kws...)
@@ -190,7 +190,7 @@ function undersample(data, classes; shuffle::Bool=true)
     end
 
     shuffle ? shuffle!(inds) : sort!(inds)
-    return datasubset(data, inds)
+    return obsview(data, inds)
 end
 
 undersample(data::Tuple; kws...) = undersample(data, data[end]; kws...)

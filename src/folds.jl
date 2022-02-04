@@ -107,7 +107,7 @@ function kfolds(data, k::Integer)
     n = numobs(data)
     train_indices, val_indices = kfolds(n, k)
 
-    ((datasubset(data, itrain), datasubset(data, ival)) 
+    ((obsview(data, itrain), obsview(data, ival)) 
         for (itrain, ival) in zip(train_indices, val_indices))
 end
 

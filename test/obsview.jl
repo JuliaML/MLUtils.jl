@@ -31,12 +31,12 @@
             @test @inferred(getobs(subset)) == getobs(var)
             @test @inferred(ObsView(subset)) === subset
             @test @inferred(ObsView(subset, 1:15)) === subset
-            @test subset[end] == datasubset(var, 15)
-            @test @inferred(subset[15]) == datasubset(var, 15)
-            @test @inferred(subset[2:5]) == datasubset(var, 2:5)
+            @test subset[end] == obsview(var, 15)
+            @test @inferred(subset[15]) == obsview(var, 15)
+            @test @inferred(subset[2:5]) == obsview(var, 2:5)
             for idx in (1:10, [1,10,15,3], [2])
-                @test ObsView(var)[idx] == datasubset(var, idx)
-                @test ObsView(var)[idx] == datasubset(var, collect(idx))
+                @test ObsView(var)[idx] == obsview(var, idx)
+                @test ObsView(var)[idx] == obsview(var, collect(idx))
                 subset = @inferred(ObsView(var, idx))
                 @test typeof(subset) <: ObsView{typeof(var), typeof(idx)}
                 @test subset.data === var
@@ -44,8 +44,8 @@
                 @test @inferred(numobs(subset)) === length(idx)
                 @test @inferred(getobs(subset)) == getobs(var, idx)
                 @test @inferred(ObsView(subset)) === subset
-                @test @inferred(subset[1]) == datasubset(var, idx[1])
-                @test numobs(subset[1:1]) == numobs(ObsView(var, datasubset(idx, 1:1)))
+                @test @inferred(subset[1]) == obsview(var, idx[1])
+                @test numobs(subset[1:1]) == numobs(ObsView(var, obsview(idx, 1:1)))
             end
         end
     end
@@ -69,12 +69,12 @@ end
             subset = @inferred(ObsView(var, 5:12))
             @test typeof(@inferred(getobs(subset))) <: Array{Float64,2}
             @test @inferred(numobs(subset)) == length(subset) == 8
-            @test @inferred(subset[2:5]) == datasubset(X, 6:9)
-            @test @inferred(subset[3:6]) != datasubset(X, 6:9)
+            @test @inferred(subset[2:5]) == obsview(X, 6:9)
+            @test @inferred(subset[3:6]) != obsview(X, 6:9)
             @test @inferred(getobs(subset, 2:5)) == X[:, 6:9]
             @test @inferred(getobs(subset, [3,1,4])) == X[:, [7,5,8]]
             @test typeof(subset[2:5]) <: SubArray
-            @test @inferred(subset[collect(2:5)]) == datasubset(X, collect(6:9))
+            @test @inferred(subset[collect(2:5)]) == obsview(X, collect(6:9))
             @test typeof(subset[collect(2:5)]) <: SubArray
             @test @inferred(getobs(subset)) == getobs(subset[1:end]) == X[:, 5:12]
         end
@@ -85,11 +85,11 @@ end
             subset = @inferred(ObsView(var, 6:10))
             @test typeof(getobs(subset)) <: Array{String,1}
             @test @inferred(numobs(subset)) == length(subset) == 5
-            @test @inferred(subset[2:3]) == datasubset(y, 7:8)
+            @test @inferred(subset[2:3]) == obsview(y, 7:8)
             @test @inferred(getobs(subset, 2:3)) == y[7:8]
             @test @inferred(getobs(subset, [2,1,4])) == y[[7,6,9]]
             @test typeof(subset[2:3]) <: SubArray
-            @test @inferred(subset[collect(2:3)]) == datasubset(y, collect(7:8))
+            @test @inferred(subset[collect(2:3)]) == obsview(y, collect(7:8))
             @test typeof(subset[collect(2:3)]) <: SubArray
             @test @inferred(getobs(subset)) == getobs(subset[1:end]) == y[6:10]
         end
@@ -169,11 +169,11 @@ end
             @test @inferred(numobs(A)) == 15
             @test @inferred(length(A)) == 15
             @test @inferred(size(A)) == (15,)
-            @test @inferred(A[2:3]) == datasubset(var, 2:3)
-            @test @inferred(A[[1,3]]) == datasubset(var, [1,3])
-            @test @inferred(A[1]) == datasubset(var, 1)
-            @test @inferred(A[11]) == datasubset(var, 11)
-            @test @inferred(A[15]) == datasubset(var, 15)
+            @test @inferred(A[2:3]) == obsview(var, 2:3)
+            @test @inferred(A[[1,3]]) == obsview(var, [1,3])
+            @test @inferred(A[1]) == obsview(var, 1)
+            @test @inferred(A[11]) == obsview(var, 11)
+            @test @inferred(A[15]) == obsview(var, 15)
             @test A[end] == A[15]
             @test @inferred(getobs(A,1)) == getobs(var, 1)
             @test @inferred(getobs(A,11)) == getobs(var, 11)
