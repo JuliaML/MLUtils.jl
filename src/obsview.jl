@@ -1,9 +1,6 @@
 """
     ObsView(data, [indices])
 
-Description
-============
-
 Used to represent a subset of some `data` of arbitrary type by
 storing which observation-indices the subset spans. Furthermore,
 subsequent subsettings are accumulated without needing to access
@@ -18,18 +15,13 @@ load the required data only when needed.
 
 Any data access is delayed until `getindex` is called, 
 and even `getindex` returns the result of
-[`datasubset`](@ref) which in general avoids data movement until
+[`obsview`](@ref) which in general avoids data movement until
 [`getobs`](@ref) is called.
 If used as an iterator, the view will iterate over the dataset
 once, effectively denoting an epoch. Each iteration will return a
 lazy subset to the current observation.
 
-This type is usually not constructed manually, but instead
-instantiated by calling [`obsview`](@ref),
-[`shuffleobs`](@ref), or [`splitobs`](@ref)
-
-Arguments
-==========
+# Arguments
 
 - **`data`** : The object describing the dataset. Can be of any
     type as long as it implements [`getobs`](@ref) and
@@ -39,8 +31,7 @@ Arguments
     observation(s) in `data` that the subset should represent.
     Can be of type `Int` or some subtype of `AbstractVector`.
 
-Methods
-========
+# Methods
 
 - **`getindex`** : Returns the observation(s) of the given
     index/indices. No data is copied aside
@@ -54,8 +45,7 @@ Methods
     not directly correspond to the same indices in the underlying
     data set.
 
-Details
-========
+# Details
 
 For `ObsView` to work on some data structure, the desired type
 `MyType` must implement the following interface:
@@ -75,22 +65,19 @@ The following methods can also be provided and are optional:
     If that is not the behaviour that you want for your type,
     you need to provide this method as well.
 
-- `datasubset(data::MyType, idx)` :
+- `obsview(data::MyType, idx)` :
     If your custom type has its own kind of subset type, you can
     return it here. An example for such a case are `SubArray` for
     representing a subset of some `AbstractArray`.
-   
+
 - `getobs!(buffer, data::MyType, [idx])` :
     Inplace version of `getobs(data, idx)`. If this method
-    is provided for `MyType`, then `eachobs` and `eachbatch`
-    (among others) can preallocate a buffer that is then reused
+    is provided for `MyType`, then `eachobs` can preallocate a buffer that is then reused
     every iteration. Note: `buffer` should be equivalent to the
     return value of `getobs(::MyType, ...)`, since this is how
     `buffer` is preallocated by default.
 
-
-Examples
-=========
+# Examples
 
 ```julia
 X, Y = MLUtils.load_iris()
@@ -99,47 +86,46 @@ X, Y = MLUtils.load_iris()
 @assert size(X) == (4,150)
 
 # Represents the 80 observations as a ObsView
-v = obsview(X, 21:100)
+v = ObsView(X, 21:100)
 @assert numobs(v) == 80
 @assert typeof(v) <: ObsView
 # getobs indexes into v
 @assert getobs(v, 1:10) == X[:, 21:30]
 
-# Use `datasubset` to avoid boxing into ObsView
+# Use `obsview` to avoid boxing into ObsView
 # for types that provide a custom "subset", such as arrays.
 # Here it instead creates a native SubArray.
-v = datasubset(X, 1:100)
+v = obsview(X, 1:100)
 @assert numobs(v) == 100
 @assert typeof(v) <: SubArray
 
 # Also works for tuples of arbitrary length
-subset = datasubset((X, Y), 1:100)
+subset = obsview((X, Y), 1:100)
 @assert numobs(subset) == 100
 @assert typeof(subset) <: Tuple # tuple of SubArray
 
 # Use as iterator
-for x in obsview(X)
+for x in ObsView(X)
     @assert typeof(x) <: SubArray{Float64,1}
 end
 
 # iterate over each individual labeled observation
-for (x, y) in obsview((X, Y))
+for (x, y) in ObsView((X, Y))
     @assert typeof(x) <: SubArray{Float64,1}
     @assert typeof(y) <: String
 end
 
 # same but in random order
-for (x, y) in obsview(shuffleobs((X, Y)))
+for (x, y) in ObsView(shuffleobs((X, Y)))
     @assert typeof(x) <: SubArray{Float64,1}
     @assert typeof(y) <: String
 end
 
 # Indexing: take first 10 observations
-x, y = obsview((X, Y))[1:10]
+x, y = ObsView((X, Y))[1:10]
 ```
 
-See also
-=========
+# See also
 
 [`obsview`](@ref),  [`getobs`](@ref), [`numobs`](@ref),
 [`splitobs`](@ref), [`shuffleobs`](@ref),
@@ -194,7 +180,7 @@ Base.IteratorEltype(::Type{<:ObsView}) = Base.EltypeUnknown()
 
 # override AbstractDataContainer defaults
 Base.getindex(subset::ObsView, idx) =
-    datasubset(subset.data, subset.indices[idx])
+    obsview(subset.data, subset.indices[idx])
 
 numobs(subset::ObsView) = length(subset.indices)
 
@@ -206,18 +192,16 @@ getobs!(buffer, subset::ObsView, idx) = getobs!(buffer, subset.data, subset.indi
 
 Base.parent(x::ObsView) = x.data
 
-@doc (@doc ObsView)
-const obsview = ObsView
 
 # --------------------------------------------------------------------
 
 """
-    datasubset(data, [indices])
+    obsview(data, [indices])
 
 Returns a lazy view of the observations in `data` that
 correspond to the given `indices`. No data will be copied except
-of the indices. It is similar to calling `ObsView(data,
-[indices])`, but returns a `SubArray` if the type of
+of the indices. It is similar to constructing an [`ObsView`](@ref), 
+but returns a `SubArray` if the type of
 `data` is `Array` or `SubArray`. Furthermore, this function may
 be extended for custom types of `data` that also want to provide
 their own subset-type.
@@ -230,15 +214,15 @@ If instead you want to get the subset of observations
 corresponding to the given `indices` in their native type, use
 `getobs`.
 
-See [`obsview`](@ref) for more information.
+See [`ObsView`](@ref) for more information.
 """
-datasubset(data, indices=1:numobs(data)) = ObsView(data, indices)
+obsview(data, indices=1:numobs(data)) = ObsView(data, indices)
 
 ##### Arrays / SubArrays
 
-datasubset(A::SubArray) = A
+obsview(A::SubArray) = A
 
-function datasubset(A::AbstractArray{T,N}, idx) where {T,N}
+function obsview(A::AbstractArray{T,N}, idx) where {T,N}
     I = ntuple(_ -> :, N-1)
     return view(A, I..., idx)
 end
@@ -246,6 +230,6 @@ end
 getobs(a::SubArray) = getobs(a.parent, last(a.indices))
 
 ##### Tuples / NamedTuples
-function datasubset(tup::Union{Tuple, NamedTuple}, indices)
-    map(data -> datasubset(data, indices), tup)
+function obsview(tup::Union{Tuple, NamedTuple}, indices)
+    map(data -> obsview(data, indices), tup)
 end

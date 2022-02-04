@@ -103,7 +103,7 @@ function oversample(data, classes; fraction=1, shuffle::Bool=true)
     end
 
     shuffle && shuffle!(inds)
-    return datasubset(data, inds)
+    return obsview(data, inds)
 end
 
 oversample(data::Tuple; kws...) = oversample(data, data[end]; kws...)
@@ -142,7 +142,7 @@ X_bal, Y_bal = undersample(X, Y)
 ```
 
 For this function to work, the type of `data` must implement
-[`nobs`](@ref) and [`getobs`](@ref). For example, the following
+[`numobs`](@ref) and [`getobs`](@ref). For example, the following
 code allows `undersample` to work on a `DataFrame`.
 
 ```julia
@@ -190,7 +190,7 @@ function undersample(data, classes; shuffle::Bool=true)
     end
 
     shuffle ? shuffle!(inds) : sort!(inds)
-    return datasubset(data, inds)
+    return obsview(data, inds)
 end
 
 undersample(data::Tuple; kws...) = undersample(data, data[end]; kws...)
