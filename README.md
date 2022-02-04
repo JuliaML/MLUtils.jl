@@ -1,9 +1,9 @@
-# MLUtils
+# MLUtils.jl
 
 [![Build Status](https://github.com/JuliaML/MLUtils.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/JuliaML/MLUtils.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/JuliaML/MLUtils.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JuliaML/MLUtils.jl)
 
-Interfaces and common data manipulation utilities for Machine Learning pipelines.
+`MLUtils.jl` defines interfaces and implement commonly used utilities for Machine Learning pipelines.
 
 ## Features
 
@@ -11,8 +11,8 @@ Interfaces and common data manipulation utilities for Machine Learning pipelines
 - Data iteration and dataloaders (`eachobs` and `DataLoader`).
 - Lazy data views (`datasubset`). 
 - Resampling procedures (`undersample` and `oversample`).
-- Train/test splits (`splitobs`) and other data partitioning
-and aggregation utilities (`batch`, `unbatch`, `chunk`, `group_counts`, `group_indices`).
+- Train/test splits (`splitobs`) 
+- Data partitioning and aggregation tools (`batch`, `unbatch`, `chunk`, `group_counts`, `group_indices`).
 - Folds for cross-validation (`kfolds`, `leavepout`).
 - Datasets lazy tranformations (`mapobs`, `filterobs`, `groupobs`, `joinobs`, `shuffleobs`).
 - Toy datasets for demonstration purpose. 
