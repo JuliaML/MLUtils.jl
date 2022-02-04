@@ -16,7 +16,8 @@ include("obstransform.jl")
 export mapobs, 
        filterobs, 
        groupobs,
-       joinobs
+       joinobs,
+       shuffleobs
        
 include("batchview.jl")
 export batchsize,
@@ -36,16 +37,9 @@ include("obsview.jl")
 export datasubset,
        obsview, ObsView
 
-include("randobs.jl")
-export randobs
-
 include("resample.jl")
-export group_indices, 
-       oversample,
+export oversample,
        undersample
-
-include("shuffleobs.jl")
-export shuffleobs
 
 include("splitobs.jl")
 export splitobs
@@ -56,6 +50,7 @@ export batch,
        chunk,
        flatten,
        group_counts,
+       group_indices, 
        normalise,
        stack,
        unbatch,
