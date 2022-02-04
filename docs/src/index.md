@@ -9,7 +9,7 @@
 
 - An extensible dataset interface  (`numobs` and `getobs`).
 - Data iteration and dataloaders (`eachobs` and `DataLoader`).
-- Lazy data views (`obsview`). 
+- Lazy data views (`datasubset`). 
 - Resampling procedures (`undersample` and `oversample`).
 - Train/test splits (`splitobs`) 
 - Data partitioning and aggregation tools (`batch`, `unbatch`, `chunk`, `group_counts`, `group_indices`).

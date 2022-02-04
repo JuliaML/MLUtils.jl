@@ -21,7 +21,6 @@ batch
 batchsize
 batchview
 BatchView
-datasubset
 DataLoader
 eachobs
 filterobs
@@ -33,6 +32,7 @@ kfolds
 leavepout
 mapobs
 numobs
+obsview
 ObsView
 oversample
 MLUtils.rpad
