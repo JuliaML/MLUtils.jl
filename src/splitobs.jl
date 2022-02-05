@@ -89,9 +89,6 @@ then you can combine the function with `shuffleobs`
 # This time observations are randomly assigned.
 train, test = splitobs(shuffleobs((X, y)), at=0.7)
 ```
-
-See [`stratifiedobs`](@ref) for a related function that preserves
-the target distribution.
 """
 function splitobs(data; at)
     n = numobs(data)
