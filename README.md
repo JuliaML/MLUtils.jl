@@ -20,6 +20,44 @@
 - Toy datasets for demonstration purpose. 
 - Other data handling utilities (`flatten`, `normalise`, `unsqueeze`, `stack`, `unstack`).
 
+
+## Examples
+
+Let us take a look at a hello world example to get a feeling for 
+how to use this package in a typical ML scenario. 
+
+```julia
+using MLUtils
+
+# X is a matrix of floats
+# Y is a vector of strings
+X, Y = load_iris()
+
+# The iris dataset is ordered according to their labels,
+# which means that we should shuffle the dataset before
+# partitioning it into training- and test-set.
+Xs, Ys = shuffleobs((X, Y))
+
+# We leave out 15 % of the data for testing
+cv_data, test_data = splitobs((Xs, Ys); at=0.85)
+
+# Next we partition the data using a 10-fold scheme.
+for (train_data, val_data) in kfolds(cv_data; k=10)
+    for epoch = 1:100
+        # Iterate over the data using mini-batches of 5 observations each
+        for (x, y) in eachobs(train_data, batchsize=5)
+            # ... train supervised model on minibatches here
+        end
+    end
+end
+```
+
+In the above code snippet, the inner loop for `eachobs` is the
+only place where data other than indices is actually being
+copied. In fact, while `x` and `y` are materialized arrays, 
+all the rest are data views. 
+
+
 ## Related Packages
 
 `MLUtils.jl` brings togheter functionalities previously found in [LearnBase.jl](https://github.com/JuliaML/LearnBase.jl) , [MLDataPattern.jl](https://github.com/JuliaML/MLDataPattern.jl) and [MLLabelUtils.jl](https://github.com/JuliaML/MLLabelUtils.jl). These packages are now discontinued. 

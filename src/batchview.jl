@@ -38,18 +38,18 @@ interface. See [`ObsView`](@ref) for more info.
 
 # Examples
 
-```jldoctest
+```julia
 using MLUtils
 X, Y = MLUtils.load_iris()
 
-A = batchview(X, batchsize=30)
+A = BatchView(X, batchsize=30)
 @assert typeof(A) <: BatchView <: AbstractVector
 @assert eltype(A) <: SubArray{Float64,2}
 @assert length(A) == 5 # Iris has 150 observations
 @assert size(A[1]) == (4,30) # Iris has 4 features
 
 # 5 batches of size 30 observations
-for x in batchview(X, batchsize=30)
+for x in BatchView(X, batchsize=30)
     @assert typeof(x) <: SubArray{Float64,2}
     @assert numobs(x) === 30
 end
@@ -58,7 +58,7 @@ end
 # Note that the iris dataset has 150 observations,
 # which means that with a batchsize of 20, the last
 # 10 observations will be ignored
-for (x, y) in batchview((X, Y), batchsize=20, partial=false)
+for (x, y) in BatchView((X, Y), batchsize=20, partial=false)
     @assert typeof(x) <: SubArray{Float64,2}
     @assert typeof(y) <: SubArray{String,1}
     @assert numobs(x) == numobs(y) == 20
@@ -66,7 +66,7 @@ end
 
 
 # randomly assign observations to one and only one batch.
-for (x, y) in batchview(shuffleobs((X, Y)), batchsize=20)
+for (x, y) in BatchView(shuffleobs((X, Y)), batchsize=20)
     @assert typeof(x) <: SubArray{Float64,2}
     @assert typeof(y) <: SubArray{String,1}
 end
@@ -80,8 +80,6 @@ struct BatchView{TElem,TData} <: AbstractDataContainer
     imax::Int
 end
 
-@doc (@doc BatchView)
-const batchview = BatchView
 
 function BatchView(data::T; batchsize::Int=1, partial::Bool=true) where {T}
     n = numobs(data)
@@ -133,7 +131,7 @@ function _batchrange(a::BatchView, batchindex::Int)
 end
 
 function Base.showarg(io::IO, A::BatchView, toplevel)
-    print(io, "batchview(")
+    print(io, "BatchView(")
     Base.showarg(io, parent(A), false)
     print(io, ", ")
     print(io, "batchsize=$(A.batchsize), ")
