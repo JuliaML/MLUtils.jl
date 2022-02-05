@@ -1,20 +1,15 @@
 """
     splitobs(n::Int; at) -> Tuple
 
-Pre-compute the indices for two disjoint subsets and return them
-as a tuple of two ranges. The first range will span the first
-`at` fraction of possible indices, while the second range will
-cover the rest. These indices are applicable to any data
-container of size `n`.
+Compute the indices for two or more disjoint subsets of
+the range `1:n` with splits given by `at`.
+
+# Examples
 
 ```julia
 julia> splitobs(100, at=0.7)
 (1:70, 71:100)
-```
 
-A tuple `at` can be passed for multiple splits:
-
-```julia    
 julia> splitobs(100, at=(0.1, 0.4))
 (1:10, 11:50, 51:100)
 ```
@@ -43,54 +38,32 @@ function _splitobs(n::Int, at::NTuple{N,<:AbstractFloat}) where N
 end
 
 """
-    splitobs(data; at) -> Tuple
+    splitobs(data; at, shuffle=false) -> Tuple
 
 Split the `data` into multiple subsets proportional to the
-value(s) of `at`.
+value(s) of `at`. 
 
-Note that this function will perform the splits statically and
-thus not perform any randomization. The function creates a
-`NTuple` of data subsets in which the first N-1 elements/subsets
-contain the fraction of observations of `data` that is specified
-by `at`.
+If `shuffle=true`, randomly permute the observations before splitting.
 
-For example, if `at` is a `Float64` then the return-value will be
-a tuple with two elements (i.e. subsets), in which the first
-element contains the fracion of observations specified by `at`
-and the second element contains the rest. In the following code
-the first subset `train` will contain the first 70% of the
-observations and the second subset `test` the rest.
+Supports any datatype implementing the [`numobs`](@ref) and
+[`getobs`](@ref) interfaces.
+
+# Examples
 
 ```julia
+# A 70%-30% split
 train, test = splitobs(X, at=0.7)
-```
 
-If `at` is a tuple of `Float64` then additional subsets will be
-created. In this example `train` will have the first 50% of the
-observations, `val` will have next 30%, and `test` the last 20%
-
-```julia
+# A 50%-30%-20% split
 train, val, test = splitobs(X, at=(0.5, 0.3))
-```
 
-It is also possible to call `splitobs` with multiple data
-arguments as tuple, which all must have the same number of total
-observations. This is useful for labeled data.
-
-```julia
-train, test = splitobs((X, y), at=0.7)
-(x_train,y_train), (x_test,y_test) = splitobs((X, y), at=0.7)
-```
-
-If the observations should be randomly assigned to a subset,
-then you can combine the function with `shuffleobs`
-
-```julia
-# This time observations are randomly assigned.
-train, test = splitobs(shuffleobs((X, y)), at=0.7)
+# A 70%-30% split with multiple arrays and shuffling
+train, test = splitobs((X, y), at=0.7, shuffle=true)
+Xtrain, Ytrain = train
 ```
 """
-function splitobs(data; at)
+function splitobs(data; at, shuffle=false)
+    shuffle && return splitobs(shuffleobs(data); at, shuffle=false)
     n = numobs(data)
-    map(idx -> obsview(data, idx), splitobs(n; at))
+    return map(idx -> obsview(data, idx), splitobs(n; at))
 end
