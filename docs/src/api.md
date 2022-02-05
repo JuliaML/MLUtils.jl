@@ -52,10 +52,6 @@ unstack
 
 ```@docs
 Datasets.load_iris
-Datasets.load_line
-Datasets.load_poly
-Datasets.load_sin
-Datasets.load_spiral
 Datasets.make_sin
 Datasets.make_spiral
 Datasets.make_poly
