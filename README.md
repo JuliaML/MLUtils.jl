@@ -60,7 +60,7 @@ all the rest are data views.
 
 ## Related Packages
 
-`MLUtils.jl` brings togheter functionalities previously found in [LearnBase.jl](https://github.com/JuliaML/LearnBase.jl) , [MLDataPattern.jl](https://github.com/JuliaML/MLDataPattern.jl) and [MLLabelUtils.jl](https://github.com/JuliaML/MLLabelUtils.jl). These packages are now discontinued. 
+`MLUtils.jl` brings together functionalities previously found in [LearnBase.jl](https://github.com/JuliaML/LearnBase.jl) , [MLDataPattern.jl](https://github.com/JuliaML/MLDataPattern.jl) and [MLLabelUtils.jl](https://github.com/JuliaML/MLLabelUtils.jl). These packages are now discontinued. 
 
 Other features were ported from the deep learning library [`Flux.jl`](https://github.com/FluxML/Flux.jl), as they are of general use. 
 
