@@ -129,7 +129,7 @@ x, y = ObsView((X, Y))[1:10]
 
 [`obsview`](@ref),  [`getobs`](@ref), [`numobs`](@ref),
 [`splitobs`](@ref), [`shuffleobs`](@ref),
-[`kfolds`](@ref), [`batchview`](@ref).
+[`kfolds`](@ref).
 """
 struct ObsView{Tdata, I<:Union{Int,AbstractVector}} <: AbstractDataContainer
     data::Tdata

@@ -21,7 +21,7 @@ export mapobs,
        
 include("batchview.jl")
 export batchsize,
-       batchview, BatchView
+       BatchView
 
 include("eachobs.jl")
 export eachobs
@@ -62,7 +62,9 @@ export batch,
        # rpad
 
 include("Datasets/Datasets.jl")
-export Datasets
+using .Datasets
+export Datasets, 
+       load_iris
 
 include("deprecations.jl")
 

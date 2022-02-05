@@ -1,13 +1,7 @@
 using MLUtils: obsview
 
 @testset "BatchView" begin
-    # @test BatchView <: AbstractVector
-    # @test BatchView <: DataView
-    @test batchview == BatchView
-    # @test_throws MethodError oversample(BatchView(X))
-    # @test_throws MethodError undersample(BatchView(X))
-    # @test_throws MethodError stratifiedobs(BatchView(X))
-
+    
     @testset "constructor" begin
         @test_throws DimensionMismatch BatchView((rand(2,10),rand(9)))
         @test_throws DimensionMismatch BatchView((rand(2,10),rand(9)))

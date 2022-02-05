@@ -19,7 +19,6 @@ Private = false
 ```@docs
 batch
 batchsize
-batchview
 BatchView
 DataLoader
 eachobs

@@ -3,7 +3,8 @@
 
 Return an iterator over the observations in `data`. 
 
-# Arguments. 
+# Arguments
+
 - `data`. The data to be iterated over. The data type has to implement 
   [`numobs`](@ref) and [`getobs`](@ref). 
 - `buffer`. If `buffer=true` and supported by the type of `data`, 
@@ -16,7 +17,7 @@ containing `batchsize` observations.
   If `partial=false` and the number of observations is not divisible by the batchsize, 
   then the last mini-batch is dropped.
 
-See also [`numobs`](@ref), [`getobs`](@ref) and [`batchview`](@ref).
+See also [`numobs`](@ref), [`getobs`](@ref).
 
 # Examples
 

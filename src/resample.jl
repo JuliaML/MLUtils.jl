@@ -80,7 +80,7 @@ julia> getobs(oversample(data, data.Y))
 ```
 
 See [`ObsView`](@ref) for more information on data subsets.
-See also [`undersample`](@ref) and [`stratifiedobs`](@ref).
+See also [`undersample`](@ref).
 """
 function oversample(data, classes; fraction=1, shuffle::Bool=true)
     lm = group_indices(classes)
@@ -177,7 +177,7 @@ julia> getobs(undersample(data, data.Y))
 ```
 
 See [`ObsView`](@ref) for more information on data subsets.
-See also [`oversample`](@ref) and [`stratifiedobs`](@ref).
+See also [`oversample`](@ref).
 """
 function undersample(data, classes; shuffle::Bool=true)
     lm = group_indices(classes)
