@@ -185,7 +185,7 @@ end
 
 # Similar to ∇eachslice  https://github.com/JuliaDiff/ChainRules.jl/blob/8108a77a96af5d4b0c460aac393e44f8943f3c5e/src/rulesets/Base/indexing.jl#L77
 function ∇chunk(dys, x::AbstractArray, idxs, vd::Val{dim}) where {dim}
-    i1 = findfirst(dy -> dy isa AbstractArray, dys)
+    i1 = findfirst(dy -> !(dy isa AbstractZero), dys)
     if i1 === nothing  # all slices are Zero!
         return _zero_fill!(similar(x, float(eltype(x))))
     end
