@@ -95,7 +95,17 @@ end
     cs[1] == [1  6; 2  7; 3  8; 4  9; 5 10]
     cs[2] == [11 16; 12 17; 13 18; 14 19; 15 20]
     
+    # test gradient
     test_zygote(chunk, rand(10), 3, check_inferred=false)
+
+    # indirect test of second order derivates
+    n = 2
+    dims = 2
+    x = rand(4, 5)
+    y = chunk(x, 2)
+    dy = randn!.(collect.(y))
+    idxs = MLUtils._partition_idxs(x, n, dims)
+    test_zygote(MLUtils.∇chunk, dy, x, idxs, Val(dims), check_inferred=false)
 end
 
 @testset "group_counts" begin

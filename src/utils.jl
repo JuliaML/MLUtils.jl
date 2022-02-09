@@ -173,7 +173,7 @@ end
 
 @non_differentiable _partition_idxs(x...)
 
-function ChainRulesCore.rrule(::typeof(chunk), x::AbstractArray, n::Int; dims::Int=ndims(x))
+function rrule(::typeof(chunk), x::AbstractArray, n::Int; dims::Int=ndims(x))
     # this is the implementation of chunk
     idxs = _partition_idxs(x, n, dims) 
     y = [selectdim(x, dims, i) for i in idxs]
@@ -206,6 +206,15 @@ end
 _zero_fill!(dx::AbstractArray{<:Number}) = fill!(dx, zero(eltype(dx)))
 _zero_fill!(dx::AbstractArray) = map!(zero, dx, dx)
 
+function rrule(::typeof(∇chunk), dys, x, idxs, vd::Val{dim}) where dim
+    n = length(dys)
+    function ∇∇chunk(dz_raw)
+        dz = unthunk(dz_raw)
+        cs = chunk(dz, n; dims=dim)
+        return (NoTangent(), collect(cs), NoTangent(), NoTangent(), NoTangent())
+    end
+    return ∇chunk(dys, x, idxs, vd), ∇∇chunk
+end
 
 """
     group_counts(x)

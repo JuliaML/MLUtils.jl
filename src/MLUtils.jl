@@ -6,7 +6,7 @@ using ShowCases: ShowLimit
 import StatsBase: sample
 using Base: @propagate_inbounds
 using Random: AbstractRNG, shuffle!, GLOBAL_RNG
-import ChainRulesCore
+import ChainRulesCore: rrule
 using ChainRulesCore: @non_differentiable, unthunk, AbstractZero, 
                       NoTangent, ZeroTangent, ProjectTo
 
