@@ -161,9 +161,14 @@ julia> xs[1]
 chunk(x, n::Int) = collect(Iterators.partition(x, ceil(Int, length(x) / n)))
 
 function chunk(x::AbstractArray, n::Int; dims::Int=ndims(x))
-    bs = ceil(Int, size(x, dims) / n)    
-    [selectdim(x, dims, i) for i in Iterators.partition(axes(x, dims), bs)]
+    bs = ceil(Int, size(x, dims) / n)
+    ids = _partition(axes(x, dims), bs) 
+    [selectdim(x, dims, i) for i in ids]
 end
+
+# Zygote errors if not iterating over collected partitions in [selectdim(x, dims, i) for i in ids] 
+_partition(x, k) = collect(Iterators.partition(x, k))
+@non_differentiable _partition(x...)
 
 """
     group_counts(x)
