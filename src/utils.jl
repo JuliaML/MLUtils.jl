@@ -161,14 +161,51 @@ julia> xs[1]
 chunk(x, n::Int) = collect(Iterators.partition(x, ceil(Int, length(x) / n)))
 
 function chunk(x::AbstractArray, n::Int; dims::Int=ndims(x))
-    bs = ceil(Int, size(x, dims) / n)
-    ids = _partition(axes(x, dims), bs) 
-    [selectdim(x, dims, i) for i in ids]
+    idxs = _partition_idxs(x, n, dims) 
+    [selectdim(x, dims, i) for i in idxs]
 end
 
 # Zygote errors if not iterating over collected partitions in [selectdim(x, dims, i) for i in ids] 
-_partition(x, k) = collect(Iterators.partition(x, k))
-@non_differentiable _partition(x...)
+function _partition_idxs(x, n, dims)
+    bs = ceil(Int, size(x, dims) / n)
+    collect(Iterators.partition(axes(x, dims), bs))
+end
+
+@non_differentiable _partition_idxs(x...)
+
+function ChainRulesCore.rrule(::typeof(chunk), x::AbstractArray, n::Int; dims::Int=ndims(x))
+    # this is the implementation of chunk
+    idxs = _partition_idxs(x, n, dims) 
+    y = [selectdim(x, dims, i) for i in idxs]
+    
+    chunk_pullback(dy) = (NoTangent(), ∇chunk(unthunk(dy), x, idxs, Val(dims)))
+    
+    return y, chunk_pullback
+end
+
+# Similar to ∇eachslice  https://github.com/JuliaDiff/ChainRules.jl/blob/8108a77a96af5d4b0c460aac393e44f8943f3c5e/src/rulesets/Base/indexing.jl#L77
+function ∇chunk(dys, x::AbstractArray, idxs, vd::Val{dim}) where {dim}
+    i1 = findfirst(dy -> dy isa AbstractArray, dys)
+    if i1 === nothing  # all slices are Zero!
+        return _zero_fill!(similar(x, float(eltype(x))))
+    end
+    T = promote_type(eltype(dys[i1]), eltype(x))
+    # The whole point of this gradient is that we can allocate one `dx` array:
+    dx = similar(x, T)
+    for (k, i) in enumerate(idxs)
+        slice = selectdim(dx, dim, i)
+        if dys[k] isa AbstractZero
+            _zero_fill!(slice)  # Avoids this: copyto!([1,2,3], ZeroTangent()) == [0,2,3]
+        else
+            copyto!(slice, dys[k])
+        end
+    end
+    return ProjectTo(x)(dx)
+end
+
+_zero_fill!(dx::AbstractArray{<:Number}) = fill!(dx, zero(eltype(dx)))
+_zero_fill!(dx::AbstractArray) = map!(zero, dx, dx)
+
 
 """
     group_counts(x)
