@@ -6,6 +6,7 @@ using ShowCases: ShowLimit
 import StatsBase: sample
 using Base: @propagate_inbounds
 using Random: AbstractRNG, shuffle!, GLOBAL_RNG
+using ChainRulesCore
 
 include("observation.jl")
 export numobs, 

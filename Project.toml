@@ -16,8 +16,11 @@ StatsBase = "0.33"
 julia = "1.6"
 
 [extras]
+ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+ChainRulesTestUtils = "cdddcdb0-9152-4a09-a978-84456f9df70a"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["SparseArrays", "Test"]
+test = ["ChainRulesCore", "ChainRulesTestUtils", "SparseArrays", "Test", "Zygote"]

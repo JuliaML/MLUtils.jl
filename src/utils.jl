@@ -121,9 +121,13 @@ julia> unstack([1 3 5 7; 2 4 6 8], dims=2)
 unstack(xs; dims::Int) = [copy(selectdim(xs, dims, i)) for i in 1:size(xs, dims)]
 
 """
-    chunk(x, n)
+    chunk(x, n; [dims])
 
-Split `x` into `n` parts.
+Split `x` into `n` parts. The parts contain the same number of elements
+except possibly for the last one that can be smaller.
+
+If `x` is an array, `dims` can be used to specify along which dimension to 
+split (defaults to the last dimension).
 
 # Examples
 
@@ -134,14 +138,32 @@ julia> chunk(1:10, 3)
  5:8
  9:10
 
-julia> chunk(collect(1:10), 3)
-3-element Vector{SubArray{Int64, 1, Vector{Int64}, Tuple{UnitRange{Int64}}, true}}:
- [1, 2, 3, 4]
- [5, 6, 7, 8]
- [9, 10]
+julia> x = reshape(collect(1:20), (5, 4))
+5×4 Matrix{Int64}:
+ 1   6  11  16
+ 2   7  12  17
+ 3   8  13  18
+ 4   9  14  19
+ 5  10  15  20
+
+julia> xs = chunk(x, 2, dims=1)
+2-element Vector{SubArray{Int64, 2, Matrix{Int64}, Tuple{UnitRange{Int64}, Base.Slice{Base.OneTo{Int64}}}, false}}:
+ [1 6 11 16; 2 7 12 17; 3 8 13 18]
+ [4 9 14 19; 5 10 15 20]
+
+julia> xs[1]
+3×4 view(::Matrix{Int64}, 1:3, :) with eltype Int64:
+ 1  6  11  16
+ 2  7  12  17
+ 3  8  13  18
 ```
 """
-chunk(xs, n) = collect(Iterators.partition(xs, ceil(Int, length(xs)/n)))
+chunk(x, n::Int) = collect(Iterators.partition(x, ceil(Int, length(x) / n)))
+
+function chunk(x::AbstractArray, n::Int; dims::Int=ndims(x))
+    bs = ceil(Int, size(x, dims) / n)    
+    [selectdim(x, dims, i) for i in Iterators.partition(axes(x, dims), bs)]
+end
 
 """
     group_counts(x)
