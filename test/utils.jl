@@ -95,7 +95,7 @@ end
     cs[1] == [1  6; 2  7; 3  8; 4  9; 5 10]
     cs[2] == [11 16; 12 17; 13 18; 14 19; 15 20]
     
-    test_zygote(chunk, rand(10), 3)
+    test_zygote(chunk, rand(10), 3, check_inferred=false)
 end
 
 @testset "group_counts" begin
