@@ -178,7 +178,7 @@ function rrule(::typeof(chunk), x::AbstractArray, n::Int; dims::Int=ndims(x))
     idxs = _partition_idxs(x, n, dims) 
     y = [selectdim(x, dims, i) for i in idxs]
     
-    chunk_pullback(dy) = (NoTangent(), ∇chunk(unthunk(dy), x, idxs, Val(dims)))
+    chunk_pullback(dy) = (NoTangent(), ∇chunk(unthunk(dy), x, idxs, Val(dims)), NoTangent())
     
     return y, chunk_pullback
 end
