@@ -3,6 +3,9 @@ using MLUtils.Datasets
 using SparseArrays
 using Random, Statistics
 using Test
+using ChainRulesTestUtils: test_rrule
+using Zygote: ZygoteRuleConfig 
+using ChainRulesCore: rrule_via_ad
 
 showcompact(io, x) = show(IOContext(io, :compact => true), x)
 
@@ -34,6 +37,8 @@ MLUtils.getobs(::CustomType, i::Int) = i
 MLUtils.getobs(::CustomType, i::AbstractVector) = collect(i)
 
 # --------------------------------------------------------------------
+
+include("test_utils.jl")
 
 # @testset "MLUtils.jl" begin
 

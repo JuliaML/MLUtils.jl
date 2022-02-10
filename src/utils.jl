@@ -121,9 +121,13 @@ julia> unstack([1 3 5 7; 2 4 6 8], dims=2)
 unstack(xs; dims::Int) = [copy(selectdim(xs, dims, i)) for i in 1:size(xs, dims)]
 
 """
-    chunk(x, n)
+    chunk(x, n; [dims])
 
-Split `x` into `n` parts.
+Split `x` into `n` parts. The parts contain the same number of elements
+except possibly for the last one that can be smaller.
+
+If `x` is an array, `dims` can be used to specify along which dimension to 
+split (defaults to the last dimension).
 
 # Examples
 
@@ -134,14 +138,79 @@ julia> chunk(1:10, 3)
  5:8
  9:10
 
-julia> chunk(collect(1:10), 3)
-3-element Vector{SubArray{Int64, 1, Vector{Int64}, Tuple{UnitRange{Int64}}, true}}:
- [1, 2, 3, 4]
- [5, 6, 7, 8]
- [9, 10]
+julia> x = reshape(collect(1:20), (5, 4))
+5×4 Matrix{Int64}:
+ 1   6  11  16
+ 2   7  12  17
+ 3   8  13  18
+ 4   9  14  19
+ 5  10  15  20
+
+julia> xs = chunk(x, 2, dims=1)
+2-element Vector{SubArray{Int64, 2, Matrix{Int64}, Tuple{UnitRange{Int64}, Base.Slice{Base.OneTo{Int64}}}, false}}:
+ [1 6 11 16; 2 7 12 17; 3 8 13 18]
+ [4 9 14 19; 5 10 15 20]
+
+julia> xs[1]
+3×4 view(::Matrix{Int64}, 1:3, :) with eltype Int64:
+ 1  6  11  16
+ 2  7  12  17
+ 3  8  13  18
 ```
 """
-chunk(xs, n) = collect(Iterators.partition(xs, ceil(Int, length(xs)/n)))
+chunk(x, n::Int) = collect(Iterators.partition(x, ceil(Int, length(x) / n)))
+
+function chunk(x::AbstractArray, n::Int; dims::Int=ndims(x))
+    idxs = _partition_idxs(x, n, dims) 
+    [selectdim(x, dims, i) for i in idxs]
+end
+
+function _partition_idxs(x, n, dims)
+    bs = ceil(Int, size(x, dims) / n)
+    Iterators.partition(axes(x, dims), bs)
+end
+
+function rrule(::typeof(chunk), x::AbstractArray, n::Int; dims::Int=ndims(x))
+    # this is the implementation of chunk
+    idxs = _partition_idxs(x, n, dims) 
+    y = [selectdim(x, dims, i) for i in idxs]
+    valdims = Val(dims)
+    chunk_pullback(dy) = (NoTangent(), ∇chunk(unthunk(dy), x, idxs, valdims), NoTangent())
+    
+    return y, chunk_pullback
+end
+
+# Similar to ∇eachslice  https://github.com/JuliaDiff/ChainRules.jl/blob/8108a77a96af5d4b0c460aac393e44f8943f3c5e/src/rulesets/Base/indexing.jl#L77
+function ∇chunk(dys, x::AbstractArray, idxs, vd::Val{dim}) where {dim}
+    i1 = findfirst(dy -> !(dy isa AbstractZero), dys)
+    if i1 === nothing  # all slices are Zero!
+        return _zero_fill!(similar(x, float(eltype(x))))
+    end
+    T = promote_type(eltype(dys[i1]), eltype(x))
+    # The whole point of this gradient is that we can allocate one `dx` array:
+    dx = similar(x, T)
+    for (k, i) in enumerate(idxs)
+        slice = selectdim(dx, dim, i)
+        if dys[k] isa AbstractZero
+            _zero_fill!(slice)  # Avoids this: copyto!([1,2,3], ZeroTangent()) == [0,2,3]
+        else
+            copyto!(slice, dys[k])
+        end
+    end
+    return ProjectTo(x)(dx)
+end
+
+_zero_fill!(dx::AbstractArray{<:Number}) = fill!(dx, zero(eltype(dx)))
+_zero_fill!(dx::AbstractArray) = map!(zero, dx, dx)
+
+function rrule(::typeof(∇chunk), dys, x, idxs, vd::Val{dim}) where dim
+    n = length(dys)
+    function ∇∇chunk(dz_raw)
+        dz = chunk(unthunk(dz_raw), n; dims=dim)
+        return (NoTangent(), dz, NoTangent(), NoTangent(), NoTangent())
+    end
+    return ∇chunk(dys, x, idxs, vd), ∇∇chunk
+end
 
 """
     group_counts(x)

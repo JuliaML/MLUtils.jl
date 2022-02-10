@@ -6,6 +6,10 @@ using ShowCases: ShowLimit
 import StatsBase: sample
 using Base: @propagate_inbounds
 using Random: AbstractRNG, shuffle!, GLOBAL_RNG
+import ChainRulesCore: rrule
+using ChainRulesCore: @non_differentiable, unthunk, AbstractZero, 
+                      NoTangent, ZeroTangent, ProjectTo
+
 
 include("observation.jl")
 export numobs, 
