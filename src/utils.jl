@@ -165,7 +165,6 @@ function chunk(x::AbstractArray, n::Int; dims::Int=ndims(x))
     [selectdim(x, dims, i) for i in idxs]
 end
 
-# Zygote errors if not iterating over collected partitions in [selectdim(x, dims, i) for i in ids] 
 function _partition_idxs(x, n, dims)
     bs = ceil(Int, size(x, dims) / n)
     Iterators.partition(axes(x, dims), bs)
