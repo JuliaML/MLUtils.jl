@@ -168,10 +168,8 @@ end
 # Zygote errors if not iterating over collected partitions in [selectdim(x, dims, i) for i in ids] 
 function _partition_idxs(x, n, dims)
     bs = ceil(Int, size(x, dims) / n)
-    collect(Iterators.partition(axes(x, dims), bs))
+    Iterators.partition(axes(x, dims), bs)
 end
-
-@non_differentiable _partition_idxs(x...)
 
 function rrule(::typeof(chunk), x::AbstractArray, n::Int; dims::Int=ndims(x))
     # this is the implementation of chunk
