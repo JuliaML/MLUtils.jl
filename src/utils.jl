@@ -209,9 +209,8 @@ _zero_fill!(dx::AbstractArray) = map!(zero, dx, dx)
 function rrule(::typeof(∇chunk), dys, x, idxs, vd::Val{dim}) where dim
     n = length(dys)
     function ∇∇chunk(dz_raw)
-        dz = unthunk(dz_raw)
-        cs = chunk(dz, n; dims=dim)
-        return (NoTangent(), collect(cs), NoTangent(), NoTangent(), NoTangent())
+        dz = chunk(unthunk(dz_raw), n; dims=dim)
+        return (NoTangent(), dz, NoTangent(), NoTangent(), NoTangent())
     end
     return ∇chunk(dys, x, idxs, vd), ∇∇chunk
 end
