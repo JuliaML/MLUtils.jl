@@ -2,7 +2,7 @@ module Datasets
 using Random
 using DelimitedFiles: readdlm
 
-include("datasets.jl")
+include("load_datasets.jl")
 export load_iris
 
 include("generators.jl")
