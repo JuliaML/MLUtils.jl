@@ -12,6 +12,7 @@ end
     x = randn(3,3)
     stacked = stack([x, x], dims=2)
     @test size(stacked) == (3,2,3)
+    @test_broken @inferred(stack([x, x], dims=2)) == stacked
 
     stacked_array=[ 8 9 3 5; 9 6 6 9; 9 1 7 2; 7 4 10 6 ]
     unstacked_array=[[8, 9, 9, 7], [9, 6, 1, 4], [3, 6, 7, 10], [5, 9, 2, 6]]
@@ -29,9 +30,19 @@ end
     @test unbatch(stacked_array) == unstacked_array
     @test batch(unstacked_array) == stacked_array
 
+    @test_broken @inferred(unbatch(stacked_array)) == unstacked_array
+    @test_broken @inferred(batch(unstacked_array)) == stacked_array
+
     # no-op for vector of non-arrays
     @test batch([1,2,3]) == [1,2,3]
     @test unbatch([1,2,3]) == [1,2,3]
+
+    # batching multi-dimensional arrays
+    x = map(_ -> rand(4), zeros(2, 3))
+    @test size(batch(x)) == (4, 2, 3)
+
+    x = map(_ -> rand(4, 5), zeros(2, 3, 6))
+    @test size(batch(x)) == (4, 5, 2, 3, 6)
 
     # generic iterable
     @test batch(ones(2) for i=1:3) == ones(2, 3)

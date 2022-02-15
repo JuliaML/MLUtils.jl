@@ -308,8 +308,10 @@ end
 
 batchindex(xs, i) = (reverse(Base.tail(reverse(axes(xs))))..., i)
 
-function batch(xs::AbstractVector{<:AbstractArray{T,N}}) where {T, N}
-    return stack(xs, dims=N+1)
+function batch(xs::AbstractArray{<:AbstractArray{T,N}}) where {T, N}
+    sz = size(xs)
+    y = stack(vec(xs), dims=N+1)
+    reshape(y, size(y)[1:N]..., sz...)
 end
 
 function batch(xs::Vector{<:Tuple})
