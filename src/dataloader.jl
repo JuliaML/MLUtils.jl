@@ -105,4 +105,15 @@ function Base.length(d::DataLoader)
     d.partial ? ceil(Int, n) : floor(Int, n)
 end
 
+const BasicDatasets = Union{AbstractArray, Tuple, NamedTuple, Dict}
+
 Base.IteratorEltype(d::DataLoader) = Base.EltypeUnknown()
+Base.IteratorEltype(d::DataLoader{<:BasicDatasets}) = Base.HasEltype()
+
+Base.eltype(::Type{<:DataLoader{D}}) where D = datatype(D)
+
+datatype(D::Type) = Any
+datatype(D::Type{<:AbstractArray}) = D
+datatype(D::Type{<:Tuple}) = datatype.(D)
+datatype(D::Type{<:NamedTuple}) = datatype.(D)
+datatype(D::Type{Dict{K, V}}) where {K,V} = Dict{K, datatype(V)}

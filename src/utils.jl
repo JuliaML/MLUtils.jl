@@ -58,7 +58,7 @@ Base.show_function(io::IO, u::Base.Fix2{typeof(_unsqueeze)}, ::Bool) = print(io,
 """
     stack(xs; dims)
 
-Concatenate the given array of arrays `xs` into a single array along the
+Concatenate the given vector of arrays `xs` into a single array along the
 given dimension `dims`.
 
 See also [`stack`](@ref) and [`batch`](@ref).
@@ -98,7 +98,19 @@ julia> stack(xs, dims=3)
  6
 ```
 """
-stack(xs; dims::Int) = cat(unsqueeze.(xs; dims)...; dims)
+stack(xs::AbstractVector; dims::Int) = cat(unsqueeze.(xs; dims)...; dims)
+
+# function stack(xs::AbstractVector{<:AbstractArray{T,N}}; dims::Int) where {T,N}
+#     xs = unsqueeze.(xs; dims)
+#     if dims == 1
+#         ys = reduce(vcat, xs)
+#     elseif dims == 2
+#         ys = reduce(hcat, xs)
+#     else
+#         ys = cat(xs...; dims)
+#     end
+#     return ys
+# end
 
 """
     unstack(xs; dims)
