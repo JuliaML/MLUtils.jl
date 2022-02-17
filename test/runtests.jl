@@ -31,6 +31,10 @@ const Y1 = collect(1:15)
 
 struct EmptyType end
 
+struct FallbackType end
+Base.getindex(::FallbackType, i) = 1234
+Base.length(::FallbackType) = 5678
+
 struct CustomType end
 MLUtils.numobs(::CustomType) = 15
 MLUtils.getobs(::CustomType, i::Int) = i

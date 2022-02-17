@@ -2,10 +2,15 @@
     numobs(data)
 
 Return the total number of observations contained in `data`.
+If `data` does not have `numobs` defined, then this function
+falls back to `length(data)`.
 
 See also [`getobs`](@ref)
 """
 function numobs end
+
+# Generic Fallbacks
+numobs(data) = length(data)
 
 """
     getobs(data, [idx])
@@ -13,6 +18,8 @@ function numobs end
 Return the observations corresponding to the observation-index `idx`.
 Note that `idx` can be any type as long as `data` has defined
 `getobs` for that type.
+If `data` does not have `getobs` defined, then this function
+falls back to `data[idx]`.
 
 The returned observation(s) should be in the form intended to
 be passed as-is to some learning algorithm. There is no strict
@@ -29,7 +36,7 @@ function getobs end
 
 # Generic Fallbacks
 getobs(data) = data
-# getobs(data, idx) = data[idx]
+getobs(data, idx) = data[idx]
 
 """
     getobs!(buffer, data, idx)
