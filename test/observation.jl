@@ -1,3 +1,9 @@
+@testset "fallbacks" begin
+    x = FallbackType()
+    @test getobs(x, 3) == 1234
+    @test numobs(x) == 5678
+end
+
 @testset "array" begin
     a = rand(2,3)
     @test numobs(a) == 3
