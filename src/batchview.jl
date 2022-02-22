@@ -119,6 +119,10 @@ function Base.getindex(A::BatchView, is::AbstractVector)
     obsview(A.data, obsindices)
 end
 
+# override AbstractDataContainer default
+Base.iterate(A::BatchView, state = 1) =
+    (state > numobs(A)) ? nothing : (A[state], state + 1)
+
 obsview(A::BatchView) = A
 obsview(A::BatchView, i) = A[i]
 
