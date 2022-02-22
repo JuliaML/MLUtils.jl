@@ -74,6 +74,7 @@ getobs!(buffer, data, idx) = getobs(data, idx)
 
 abstract type AbstractDataContainer end
 
+Base.size(x::AbstractDataContainer) = (numobs(x),)
 Base.iterate(x::AbstractDataContainer, state = 1) =
     (state > numobs(x)) ? nothing : (getobs(x, state), state + 1)
 Base.lastindex(x::AbstractDataContainer) = numobs(x)
