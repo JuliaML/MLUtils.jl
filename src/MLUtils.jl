@@ -22,7 +22,7 @@ export mapobs,
        groupobs,
        joinobs,
        shuffleobs
-       
+
 include("batchview.jl")
 export batchsize,
        BatchView

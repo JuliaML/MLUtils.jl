@@ -100,7 +100,7 @@ Return the fixed size of each batch in `data`.
 """
 batchsize(A::BatchView) = A.batchsize
 
-numobs(A::BatchView) = A.count
+Base.length(A::BatchView) = A.count
 getobs(A::BatchView) = getobs(A.data)
 getobs(A::BatchView, i::Int) = getobs(A.data, _batchrange(A, i))
 
