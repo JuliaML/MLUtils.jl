@@ -100,7 +100,7 @@ Return the fixed size of each batch in `data`.
 """
 batchsize(A::BatchView) = A.batchsize
 
-numobs(A::BatchView) = A.count
+Base.length(A::BatchView) = A.count
 getobs(A::BatchView) = getobs(A.data)
 getobs(A::BatchView, i::Int) = getobs(A.data, _batchrange(A, i))
 
@@ -118,6 +118,10 @@ function Base.getindex(A::BatchView, is::AbstractVector)
     obsindices = union((_batchrange(A, i) for i in is)...)::Vector{Int}
     obsview(A.data, obsindices)
 end
+
+# override AbstractDataContainer default
+Base.iterate(A::BatchView, state = 1) =
+    (state > numobs(A)) ? nothing : (A[state], state + 1)
 
 obsview(A::BatchView) = A
 obsview(A::BatchView, i) = A[i]

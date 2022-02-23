@@ -1,7 +1,7 @@
 
 # mapobs
 
-struct MappedData{F,D}
+struct MappedData{F,D} <: AbstractDataContainer
     f::F
     data::D
 end
@@ -9,9 +9,9 @@ end
 Base.show(io::IO, data::MappedData) = print(io, "mapobs($(data.f), $(summary(data.data)))")
 Base.show(io::IO, data::MappedData{F,<:AbstractArray}) where {F} =
     print(io, "mapobs($(data.f), $(ShowLimit(data.data, limit=80)))")
-numobs(data::MappedData) = numobs(data.data)
-getobs(data::MappedData, idx::Int) = data.f(getobs(data.data, idx))
-getobs(data::MappedData, idxs::AbstractVector) = data.f.(getobs(data.data, idxs))
+Base.length(data::MappedData) = numobs(data.data)
+Base.getindex(data::MappedData, idx::Int) = data.f(getobs(data.data, idx))
+Base.getindex(data::MappedData, idxs::AbstractVector) = data.f.(getobs(data.data, idxs))
 
 
 """
@@ -38,14 +38,14 @@ Returns a tuple of transformed data containers.
 mapobs(fs::Tuple, data) = Tuple(mapobs(f, data) for f in fs)
 
 
-struct NamedTupleData{TData,F}
+struct NamedTupleData{TData,F} <: AbstractDataContainer
     data::TData
     namedfs::NamedTuple{F}
 end
 
-numobs(data::NamedTupleData) = numobs(getfield(data, :data))
+Base.length(data::NamedTupleData) = numobs(getfield(data, :data))
 
-function getobs(data::NamedTupleData{TData,F}, idx::Int) where {TData,F}
+function Base.getindex(data::NamedTupleData{TData,F}, idx::Int) where {TData,F}
     obs = getobs(getfield(data, :data), idx)
     namedfs = getfield(data, :namedfs)
     return NamedTuple{F}(f(obs) for f in namedfs)
@@ -126,16 +126,16 @@ end
 
 # joinumobs
 
-struct JoinedData{T,N}
+struct JoinedData{T,N} <: AbstractDataContainer
     datas::NTuple{N,T}
     ns::NTuple{N,Int}
 end
 
 JoinedData(datas) = JoinedData(datas, numobs.(datas))
 
-numobs(data::JoinedData) = sum(data.ns)
+Base.length(data::JoinedData) = sum(data.ns)
 
-function getobs(data::JoinedData, idx)
+function Base.getindex(data::JoinedData, idx)
     for (i, n) in enumerate(data.ns)
         if idx <= n
             return getobs(data.datas[i], idx)

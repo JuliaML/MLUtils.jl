@@ -178,11 +178,10 @@ end
 
 Base.IteratorEltype(::Type{<:ObsView}) = Base.EltypeUnknown()
 
-# override AbstractDataContainer defaults
 Base.getindex(subset::ObsView, idx) =
     obsview(subset.data, subset.indices[idx])
 
-numobs(subset::ObsView) = length(subset.indices)
+Base.length(subset::ObsView) = length(subset.indices)
 
 getobs(subset::ObsView) = getobs(subset.data, subset.indices)
 getobs(subset::ObsView, idx) = getobs(subset.data, subset.indices[idx])

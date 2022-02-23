@@ -2,8 +2,14 @@
     numobs(data)
 
 Return the total number of observations contained in `data`.
+
 If `data` does not have `numobs` defined, then this function
 falls back to `length(data)`.
+Authors of custom data containers should implement
+`Base.length` for their type instead of `numobs`.
+`numobs` should only be implemented for types where there is a
+difference between `numobs` and `Base.length`
+(such as multi-dimensional arrays).
 
 See also [`getobs`](@ref)
 """
@@ -18,16 +24,20 @@ numobs(data) = length(data)
 Return the observations corresponding to the observation-index `idx`.
 Note that `idx` can be any type as long as `data` has defined
 `getobs` for that type.
+
 If `data` does not have `getobs` defined, then this function
 falls back to `data[idx]`.
+Authors of custom data containers should implement
+`Base.getindex` for their type instead of `getobs`.
+`getobs` should only be implemented for types where there is a
+difference between `getobs` and `Base.getindex`
+(such as multi-dimensional arrays).
 
 The returned observation(s) should be in the form intended to
 be passed as-is to some learning algorithm. There is no strict
 interface requirement on how this "actual data" must look like.
-
 Every author behind some custom data container can make this
 decision themselves.
-
 The output should be consistent when `idx` is a scalar vs vector.
 
 See also [`getobs!`](@ref) and [`numobs`](@ref) 
@@ -64,13 +74,10 @@ getobs!(buffer, data, idx) = getobs(data, idx)
 
 abstract type AbstractDataContainer end
 
-Base.getindex(x::AbstractDataContainer, i) = getobs(x, i)
-Base.length(x::AbstractDataContainer) = numobs(x)
-Base.size(x::AbstractDataContainer) = (length(x),)
-
+Base.size(x::AbstractDataContainer) = (numobs(x),)
 Base.iterate(x::AbstractDataContainer, state = 1) =
-    (state > length(x)) ? nothing : (x[state], state + 1)
-Base.lastindex(x::AbstractDataContainer) = length(x)
+    (state > numobs(x)) ? nothing : (getobs(x, state), state + 1)
+Base.lastindex(x::AbstractDataContainer) = numobs(x)
 
 # --------------------------------------------------------------------
 # Arrays
