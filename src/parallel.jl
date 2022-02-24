@@ -1,24 +1,43 @@
 """
     eachobsparallel(data)
+    eachobsparallel(data[, executor; buffersize])
 
 Construct a data iterator over observations in container `data`.
 It uses available threads as workers to load observations in
 parallel, leading to large speedups when threads are available.
+
+To ensure that the active Julia session has multiple threads
+available, check that `Threads.nthreads() > 1`. You can start
+Julia with multiple threads with the `-t n` option. If your data
+loading is bottlenecked by the CPU, it is recommended to set `n`
+to the number of physical CPU cores.
+
+## Arguments
+
+- `data`: a data container that implements `getindex/getobs` and `length/numobs`
+- `executor = Folds.ThreadedEx()`: task scheduler
+
+    You may specify a different task scheduler which can
+    be any `Folds.Executor`.
+- `buffersize = Threads.nthreads()`: the number of observations that are prefetched.
+
+    Increasing `buffersize` can lead to speedups when per-observation processing
+    time is irregular but will cause higher memory usage.
 """
 function eachobsparallel(
         data,
-        executor::Executor;
+        executor::Executor = _default_executor();
         buffersize = Threads.nthreads())
     return Loader(executor, buffersize, 1:numobs(data)) do i
         getobs(data, i)
     end
 end
 
-# The default executor behaves similarly to DataLoaders.jl and allows
-# loading data in the background
-function eachobsparallel(data; background = true, kwargs...)
-    return eachobsparallel(data, TaskPoolEx(background=background); kwargs...)
-end
+# Unlike DataLoaders.jl, this currently does not use task pools
+# since  `ThreadedEx` has shown to be more performant. This may
+# change in the future.
+# See PR 33 https://github.com/JuliaML/MLUtils.jl/pull/33
+_default_executor() = ThreadedEx(basesize=1)
 
 
 mutable struct Loader

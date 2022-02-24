@@ -29,9 +29,8 @@ include("batchview.jl")
 export batchsize,
        BatchView
 
-include("dataiterator.jl")
-export eachobs,
-       eachbatch
+include("eachobs.jl")
+export eachobs
 
 include("parallel.jl")
 export eachobsparallel
