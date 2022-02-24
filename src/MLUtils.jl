@@ -23,7 +23,8 @@ include("obstransform.jl")
 export mapobs,
        filterobs,
        groupobs,
-       joinobs
+       joinobs,
+       shuffleobs
 
 include("batchview.jl")
 export batchsize,
