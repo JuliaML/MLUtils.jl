@@ -43,20 +43,23 @@ function Base.iterate(loader::Loader)
         @floop loader.executor for arg in loader.argiter
             try
                 result = loader.f(arg)
-                put!(ch, result)
+                @async put!(ch, result)
             catch e
                 close(ch, e)
                 rethrow()
             end
         end
-        close(ch)
     end
 
     return Base.iterate(loader, LoaderState(task, ch, length(loader.argiter)))
 end
 
 function Base.iterate(::Loader, state::LoaderState)
-    state.remaining == 0 && return nothing
-    result = take!(state.channel)
-    return result, LoaderState(state.spawnertask, state.channel, state.remaining - 1)
+    if state.remaining == 0
+        close(state.channel)
+        return nothing
+    else
+        result = take!(state.channel)
+        return result, LoaderState(state.spawnertask, state.channel, state.remaining - 1)
+    end
 end
