@@ -62,8 +62,10 @@ train, test = splitobs((X, y), at=0.7, shuffle=true)
 Xtrain, Ytrain = train
 ```
 """
-function splitobs(data; at, shuffle=false)
-    shuffle && return splitobs(shuffleobs(data); at, shuffle=false)
+function splitobs(data; at, shuffle::Bool=false)
+    if shuffle
+        data = shuffleobs(data)
+    end
     n = numobs(data)
     return map(idx -> obsview(data, idx), splitobs(n; at))
 end

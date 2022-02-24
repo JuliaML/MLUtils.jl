@@ -1,6 +1,6 @@
 @test_throws DimensionMismatch splitobs((X, rand(149)), at=0.7)
 
-### These tests pass on julia 1.6 but fail on higher versions
+# ## These tests pass on julia 1.6 but fail on higher versions
 # @testset "typestability" begin
 #     @testset "Int" begin
 #         @test typeof(@inferred(splitobs(10, at=0.))) <: NTuple{2}
