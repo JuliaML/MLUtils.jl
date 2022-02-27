@@ -89,12 +89,12 @@ using threads that prefill a channel of length `channelsize`.
 Note: results may not be returned in the correct order, depending on
 `executor`.
 """
-mutable struct Loader
-    f::Any
-    argiter::Any
-    executor::Any
-    channelsize::Any
-    setup_channel::Any
+struct Loader
+    f
+    argiter::AbstractVector
+    executor::Executor
+    channelsize::Int
+    setup_channel
 end
 
 function Loader(
