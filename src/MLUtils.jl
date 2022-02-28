@@ -29,6 +29,8 @@ include("batchview.jl")
 export batchsize,
        BatchView
 
+include("collate.jl")
+
 include("eachobs.jl")
 export eachobs
 

@@ -1,6 +1,6 @@
 using MLUtils
 using MLUtils.Datasets
-using MLUtils: RingBuffer
+using MLUtils: RingBuffer, collate
 using SparseArrays
 using Random, Statistics
 using Test
@@ -49,6 +49,7 @@ include("test_utils.jl")
 # @testset "MLUtils.jl" begin
 
 @testset "batchview" begin; include("batchview.jl"); end
+@testset "collate" begin; include("collate.jl"); end
 @testset "eachobs" begin; include("eachobs.jl"); end
 @testset "dataloader" begin; include("dataloader.jl"); end
 @testset "folds" begin; include("folds.jl"); end
