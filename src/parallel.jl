@@ -1,6 +1,5 @@
 """
-    eachobsparallel(data)
-    eachobsparallel(data; buffer, executor; channelsize)
+    eachobsparallel(data; buffer, executor, channelsize)
 
 Construct a data iterator over observations in container `data`.
 It uses available threads as workers to load observations in
@@ -27,8 +26,8 @@ to the number of physical CPU cores.
     time is irregular but will cause higher memory usage.
 """
 function eachobsparallel(
-        data,
-        executor::Executor = _default_executor();
+        data;
+        executor::Executor = _default_executor()
         buffer = false,
         channelsize = Threads.nthreads())
     if buffer

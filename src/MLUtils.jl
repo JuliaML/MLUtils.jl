@@ -34,7 +34,6 @@ include("eachobs.jl")
 export eachobs
 
 include("parallel.jl")
-export eachobsparallel
 
 include("dataloader.jl")
 export DataLoader
@@ -51,8 +50,7 @@ include("randobs.jl")
 export randobs
 
 include("resample.jl")
-export labelmap,
-       oversample,
+export oversample,
        undersample
 
 include("splitobs.jl")
