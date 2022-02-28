@@ -27,7 +27,7 @@ to the number of physical CPU cores.
 """
 function eachobsparallel(
         data;
-        executor::Executor = _default_executor()
+        executor::Executor = _default_executor(),
         buffer = false,
         channelsize = Threads.nthreads())
     if buffer
