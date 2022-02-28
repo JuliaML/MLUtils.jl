@@ -1,6 +1,6 @@
 using MLUtils
 using MLUtils.Datasets
-using MLUtils: RingBuffer
+using MLUtils: RingBuffer, eachobsparallel
 using SparseArrays
 using Random, Statistics
 using Test
