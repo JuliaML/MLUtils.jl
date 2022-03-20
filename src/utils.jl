@@ -245,7 +245,7 @@ See also [`group_counts`](@ref).
 
 # Examples
 
-```julia
+```jldoctest
 julia> x = [:yes, :no, :maybe, :yes];
 
 julia> group_indices(x)
@@ -253,7 +253,7 @@ Dict{Symbol, Vector{Int64}} with 3 entries:
   :yes   => [1, 4]
   :maybe => [3]
   :no    => [2]
-
+```
 """
 function group_indices(classes::T) where T<:AbstractVector
     dict = Dict{eltype(T), Vector{Int}}()
