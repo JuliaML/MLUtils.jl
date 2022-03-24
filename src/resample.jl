@@ -80,10 +80,10 @@ julia> getobs(oversample(data, data.Y))
 ```
 
 See [`ObsView`](@ref) for more information on data subsets.
-See also [`undersample`](@ref) and [`stratifiedobs`](@ref).
+See also [`undersample`](@ref).
 """
 function oversample(data, classes; fraction=1, shuffle::Bool=true)
-    lm = labelmap(classes)
+    lm = group_indices(classes)
 
     maxcount = maximum(length, values(lm))
     fraccount = round(Int, fraction * maxcount)
@@ -103,7 +103,7 @@ function oversample(data, classes; fraction=1, shuffle::Bool=true)
     end
 
     shuffle && shuffle!(inds)
-    return datasubset(data, inds)
+    return obsview(data, inds)
 end
 
 oversample(data::Tuple; kws...) = oversample(data, data[end]; kws...)
@@ -142,7 +142,7 @@ X_bal, Y_bal = undersample(X, Y)
 ```
 
 For this function to work, the type of `data` must implement
-[`nobs`](@ref) and [`getobs`](@ref). For example, the following
+[`numobs`](@ref) and [`getobs`](@ref). For example, the following
 code allows `undersample` to work on a `DataFrame`.
 
 ```julia
@@ -177,10 +177,10 @@ julia> getobs(undersample(data, data.Y))
 ```
 
 See [`ObsView`](@ref) for more information on data subsets.
-See also [`oversample`](@ref) and [`stratifiedobs`](@ref).
+See also [`oversample`](@ref).
 """
 function undersample(data, classes; shuffle::Bool=true)
-    lm = labelmap(classes)
+    lm = group_indices(classes)
     mincount = minimum(length, values(lm))
 
     inds = Int[]
@@ -190,36 +190,7 @@ function undersample(data, classes; shuffle::Bool=true)
     end
 
     shuffle ? shuffle!(inds) : sort!(inds)
-    return datasubset(data, inds)
+    return obsview(data, inds)
 end
 
 undersample(data::Tuple; kws...) = undersample(data, data[end]; kws...)
-
-
-"""
-    labelmap(classes) -> Dict
-
-Computes the indices of all elements that belong to each class. 
-This information is useful for resampling strategies, such as stratified sampling
-
-```julia
-julia> true_targets = [:yes,:no,:maybe,:yes];
-
-julia> labelmap(true_targets)
-Dict{Symbol, Vector{Int64}} with 3 entries:
-  :yes   => [1, 4]
-  :maybe => [3]
-  :no    => [2]
-
-"""
-function labelmap(classes::T) where T<:AbstractVector
-    dict = Dict{eltype(T), Vector{Int}}()
-    for (idx, elem) in enumerate(classes)
-        if !haskey(dict, elem)
-            push!(dict, elem => [idx])
-        else
-            push!(dict[elem], idx)
-        end
-    end
-    return dict
-end

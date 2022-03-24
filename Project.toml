@@ -1,23 +1,31 @@
 name = "MLUtils"
 uuid = "f1d291b0-491e-4a28-83b9-f70985020b54"
 authors = ["Carlo Lucibello <carlo.lucibello@gmail.com> and contributors"]
-version = "0.1.0"
+version = "0.2.1"
 
 [deps]
+ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+FLoops = "cc61a311-1640-44b5-9fba-1b764f453329"
+FoldsThreads = "9c68100b-dfe1-47cf-94c8-95104e173443"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 ShowCases = "605ecd9f-84a6-4c9e-81e2-4798472b76a3"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
+ChainRulesCore = "1.0"
+FLoops = "0.2"
+FoldsThreads = "0.1"
 ShowCases = "0.1"
 StatsBase = "0.33"
 julia = "1.6"
 
 [extras]
+ChainRulesTestUtils = "cdddcdb0-9152-4a09-a978-84456f9df70a"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["SparseArrays", "Test"]
+test = ["ChainRulesTestUtils", "SparseArrays", "Test", "Zygote"]

@@ -101,20 +101,20 @@ for (x_train, x_val) in kfolds(shuffleobs(X), k = 10)
 end
 ```
 
-See [`leaveout`](@ref) for a related function.
+See [`leavepout`](@ref) for a related function.
 """
 function kfolds(data, k::Integer)
     n = numobs(data)
     train_indices, val_indices = kfolds(n, k)
 
-    ((datasubset(data, itrain), datasubset(data, ival)) 
+    ((obsview(data, itrain), obsview(data, ival)) 
         for (itrain, ival) in zip(train_indices, val_indices))
 end
 
 kfolds(data; k) = kfolds(data, k)
 
 """
-    leaveout(n::Integer, [size = 1]) -> Tuple
+    leavepout(n::Integer, [size = 1]) -> Tuple
 
 Compute the train/validation assignments for `k ≈ n/size`
 repartitions of `n` observations, and return them in the form of
@@ -125,7 +125,7 @@ either `size` or `size+1` observations assigned to it. The
 following code snippet generates the index-vectors for `size = 2`.
 
 ```julia
-julia> train_idx, val_idx = leaveout(10, 2);
+julia> train_idx, val_idx = leavepout(10, 2);
 ```
 
 Each observation is assigned to the validation subset once (and

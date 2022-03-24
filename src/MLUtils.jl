@@ -3,28 +3,37 @@ module MLUtils
 using Random
 using Statistics
 using ShowCases: ShowLimit
+using FLoops: @floop
+using FLoops.Transducers: Executor, ThreadedEx
+using FoldsThreads: TaskPoolEx
 import StatsBase: sample
 using Base: @propagate_inbounds
 using Random: AbstractRNG, shuffle!, GLOBAL_RNG
+import ChainRulesCore: rrule
+using ChainRulesCore: @non_differentiable, unthunk, AbstractZero,
+                      NoTangent, ZeroTangent, ProjectTo
+
 
 include("observation.jl")
-export numobs, 
-       getobs, 
+export numobs,
+       getobs,
        getobs!
 
 include("obstransform.jl")
-export mapobs, 
-       filterobs, 
+export mapobs,
+       filterobs,
        groupobs,
-       joinobs
-       
+       joinobs,
+       shuffleobs
+
 include("batchview.jl")
 export batchsize,
-       batchview, BatchView
+       BatchView
 
-include("dataiterator.jl")
-export eachobs, 
-       eachbatch
+include("eachobs.jl")
+export eachobs
+
+include("parallel.jl")
 
 include("dataloader.jl")
 export DataLoader
@@ -34,19 +43,15 @@ export kfolds,
        leavepout
 
 include("obsview.jl")
-export datasubset,
-       obsview, ObsView
+export obsview,
+       ObsView
 
 include("randobs.jl")
 export randobs
 
 include("resample.jl")
-export labelmap, 
-       oversample,
+export oversample,
        undersample
-
-include("shuffleobs.jl")
-export shuffleobs
 
 include("splitobs.jl")
 export splitobs
@@ -56,7 +61,8 @@ export batch,
        batchseq,
        chunk,
        flatten,
-       frequencies,
+       group_counts,
+       group_indices,
        normalise,
        stack,
        unbatch,
@@ -65,7 +71,9 @@ export batch,
        # rpad
 
 include("Datasets/Datasets.jl")
-export Datasets
+using .Datasets
+export Datasets,
+       load_iris
 
 include("deprecations.jl")
 

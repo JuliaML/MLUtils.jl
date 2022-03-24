@@ -5,6 +5,7 @@
 
 Return `x` reshaped into an array one dimensionality higher than `x`,
 where `dims` indicates in which dimension `x` is extended.
+
 See also [`flatten`](@ref), [`stack`](@ref).
 
 # Examples
@@ -15,9 +16,11 @@ julia> unsqueeze([1 2; 3 4], dims=2)
 [:, :, 1] =
  1
  3
+
 [:, :, 2] =
  2
  4
+
 
 julia> xs = [[1, 2], [3, 4], [5, 6]]
 3-element Vector{Vector{Int64}}:
@@ -57,6 +60,8 @@ Base.show_function(io::IO, u::Base.Fix2{typeof(_unsqueeze)}, ::Bool) = print(io,
 
 Concatenate the given array of arrays `xs` into a single array along the
 given dimension `dims`.
+
+See also [`stack`](@ref) and [`batch`](@ref).
 
 # Examples
 
@@ -100,6 +105,8 @@ stack(xs; dims::Int) = cat(unsqueeze.(xs; dims)...; dims)
 
 Unroll the given `xs` into an array of arrays along the given dimension `dims`.
 
+See also [`stack`](@ref) and [`unbatch`](@ref).
+
 # Examples
 
 ```jldoctest
@@ -114,9 +121,13 @@ julia> unstack([1 3 5 7; 2 4 6 8], dims=2)
 unstack(xs; dims::Int) = [copy(selectdim(xs, dims, i)) for i in 1:size(xs, dims)]
 
 """
-    chunk(xs, n)
+    chunk(x, n; [dims])
 
-Split `xs` into `n` parts.
+Split `x` into `n` parts. The parts contain the same number of elements
+except possibly for the last one that can be smaller.
+
+If `x` is an array, `dims` can be used to specify along which dimension to 
+split (defaults to the last dimension).
 
 # Examples
 
@@ -127,36 +138,135 @@ julia> chunk(1:10, 3)
  5:8
  9:10
 
-julia> chunk(collect(1:10), 3)
-3-element Vector{SubArray{Int64, 1, Vector{Int64}, Tuple{UnitRange{Int64}}, true}}:
- [1, 2, 3, 4]
- [5, 6, 7, 8]
- [9, 10]
+julia> x = reshape(collect(1:20), (5, 4))
+5×4 Matrix{Int64}:
+ 1   6  11  16
+ 2   7  12  17
+ 3   8  13  18
+ 4   9  14  19
+ 5  10  15  20
+
+julia> xs = chunk(x, 2, dims=1)
+2-element Vector{SubArray{Int64, 2, Matrix{Int64}, Tuple{UnitRange{Int64}, Base.Slice{Base.OneTo{Int64}}}, false}}:
+ [1 6 11 16; 2 7 12 17; 3 8 13 18]
+ [4 9 14 19; 5 10 15 20]
+
+julia> xs[1]
+3×4 view(::Matrix{Int64}, 1:3, :) with eltype Int64:
+ 1  6  11  16
+ 2  7  12  17
+ 3  8  13  18
 ```
 """
-chunk(xs, n) = collect(Iterators.partition(xs, ceil(Int, length(xs)/n)))
+chunk(x, n::Int) = collect(Iterators.partition(x, ceil(Int, length(x) / n)))
+
+function chunk(x::AbstractArray, n::Int; dims::Int=ndims(x))
+    idxs = _partition_idxs(x, n, dims) 
+    [selectdim(x, dims, i) for i in idxs]
+end
+
+function _partition_idxs(x, n, dims)
+    bs = ceil(Int, size(x, dims) / n)
+    Iterators.partition(axes(x, dims), bs)
+end
+
+function rrule(::typeof(chunk), x::AbstractArray, n::Int; dims::Int=ndims(x))
+    # this is the implementation of chunk
+    idxs = _partition_idxs(x, n, dims) 
+    y = [selectdim(x, dims, i) for i in idxs]
+    valdims = Val(dims)
+    chunk_pullback(dy) = (NoTangent(), ∇chunk(unthunk(dy), x, idxs, valdims), NoTangent())
+    
+    return y, chunk_pullback
+end
+
+# Similar to ∇eachslice  https://github.com/JuliaDiff/ChainRules.jl/blob/8108a77a96af5d4b0c460aac393e44f8943f3c5e/src/rulesets/Base/indexing.jl#L77
+function ∇chunk(dys, x::AbstractArray, idxs, vd::Val{dim}) where {dim}
+    i1 = findfirst(dy -> !(dy isa AbstractZero), dys)
+    if i1 === nothing  # all slices are Zero!
+        return _zero_fill!(similar(x, float(eltype(x))))
+    end
+    T = promote_type(eltype(dys[i1]), eltype(x))
+    # The whole point of this gradient is that we can allocate one `dx` array:
+    dx = similar(x, T)
+    for (k, i) in enumerate(idxs)
+        slice = selectdim(dx, dim, i)
+        if dys[k] isa AbstractZero
+            _zero_fill!(slice)  # Avoids this: copyto!([1,2,3], ZeroTangent()) == [0,2,3]
+        else
+            copyto!(slice, dys[k])
+        end
+    end
+    return ProjectTo(x)(dx)
+end
+
+_zero_fill!(dx::AbstractArray{<:Number}) = fill!(dx, zero(eltype(dx)))
+_zero_fill!(dx::AbstractArray) = map!(zero, dx, dx)
+
+function rrule(::typeof(∇chunk), dys, x, idxs, vd::Val{dim}) where dim
+    n = length(dys)
+    function ∇∇chunk(dz_raw)
+        dz = chunk(unthunk(dz_raw), n; dims=dim)
+        return (NoTangent(), dz, NoTangent(), NoTangent(), NoTangent())
+    end
+    return ∇chunk(dys, x, idxs, vd), ∇∇chunk
+end
 
 """
-    frequencies(xs)
+    group_counts(x)
 
-Count the number of times that each element of `xs` appears.
+Count the number of times that each element of `x` appears.
 
+See also [`group_indices`](@ref)
 # Examples
 
 ```jldoctest
-julia> frequencies(['a','b','b'])
+julia> group_counts(['a', 'b', 'b'])
 Dict{Char, Int64} with 2 entries:
   'a' => 1
   'b' => 2
 ```
 """
-function frequencies(xs)
-    fs = Dict{eltype(xs),Int}()
-    for x in xs
-        fs[x] = get(fs, x, 0) + 1
+function group_counts(x)
+    fs = Dict{eltype(x),Int}()
+    for a in x
+        fs[a] = get(fs, a, 0) + 1
     end
     return fs
 end
+
+"""
+    group_indices(x) -> Dict
+
+Computes the indices of elements in the vector `x` for each distinct value contained. 
+This information is useful for resampling strategies, such as stratified sampling.
+
+See also [`group_counts`](@ref).
+
+# Examples
+
+```jldoctest
+julia> x = [:yes, :no, :maybe, :yes];
+
+julia> group_indices(x)
+Dict{Symbol, Vector{Int64}} with 3 entries:
+  :yes   => [1, 4]
+  :maybe => [3]
+  :no    => [2]
+```
+"""
+function group_indices(classes::T) where T<:AbstractVector
+    dict = Dict{eltype(T), Vector{Int}}()
+    for (idx, elem) in enumerate(classes)
+        if !haskey(dict, elem)
+            push!(dict, elem => [idx])
+        else
+            push!(dict[elem], idx)
+        end
+    end
+    return dict
+end
+
 
 """
     batch(xs)
@@ -198,8 +308,10 @@ end
 
 batchindex(xs, i) = (reverse(Base.tail(reverse(axes(xs))))..., i)
 
-function batch(xs::AbstractVector{<:AbstractArray{T,N}}) where {T, N}
-    return stack(xs, dims=N+1)
+function batch(xs::AbstractArray{<:AbstractArray{T,N}}) where {T, N}
+    sz = size(xs)
+    y = stack(vec(xs), dims=N+1)
+    reshape(y, size(y)[1:N]..., sz...)
 end
 
 function batch(xs::Vector{<:Tuple})
@@ -230,6 +342,7 @@ end
 
 Reverse of the [`batch`](@ref) operation,
 unstacking the last dimension of the array `x`.
+
 See also [`unstack`](@ref).
 
 # Examples
@@ -298,6 +411,7 @@ end
 
 Reshape arbitrarly-shaped input into a matrix-shaped output,
 preserving the size of the last dimension.
+
 See also [`unsqueeze`](@ref).
 
 # Examples
@@ -314,8 +428,9 @@ end
 """
     normalise(x; dims=ndims(x), ϵ=1e-5)
 
-Normalise `x` to mean 0 and standard deviation 1 across the dimension(s) given by `dims`.
+Normalise the array `x` to mean 0 and standard deviation 1 across the dimension(s) given by `dims`.
 Per default, `dims` is the last dimension. 
+
 `ϵ` is a small additive factor added to the denominator for numerical stability.
 """
 function normalise(x::AbstractArray; dims=ndims(x), ϵ=ofeltype(x, 1e-5))

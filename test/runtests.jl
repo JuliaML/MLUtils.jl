@@ -1,8 +1,13 @@
 using MLUtils
 using MLUtils.Datasets
+using MLUtils: RingBuffer, eachobsparallel
 using SparseArrays
 using Random, Statistics
 using Test
+using FoldsThreads: TaskPoolEx
+using ChainRulesTestUtils: test_rrule
+using Zygote: ZygoteRuleConfig
+using ChainRulesCore: rrule_via_ad
 
 showcompact(io, x) = show(IOContext(io, :compact => true), x)
 
@@ -28,6 +33,10 @@ const Y1 = collect(1:15)
 
 struct EmptyType end
 
+struct FallbackType end
+Base.getindex(::FallbackType, i) = 1234
+Base.length(::FallbackType) = 5678
+
 struct CustomType end
 MLUtils.numobs(::CustomType) = 15
 MLUtils.getobs(::CustomType, i::Int) = i
@@ -35,10 +44,12 @@ MLUtils.getobs(::CustomType, i::AbstractVector) = collect(i)
 
 # --------------------------------------------------------------------
 
+include("test_utils.jl")
+
 # @testset "MLUtils.jl" begin
 
 @testset "batchview" begin; include("batchview.jl"); end
-@testset "dataiterator" begin; include("dataiterator.jl"); end
+@testset "eachobs" begin; include("eachobs.jl"); end
 @testset "dataloader" begin; include("dataloader.jl"); end
 @testset "folds" begin; include("folds.jl"); end
 @testset "observation" begin; include("observation.jl"); end
@@ -46,9 +57,9 @@ MLUtils.getobs(::CustomType, i::AbstractVector) = collect(i)
 @testset "obstransform" begin; include("obstransform.jl"); end
 @testset "randobs" begin; include("randobs.jl"); end
 @testset "resample" begin; include("resample.jl"); end
-@testset "shuffleobs" begin; include("shuffleobs.jl"); end
 @testset "splitobs" begin; include("splitobs.jl"); end
 @testset "utils" begin; include("utils.jl"); end
+@testset "eachobsparallel" begin; include("parallel.jl"); end
 
 @testset "Datasets/datasets" begin; include("Datasets/datasets.jl"); end
 @testset "Datasets/generators" begin; include("Datasets/generators.jl"); end

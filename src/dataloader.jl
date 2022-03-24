@@ -5,8 +5,6 @@ struct DataLoader{D,R<:AbstractRNG}
     batchsize::Int
     nobs::Int
     partial::Bool
-    imax::Int
-    indices::Vector{Int}
     shuffle::Bool
     rng::R
 end
@@ -76,38 +74,35 @@ julia> foreach(println∘summary, DataLoader(rand(Int8, 10, 64), batchsize=30)) 
 """
 function DataLoader(data; batchsize=1, shuffle=false, partial=true, rng=GLOBAL_RNG)
     batchsize > 0 || throw(ArgumentError("Need positive batchsize"))
-
-    n = numobs(data)
-    if n < batchsize
-        @warn "Number of observations less than batchsize, decreasing the batchsize to $n"
-        batchsize = n
+    nobs = numobs(data)
+    if nobs < batchsize
+        @warn "Number of observations less than batchsize, decreasing the batchsize to $nobs"
+        batchsize = nobs
     end
-    imax = partial ? n : n - batchsize + 1
-    DataLoader(data, batchsize, n, partial, imax, [1:n;], shuffle, rng)
+    DataLoader(data, batchsize, nobs, partial, shuffle, rng)
 end
 
-# returns data in d.indices[i+1:i+batchsize]
-@propagate_inbounds function Base.iterate(d::DataLoader, i=0)     
-    i >= d.imax && return nothing
-    if d.shuffle && i == 0
-        shuffle!(d.rng, d.indices)
+@propagate_inbounds function Base.iterate(d::DataLoader)
+    data = d.data
+    if d.shuffle
+        data = shuffleobs(d.rng, data)
     end
-    nexti = min(i + d.batchsize, d.nobs)
-    ids = d.indices[i+1:nexti]
-    batch = getobs(d.data, ids)
-    return (batch, nexti)
+    gen = eachobs(data; d.batchsize, d.partial)
+    res = iterate(gen)
+    res === nothing && return
+    res[1], (gen, res[2])
+end
+
+@propagate_inbounds function Base.iterate(d::DataLoader, state)     
+    gen, i = state
+    res = iterate(gen, i)
+    res === nothing && return
+    res[1], (gen, res[2])
 end
 
 function Base.length(d::DataLoader)
     n = d.nobs / d.batchsize
-    d.partial ? ceil(Int,n) : floor(Int,n)
+    d.partial ? ceil(Int, n) : floor(Int, n)
 end
 
-
-Base.eltype(::Type{<:DataLoader{D}}) where D = batchtype(D) 
-
-batchtype(D::Type) = Any
-batchtype(D::Type{<:AbstractArray}) = D
-batchtype(D::Type{<:Tuple})= Tuple{batchtype.(D.parameters)...}
-batchtype(D::Type{<:NamedTuple{K,V}}) where {K,V} = NamedTuple{K, batchtype(V)}
-batchtype(D::Type{<:Dict{K,V}}) where {K,V} = Dict{K, batchtype(V)}
+Base.IteratorEltype(d::DataLoader) = Base.EltypeUnknown()

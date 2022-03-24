@@ -5,7 +5,7 @@
 [![](https://github.com/JuliaML/MLUtils.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/JuliaML/MLUtils.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![](https://codecov.io/gh/JuliaML/MLUtils.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JuliaML/MLUtils.jl)
 
-*MLUtils.jl* defines interfaces and implements common utilities for Machine Learning pipelines.
+`MLUtils.jl` defines interfaces and implements common utilities for Machine Learning pipelines.
 
 ## Features
 
@@ -60,8 +60,8 @@ all the rest are data views.
 
 ## Related Packages
 
-*MLUtils.jl* brings together functionalities previously found in [LearnBase.jl](https://github.com/JuliaML/LearnBase.jl) , [MLDataPattern.jl](https://github.com/JuliaML/MLDataPattern.jl) and [MLLabelUtils.jl](https://github.com/JuliaML/MLLabelUtils.jl). These packages are now discontinued. 
+`MLUtils.jl` brings together functionalities previously found in [LearnBase.jl](https://github.com/JuliaML/LearnBase.jl) , [MLDataPattern.jl](https://github.com/JuliaML/MLDataPattern.jl) and [MLLabelUtils.jl](https://github.com/JuliaML/MLLabelUtils.jl). These packages are now discontinued. 
 
-Other features were ported from the deep learning library [Flux.jl](https://github.com/FluxML/Flux.jl), as they are of general use. 
+Other features were ported from the deep learning library [`Flux.jl`](https://github.com/FluxML/Flux.jl), as they are of general use. 
 
-[MLJ.jl](https://alan-turing-institute.github.io/MLJ.jl/dev/) is a more complete package for managing the whole machine learning pipeline if you are looking for a sklearn replacement.
+[` MLJ.jl`](https://alan-turing-institute.github.io/MLJ.jl/dev/) is a more complete package for managing the whole machine learning pipeline if you are looking for a sklearn replacement.

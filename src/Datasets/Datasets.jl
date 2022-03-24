@@ -2,12 +2,8 @@ module Datasets
 using Random
 using DelimitedFiles: readdlm
 
-include("datasets.jl")
-export load_iris,
-       load_line,
-       load_sin,
-       load_spiral,
-       load_poly
+include("load_datasets.jl")
+export load_iris
 
 include("generators.jl")
 export make_spiral,

@@ -12,6 +12,7 @@ end
     x = randn(3,3)
     stacked = stack([x, x], dims=2)
     @test size(stacked) == (3,2,3)
+    @test_broken @inferred(stack([x, x], dims=2)) == stacked
 
     stacked_array=[ 8 9 3 5; 9 6 6 9; 9 1 7 2; 7 4 10 6 ]
     unstacked_array=[[8, 9, 9, 7], [9, 6, 1, 4], [3, 6, 7, 10], [5, 9, 2, 6]]
@@ -29,9 +30,19 @@ end
     @test unbatch(stacked_array) == unstacked_array
     @test batch(unstacked_array) == stacked_array
 
+    @test_broken @inferred(unbatch(stacked_array)) == unstacked_array
+    @test_broken @inferred(batch(unstacked_array)) == stacked_array
+
     # no-op for vector of non-arrays
     @test batch([1,2,3]) == [1,2,3]
     @test unbatch([1,2,3]) == [1,2,3]
+
+    # batching multi-dimensional arrays
+    x = map(_ -> rand(4), zeros(2, 3))
+    @test size(batch(x)) == (4, 2, 3)
+
+    x = map(_ -> rand(4, 5), zeros(2, 3, 6))
+    @test size(batch(x)) == (4, 5, 2, 3, 6)
 
     # generic iterable
     @test batch(ones(2) for i=1:3) == ones(2, 3)
@@ -82,10 +93,34 @@ end
     @test cs[1] == [1, 2, 3, 4]
     @test cs[2] == [5, 6, 7, 8]
     @test cs[3] == [9, 10]
+
+    cs = chunk(collect(1:10), 3)
+    @test length(cs) == 3
+    @test cs[1] == [1, 2, 3, 4]
+    @test cs[2] == [5, 6, 7, 8]
+    @test cs[3] == [9, 10]
+    
+    x = reshape(collect(1:20), (5, 4))
+    cs = chunk(x, 2)
+    @test length(cs) == 2
+    cs[1] == [1  6; 2  7; 3  8; 4  9; 5 10]
+    cs[2] == [11 16; 12 17; 13 18; 14 19; 15 20]
+    
+    # test gradient
+    test_zygote(chunk, rand(10), 3, check_inferred=false)
+
+    # indirect test of second order derivates
+    n = 2
+    dims = 2
+    x = rand(4, 5)
+    y = chunk(x, 2)
+    dy = randn!.(collect.(y))
+    idxs = MLUtils._partition_idxs(x, n, dims)
+    test_zygote(MLUtils.∇chunk, dy, x, idxs, Val(dims), check_inferred=false)
 end
 
-@testset "frequencies" begin
-    d = frequencies(['a','b','b'])
+@testset "group_counts" begin
+    d = group_counts(['a','b','b'])
     @test d == Dict('a' => 1, 'b' => 2)
 end
 

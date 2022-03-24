@@ -1,7 +1,7 @@
 
 # mapobs
 
-struct MappedData{F,D}
+struct MappedData{F,D} <: AbstractDataContainer
     f::F
     data::D
 end
@@ -9,9 +9,9 @@ end
 Base.show(io::IO, data::MappedData) = print(io, "mapobs($(data.f), $(summary(data.data)))")
 Base.show(io::IO, data::MappedData{F,<:AbstractArray}) where {F} =
     print(io, "mapobs($(data.f), $(ShowLimit(data.data, limit=80)))")
-numobs(data::MappedData) = numobs(data.data)
-getobs(data::MappedData, idx::Int) = data.f(getobs(data.data, idx))
-getobs(data::MappedData, idxs::AbstractVector) = data.f.(getobs(data.data, idxs))
+Base.length(data::MappedData) = numobs(data.data)
+Base.getindex(data::MappedData, idx::Int) = data.f(getobs(data.data, idx))
+Base.getindex(data::MappedData, idxs::AbstractVector) = data.f.(getobs(data.data, idxs))
 
 
 """
@@ -38,14 +38,14 @@ Returns a tuple of transformed data containers.
 mapobs(fs::Tuple, data) = Tuple(mapobs(f, data) for f in fs)
 
 
-struct NamedTupleData{TData,F}
+struct NamedTupleData{TData,F} <: AbstractDataContainer
     data::TData
     namedfs::NamedTuple{F}
 end
 
-numobs(data::NamedTupleData) = numobs(getfield(data, :data))
+Base.length(data::NamedTupleData) = numobs(getfield(data, :data))
 
-function getobs(data::NamedTupleData{TData,F}, idx::Int) where {TData,F}
+function Base.getindex(data::NamedTupleData{TData,F}, idx::Int) where {TData,F}
     obs = getobs(getfield(data, :data), idx)
     namedfs = getfield(data, :namedfs)
     return NamedTuple{F}(f(obs) for f in namedfs)
@@ -91,7 +91,7 @@ numobs(fdata) == 5
 ```
 """
 function filterobs(f, data; iterfn = _iterobs)
-    return datasubset(data, [i for (i, obs) in enumerate(iterfn(data)) if f(obs)])
+    return obsview(data, [i for (i, obs) in enumerate(iterfn(data)) if f(obs)])
 end
 
 _iterobs(data) = [getobs(data, i) for i = 1:numobs(data)]
@@ -121,21 +121,21 @@ function groupobs(f, data)
             push!(groups[group], i)
         end
     end
-    return Dict(group => datasubset(data, idxs) for (group, idxs) in groups)
+    return Dict(group => obsview(data, idxs) for (group, idxs) in groups)
 end
 
 # joinumobs
 
-struct JoinedData{T,N}
+struct JoinedData{T,N} <: AbstractDataContainer
     datas::NTuple{N,T}
     ns::NTuple{N,Int}
 end
 
 JoinedData(datas) = JoinedData(datas, numobs.(datas))
 
-numobs(data::JoinedData) = sum(data.ns)
+Base.length(data::JoinedData) = sum(data.ns)
 
-function getobs(data::JoinedData, idx)
+function Base.getindex(data::JoinedData, idx)
     for (i, n) in enumerate(data.ns)
         if idx <= n
             return getobs(data.datas[i], idx)
@@ -157,3 +157,39 @@ getobs(jdata, 15) == 15
 ```
 """
 joinobs(datas...) = JoinedData(datas)
+
+"""
+    shuffleobs([rng], data)
+
+Return a "subset" of `data` that spans all observations, but
+has the order of the observations shuffled.
+
+The values of `data` itself are not copied. Instead only the
+indices are shuffled. This function calls [`obsview`](@ref) to
+accomplish that, which means that the return value is likely of a
+different type than `data`.
+
+```julia
+# For Arrays the subset will be of type SubArray
+@assert typeof(shuffleobs(rand(4,10))) <: SubArray
+
+# Iterate through all observations in random order
+for x in eachobs(shuffleobs(X))
+    ...
+end
+```
+
+The optional parameter `rng` allows one to specify the
+random number generator used for shuffling. This is useful when
+reproducible results are desired. By default, uses the global RNG.
+See `Random` in Julia's standard library for more info.
+
+For this function to work, the type of `data` must implement
+[`numobs`](@ref) and [`getobs`](@ref). See [`ObsView`](@ref)
+for more information.
+"""
+shuffleobs(data) = shuffleobs(Random.GLOBAL_RNG, data)
+
+function shuffleobs(rng::AbstractRNG, data)
+    obsview(data, randperm(rng, numobs(data)))
+end
