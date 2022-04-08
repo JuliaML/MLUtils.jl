@@ -42,6 +42,21 @@ MLUtils.numobs(::CustomType) = 15
 MLUtils.getobs(::CustomType, i::Int) = i
 MLUtils.getobs(::CustomType, i::AbstractVector) = collect(i)
 
+struct CustomArray{T,N} <: AbstractArray{T,N} 
+    length::Int
+    size::NTuple{N, Int}
+
+    function CustomArray{T}(n...) where T
+        N = length(n)
+        new{T,N}(prod(n), Tuple(n))
+    end
+end
+
+Base.length(x::CustomArray) = x.length
+Base.size(x::CustomArray) = x.size
+Base.getindex(x::CustomArray{T}, i::Int) where T = T(1)
+Base.getindex(x::CustomArray{T, 1}, i::AbstractVector{Int}) where T = CustomArray{T}(length(i))
+
 # --------------------------------------------------------------------
 
 include("test_utils.jl")
