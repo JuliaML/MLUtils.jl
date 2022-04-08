@@ -229,6 +229,8 @@ function obsview(A::Array{T,N}, idx) where {T,N}
     return view(A, I..., idx)
 end
 
+obsview(A::AbstractRange, idx) = view(A, idx)
+
 getobs(a::SubArray) = getobs(a.parent, last(a.indices))
 
 ##### Tuples / NamedTuples

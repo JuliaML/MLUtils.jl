@@ -62,6 +62,7 @@
         @test getobs(ObsView(CustomType(),1:10),10) == 10
         @test getobs(ObsView(CustomType(),1:10),[3,5]) == [3,5]
 
+        # https://github.com/JuliaML/MLUtils.jl/issues/72
         @test obsview(CustomArray{Float32}(5)) isa ObsView
         @test getobs(obsview(CustomArray{Float32}(5)), 1:2) == CustomArray{Float32}(2) 
     end
