@@ -224,7 +224,7 @@ obsview(A::SubArray) = A
 ## We dont't relax this to AbstractArray due to 
 # https://github.com/FluxML/Flux.jl/issues/1935
 # https://github.com/JuliaML/MLUtils.jl/issues/72
-function obsview(A::Array{T,N}, idx) where {T,N}
+function obsview(A::Union{Array{T,N}, SubArray{T,N}}, idx) where {T,N}
     I = ntuple(_ -> :, N-1)
     return view(A, I..., idx)
 end
