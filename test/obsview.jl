@@ -50,6 +50,7 @@
         end
     end
 
+
     @testset "custom types" begin
         @test_throws MethodError ObsView(EmptyType())
         @test_throws MethodError ObsView(EmptyType(), 1:10)
@@ -60,6 +61,9 @@
         @test getobs(ObsView(CustomType())) == collect(1:15)
         @test getobs(ObsView(CustomType(),1:10),10) == 10
         @test getobs(ObsView(CustomType(),1:10),[3,5]) == [3,5]
+
+        @test obsview(CustomArray(5)) isa SubArray
+        @test getobs(obsview(CustomArray(5)), 1:2) == CustomArray(2) 
     end
 end
 

@@ -128,4 +128,19 @@
         c = collect(dloader)
         @test eltype(c) == Vector{Int}
     end
+
+    # https://github.com/FluxML/Flux.jl/issues/1935
+    @testset "no views of arrays" begin
+        x = CustomArrayNoView(6)
+        @test_throws ErrorException view(x, 1:2)
+        
+        d = DataLoader(x)
+        @test length(collect(d)) == 6 # succesfull iteration
+        
+        d = DataLoader(x, batchsize=2, shuffle=false)
+        @test length(collect(d)) == 3 # succesfull iteration
+        
+        d = DataLoader(x, batchsize=2, shuffle=true)
+        @test length(collect(d)) == 3 # succesfull iteration
+    end
 end
