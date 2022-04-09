@@ -37,7 +37,7 @@ end
 
 @testset "SparseArray" begin
     for var in (Xs, ys)
-        @test_broken typeof(shuffleobs(var)) <: SubArray
+        @test typeof(shuffleobs(var)) <: SubArray
         @test numobs(shuffleobs(var)) == numobs(var)
     end
     # tests if all obs are still present and none duplicated

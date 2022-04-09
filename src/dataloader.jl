@@ -85,7 +85,9 @@ end
 @propagate_inbounds function Base.iterate(d::DataLoader)
     data = d.data
     if d.shuffle
-        data = shuffleobs(d.rng, data)
+        # Wrapping with ObsView in order to work around
+        # issue https://github.com/FluxML/Flux.jl/issues/1935
+        data = shuffleobs(d.rng, ObsView(data))
     end
     gen = eachobs(data; d.batchsize, d.partial)
     res = iterate(gen)

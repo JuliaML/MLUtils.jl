@@ -2,6 +2,7 @@ module MLUtils
 
 using Random
 using Statistics
+using SparseArrays, LinearAlgebra
 using ShowCases: ShowLimit
 using FLoops: @floop
 using FLoops.Transducers: Executor, ThreadedEx
