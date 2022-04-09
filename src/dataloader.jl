@@ -83,11 +83,11 @@ function DataLoader(data; batchsize=1, shuffle=false, partial=true, rng=GLOBAL_R
 end
 
 @propagate_inbounds function Base.iterate(d::DataLoader)
-    data = d.data
+    # Wrapping with ObsView in order to work around
+    # issue https://github.com/FluxML/Flux.jl/issues/1935
+    data = ObsView(d.data)
     if d.shuffle
-        # Wrapping with ObsView in order to work around
-        # issue https://github.com/FluxML/Flux.jl/issues/1935
-        data = shuffleobs(d.rng, ObsView(data))
+        data = shuffleobs(d.rng, data)
     end
     gen = eachobs(data; d.batchsize, d.partial)
     res = iterate(gen)
