@@ -62,8 +62,8 @@
         @test getobs(ObsView(CustomType(),1:10),10) == 10
         @test getobs(ObsView(CustomType(),1:10),[3,5]) == [3,5]
 
-        @test obsview(CustomArray{Float32}(5)) isa SubArray
-        @test getobs(obsview(CustomArray{Float32}(5)), 1:2) == CustomArray{Float32}(2) 
+        @test obsview(CustomArray(5)) isa SubArray
+        @test getobs(obsview(CustomArray(5)), 1:2) == CustomArray(2) 
     end
 end
 

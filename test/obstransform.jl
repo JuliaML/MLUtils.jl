@@ -59,7 +59,6 @@ end
         # tests if all obs are still present and none duplicated
         # also tests that both paramter are shuffled identically
         x1, y1, z1 = shuffleobs((X1,Y1,X1))
-        x1, y1, z1 = getobs((x1, y1, z1))
         @test vec(sum(x1,dims=2)) == fill(120,10)
         @test vec(sum(z1,dims=2)) == fill(120,10)
         @test sum(y1) == 120
