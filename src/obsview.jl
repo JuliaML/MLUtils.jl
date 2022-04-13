@@ -178,16 +178,16 @@ end
 
 Base.IteratorEltype(::Type{<:ObsView}) = Base.EltypeUnknown()
 
-Base.getindex(subset::ObsView, idx) =
+@propagate_inbounds Base.getindex(subset::ObsView, idx) =
     obsview(subset.data, subset.indices[idx])
 
 Base.length(subset::ObsView) = length(subset.indices)
 
 getobs(subset::ObsView) = getobs(subset.data, subset.indices)
-getobs(subset::ObsView, idx) = getobs(subset.data, subset.indices[idx])
+@propagate_inbounds getobs(subset::ObsView, idx) = getobs(subset.data, subset.indices[idx])
 
 getobs!(buffer, subset::ObsView) = getobs!(buffer, subset.data, subset.indices)
-getobs!(buffer, subset::ObsView, idx) = getobs!(buffer, subset.data, subset.indices[idx])
+@propagate_inbounds getobs!(buffer, subset::ObsView, idx) = getobs!(buffer, subset.data, subset.indices[idx])
 
 Base.parent(x::ObsView) = x.data
 

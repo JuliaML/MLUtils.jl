@@ -123,16 +123,16 @@ batchsize(A::BatchView) = A.batchsize
 
 Base.length(A::BatchView) = A.count
 
-function getobs(A::BatchView)
+Base.@propagate_inbounds function getobs(A::BatchView)
     return _getbatch(A, 1:numobs(A.data))
 end
 
-function Base.getindex(A::BatchView, i::Int)
+Base.@propagate_inbounds function Base.getindex(A::BatchView, i::Int)
     obsindices = _batchrange(A, i)
     _getbatch(A, obsindices)
 end
 
-function Base.getindex(A::BatchView, is::AbstractVector)
+Base.@propagate_inbounds function Base.getindex(A::BatchView, is::AbstractVector)
     obsindices = union((_batchrange(A, i) for i in is)...)::Vector{Int}
     _getbatch(A, obsindices)
 end
@@ -155,8 +155,8 @@ Base.iterate(A::BatchView, state = 1) =
     (state > numobs(A)) ? nothing : (A[state], state + 1)
 
 # Helper function to translate a batch-index into a range of observations.
-function _batchrange(a::BatchView, batchindex::Int)
-    (batchindex > a.count || batchindex < 0) && throw(BoundsError())
+@inline function _batchrange(a::BatchView, batchindex::Int)
+    @boundscheck (batchindex > a.count || batchindex < 0) && throw(BoundsError())
     startidx = (batchindex - 1) * a.batchsize + 1
     endidx = min(numobs(a.data), startidx + a.batchsize -1)
     return startidx:endidx
