@@ -206,3 +206,40 @@ Base.IteratorEltype(::DataLoader) = Base.EltypeUnknown()
 #         e.data
 #     end)
 # end
+
+function _dataloader_foldl(rf, val, data)
+    for i in 1:numobs(data)
+        @inbounds x = getobs(data, i)
+        # TODO: in 1.8 we could @inline this at the callsite,
+        #       optimizer seems to be very sensitive to inlining and
+        #       quite brittle in its capacity to keep this type stable
+        val = Transducers.@next(rf, val, x)
+    end
+    Transducers.complete(rf, val)
+end
+
+function _dataloader_foldl_buffered(rf, val, data)
+    buf = getobs(data, 1)
+    for i in 1:numobs(data)
+        @inbounds x = getobs!(buf, data, i)
+        # TODO: in 1.8 we could @inline this at the callsite,
+        #       optimizer seems to be very sensitive to inlining and
+        #       quite brittle in its capacity to keep this type stable
+        val = Transducers.@next(rf, val, x)
+    end
+    Transducers.complete(rf, val)
+end
+
+function Transducers.__foldl__(rf, val, e::DataLoader)
+    e.parallel && throw(ArgumentError("Transducer fold protocol not supported on parallel data loads"))
+    data = ObsView(e.data)
+    data = e.shuffle ? shuffleobs(e.rng, data) : data
+    data = e.batchsize > 0 ? BatchView(data; e.batchsize, e.partial, e.collate) : data
+
+    # Indirect to type stabilize `data`
+    if e.buffer
+        _dataloader_foldl_buffered(rf, val, data)
+    else
+        _dataloader_foldl(rf, val, data)
+    end
+end
