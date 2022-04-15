@@ -207,7 +207,7 @@ Base.IteratorEltype(::DataLoader) = Base.EltypeUnknown()
 #     end)
 # end
 
-function _dataloader_foldl1(rf, val, e::DataLoader, data)
+@inline function _dataloader_foldl1(rf, val, e::DataLoader, data)
     if e.shuffle
         _dataloader_foldl2(rf, val, e, shuffleobs(e.rng, data))
     else
@@ -215,7 +215,7 @@ function _dataloader_foldl1(rf, val, e::DataLoader, data)
     end
 end
 
-function _dataloader_foldl2(rf, val, e::DataLoader, data)
+@inline function _dataloader_foldl2(rf, val, e::DataLoader, data)
     if e.batchsize > 0
         _dataloader_foldl3(rf, val, e, BatchView(data; e.batchsize, e.partial))
     else
@@ -223,7 +223,7 @@ function _dataloader_foldl2(rf, val, e::DataLoader, data)
     end
 end
 
-function _dataloader_foldl3(rf, val, e::DataLoader, data)
+@inline function _dataloader_foldl3(rf, val, e::DataLoader, data)
     if e.buffer > 0
         _dataloader_foldl4_buffered(rf, val, e, data)
     else
@@ -231,7 +231,7 @@ function _dataloader_foldl3(rf, val, e::DataLoader, data)
     end
 end
 
-function _dataloader_foldl4(rf, val, data)
+@inline function _dataloader_foldl4(rf, val, data)
     for i in 1:numobs(data)
         @inbounds x = getobs(data, i)
         # TODO: in 1.8 we could @inline this at the callsite,
@@ -242,7 +242,7 @@ function _dataloader_foldl4(rf, val, data)
     Transducers.complete(rf, val)
 end
 
-function _dataloader_foldl4_buffered(rf, val, data)
+@inline function _dataloader_foldl4_buffered(rf, val, data)
     buf = getobs(data, 1)
     for i in 1:numobs(data)
         @inbounds x = getobs!(buf, data, i)
@@ -251,7 +251,7 @@ function _dataloader_foldl4_buffered(rf, val, data)
     Transducers.complete(rf, val)
 end
 
-function Transducers.__foldl__(rf, val, e::DataLoader)
+@inline function Transducers.__foldl__(rf, val, e::DataLoader)
     e.parallel && throw(ArgumentError("Transducer fold protocol not supported on parallel data loads"))
     _dataloader_foldl1(rf, val, e, ObsView(e.data))
 end
