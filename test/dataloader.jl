@@ -185,6 +185,7 @@
     @testset "Transducers foldl" begin
         dloader = DataLoader(1:10)
         @test foldl(+, Map(x -> x[1]), dloader; init = 0) == 55
+        @inferred foldl(+, Map(x -> x[1]), dloader; init = 0)
 
         dloader = DataLoader(1:10; shuffle = true)
         @test foldl(+, Map(x -> x[1]), dloader; init = 0) == 55
