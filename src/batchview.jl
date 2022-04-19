@@ -158,7 +158,7 @@ Base.iterate(A::BatchView, state = 1) =
 @inline function _batchrange(a::BatchView, batchindex::Int)
     @boundscheck (batchindex > a.count || batchindex < 0) && throw(BoundsError())
     startidx = (batchindex - 1) * a.batchsize + 1
-    endidx = min(numobs(a.data), startidx + a.batchsize -1)
+    endidx = min(a.imax, startidx + a.batchsize -1)
     return startidx:endidx
 end
 
