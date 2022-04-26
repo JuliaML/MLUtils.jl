@@ -8,6 +8,7 @@ export load_iris
 include("generators.jl")
 export make_spiral,
        make_poly,
-       make_sin
+       make_sin,
+       make_regression
 
 end
