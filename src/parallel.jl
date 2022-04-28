@@ -70,7 +70,7 @@ end
 # since  `ThreadedEx` has shown to be more performant. This may
 # change in the future.
 # See PR 33 https://github.com/JuliaML/MLUtils.jl/pull/33
-_default_executor() = TaskPoolEx(basesize=1, background=true)
+_default_executor() = TaskPoolEx(basesize=1, background=Threads.nthreads() > 1)
 
 
 # ## Internals
