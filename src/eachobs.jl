@@ -73,7 +73,7 @@ struct EachObs{T, R<:AbstractRNG}
 end
 
 
-function Base.iterate(iter::EachObs)
+function Base.iterate(e::EachObs)
     data = e.shuffle ? shuffleobs(e.rng, e.data) : e.data
     data = e.batchsize > 0 ? BatchView(data; e.batchsize, e.partial) : data
 
