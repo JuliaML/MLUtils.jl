@@ -57,73 +57,59 @@ function eachobs(
         shuffle = false,
         batchsize::Int = -1,
         partial::Bool = true,
-        executor = _default_executor())
-    if batchsize > 0
-        data = BatchView(data; batchsize, partial)
-    end
+        rng::AbstractRNG = Random.GLOBAL_RNG)
+    buffer = buffer isa Bool ? buffer : true
+    return EachObs(data, batchsize, buffer, partial, shuffle, parallel, rng)
+end
+
+struct EachObs{T, R<:AbstractRNG}
+    data::T
+    batchsize::Int
+    buffer::Bool
+    partial::Bool
+    shuffle::Bool
+    parallel::Bool
+    rng::R
+end
+
+
+function Base.iterate(iter::EachObs)
+    (; data, shuffle, batchsize, partial, parallel, buffer, rng) = iter
+
+    data = shuffle ? shuffleobs(rng, data) : data
+    data = batchsize > 0 ? BatchView(data; batchsize, partial) : data
 
     iter = if parallel
-        eachobsparallel(data; buffer, executor)
+        eachobsparallel(data; buffer)
     else
-        if buffer === false
-            EachObs(data)
-        elseif buffer === true
-            EachObsBuffer(data)
+        if buffer
+            buf = getobs(data, 1)
+            (getobs!(buf, data, i) for i in 1:numobs(data))
         else
-            EachObsBuffer(data, buffer)
+            (getobs(data, i) for i in 1:numobs(data))
         end
     end
-
-    if shuffle
-        iter = ReshuffleIter(iter)
-    end
-    return iter
+    obs, state = iterate(iter)
+    return obs, (iter, state)
 end
 
 
-# Internal
-
-"""
-    EachObs(data)
-
-Create an iterator over observations in data container `data`.
-
-This is an internal function. Use `eachobs(data)` instead.
-"""
-struct EachObs{T}
-    data::T
-end
-Base.length(iter::EachObs) = numobs(iter.data)
-Base.eltype(iter::EachObs) = eltype(iter.data)
-
-function Base.iterate(iter::EachObs, i::Int = 1)
-    i > numobs(iter) && return nothing
-    return getobs(iter.data, i), i+1
+function Base.iterate(::EachObs, (iter, state))
+    ret = iterate(iter, state)
+    isnothing(ret) && return
+    obs, state = ret
+    return obs, (iter, state)
 end
 
 
-"""
-    EachObsBuffer(data)
-
-Create a buffered iterator over observations in data container `data`.
-Buffering only works if [`getobs!`](@ref) is implemented for `data`.
-
-This is an internal function. Use `eachobs(data, buffer = true)` instead.
-"""
-struct EachObsBuffer{T, B}
-    data::T
-    buffer::B
-end
-EachObsBuffer(data) = EachObsBuffer(data, getobs(data, 1))
-Base.length(iter::EachObsBuffer) = numobs(iter.data)
-Base.eltype(iter::EachObsBuffer) = eltype(iter.data)
-
-function Base.iterate(iter::EachObsBuffer)
-    obs = getobs!(iter.buffer, iter.data, 1)
-    return obs, (obs, 2)
+function Base.length(iter::EachObs)
+    (; batchsize, partial, data) = iter
+    data = batchsize > 0 ? BatchView(data; batchsize, partial) : data
+    return numobs(data)
 end
 
-function Base.iterate(iter::EachObsBuffer, (buffer, i))
-    i > numobs(iter) && return nothing
-    return getobs!(buffer, iter.data, i), (buffer, i+1)
+function Base.eltype(iter::EachObs)
+    (; batchsize, partial, data) = iter
+    data = batchsize > 0 ? BatchView(data; batchsize, partial) : data
+    return eltype(data)
 end

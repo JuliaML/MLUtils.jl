@@ -31,12 +31,10 @@ function eachobsparallel(
         executor::Executor = _default_executor(),
         buffer = false,
         channelsize = Threads.nthreads())
-    if buffer === false
-        return _eachobsparallel_unbuffered(data, executor; channelsize)
-    elseif buffer === true
+    if buffer
         return _eachobsparallel_buffered(data, executor; channelsize)
     else
-        return _eachobsparallel_buffered(data, executor; channelsize, buffer)
+        return _eachobsparallel_unbuffered(data, executor; channelsize)
     end
 end
 

@@ -34,7 +34,6 @@ include("eachobs.jl")
 export eachobs
 
 include("parallel.jl")
-include("reshuffle.jl")
 
 include("dataloader.jl")
 export DataLoader
