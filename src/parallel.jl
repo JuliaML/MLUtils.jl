@@ -18,6 +18,7 @@ to the number of physical CPU cores.
     this if you need the additional performance and `getobs!` is implemented for
     `data`. Setting `buffer = true` means that when using the iterator, an
     observation is only valid for the current loop iteration.
+    You can also pass in a preallocated `buffer = getobs(data, 1)`.
 - `executor = Folds.ThreadedEx()`: task scheduler
     You may specify a different task scheduler which can
     be any `Folds.Executor`.
@@ -30,19 +31,23 @@ function eachobsparallel(
         executor::Executor = _default_executor(),
         buffer = false,
         channelsize = Threads.nthreads())
-    if buffer
+    if buffer === false
+        return _eachobsparallel_unbuffered(data, executor; channelsize)
+    elseif buffer === true
         return _eachobsparallel_buffered(data, executor; channelsize)
     else
-        return _eachobsparallel_unbuffered(data, executor; channelsize)
+        return _eachobsparallel_buffered(data, executor; channelsize, buffer)
     end
 end
 
 
-function _eachobsparallel_buffered(data, executor; channelsize=Threads.nthreads())
-    # Prepare initial buffers
-    buf = getobs(data, 1)
-    buffers = [buf]
-    foreach(_ -> push!(buffers, deepcopy(buf)), 1:channelsize)
+function _eachobsparallel_buffered(
+        data,
+        executor;
+        buffer = getobs(data, 1),
+        channelsize=Threads.nthreads())
+    buffers = [buffer]
+    foreach(_ -> push!(buffers, deepcopy(buffer)), 1:channelsize)
 
     # This ensures the `Loader` will take from the `RingBuffer`s result
     # channel, and that a new results channel is created on repeated

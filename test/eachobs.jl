@@ -35,4 +35,33 @@
             @test x == X[:,2i-1:2i]
         end
     end
+
+    @testset "shuffled" begin
+        # does not reshuffle on iteration
+        shuffled = eachobs(shuffleobs(1:50))
+        @test collect(shuffled) == collect(shuffled)
+
+        # does reshuffle
+        reshuffled = eachobs(1:50, shuffle = true)
+        @test collect(reshuffled) != collect(reshuffled)
+
+        reshuffled = eachobs(1:50, shuffle = true, buffer = true)
+        @test collect(reshuffled) != collect(reshuffled)
+
+        reshuffled = eachobs(1:50, shuffle = true, parallel = true)
+        @test collect(reshuffled) != collect(reshuffled)
+
+        reshuffled = eachobs(1:50, shuffle = true, buffer = true, parallel = true)
+        @test collect(reshuffled) != collect(reshuffled)
+    end
+    @testset "Argument combinations" begin
+        for batchsize ∈ (-1, 2), buffer ∈ (true, false, getobs(X, 1)),
+                parallel ∈ (true, false), shuffle ∈ (true, false), partial ∈ (true, false)
+            if !(buffer isa Bool) && batchsize > 0
+                buffer = getobs(BatchView(X; batchsize), 1)
+            end
+            iter = eachobs(X; batchsize, shuffle, buffer, parallel, partial)
+            @test_nowarn for _ in iter end
+        end
+    end
 end
