@@ -1,11 +1,11 @@
 """
-    eachobs(data, buffer=false, batchsize=-1, partial=true)
+    eachobs(data; [buffer, batchsize, partial, parallel, shuffle])
 
 Return an iterator over the observations in `data`.
 
 # Arguments
 
-- `data`. The data to be iterated over. The data type has to implement
+- `data`. The data to be iterated over. The data type has to be supported by
   [`numobs`](@ref) and [`getobs`](@ref).
 - `buffer`. If `buffer=true` and supported by the type of `data`,
 a buffer will be allocated and reused for memory efficiency.
