@@ -74,15 +74,13 @@ end
 
 
 function Base.iterate(iter::EachObs)
-    (; data, shuffle, batchsize, partial, parallel, buffer, rng) = iter
+    data = e.shuffle ? shuffleobs(e.rng, e.data) : e.data
+    data = e.batchsize > 0 ? BatchView(data; e.batchsize, e.partial) : data
 
-    data = shuffle ? shuffleobs(rng, data) : data
-    data = batchsize > 0 ? BatchView(data; batchsize, partial) : data
-
-    iter = if parallel
-        eachobsparallel(data; buffer)
+    iter = if e.parallel
+        eachobsparallel(data; e.buffer)
     else
-        if buffer
+        if e.buffer
             buf = getobs(data, 1)
             (getobs!(buf, data, i) for i in 1:numobs(data))
         else
@@ -102,14 +100,18 @@ function Base.iterate(::EachObs, (iter, state))
 end
 
 
-function Base.length(iter::EachObs)
-    (; batchsize, partial, data) = iter
-    data = batchsize > 0 ? BatchView(data; batchsize, partial) : data
-    return numobs(data)
+function Base.length(e::EachObs)
+    numobs(if e.batchsize > 0
+        BatchView(e.data; e.batchsize, e.partial)
+    else
+        e.data
+    end)
 end
 
-function Base.eltype(iter::EachObs)
-    (; batchsize, partial, data) = iter
-    data = batchsize > 0 ? BatchView(data; batchsize, partial) : data
-    return eltype(data)
+function Base.eltype(e::EachObs)
+    eltype(if e.batchsize > 0
+        BatchView(e.data; e.batchsize, e.partial)
+    else
+        e.data
+    end)
 end
