@@ -308,10 +308,16 @@ end
 
 batchindex(xs, i) = (reverse(Base.tail(reverse(axes(xs))))..., i)
 
-function batch(xs::AbstractArray{<:AbstractArray{T,N}}) where {T, N}
-    sz = size(xs)
-    y = stack(vec(xs), dims=N+1)
-    reshape(y, size(y)[1:N]..., sz...)
+function batch(xs::AbstractArray{<:AbstractArray})
+    # Don't use stack(xs, dims=N+1), it is much slower.
+    # Here we do reduce(vcat, xs) along with some reshapes.
+    szxs = length(xs)
+    @assert length(xs) > 0 "Minimum batch size is 1."
+    szx = size(xs[1])
+    @assert all(x -> size(x) == (szx), xs) "All arrays must be of the same size."
+    vxs = vec(vec.(xs))
+    y = reduce(vcat, vxs)
+    return reshape(y, szx..., szxs...)
 end
 
 function batch(xs::Vector{<:Tuple})
