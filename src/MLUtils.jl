@@ -31,12 +31,9 @@ export batchsize,
        BatchView
 
 include("eachobs.jl")
-export eachobs
+export eachobs, DataLoader
 
 include("parallel.jl")
-
-include("dataloader.jl")
-export DataLoader
 
 include("folds.jl")
 export kfolds,

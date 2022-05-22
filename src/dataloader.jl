@@ -1,4 +1,4 @@
-# Adapted from Knet's src/data.jl (author: Deniz Yuret)
+Adapted from Knet's src/data.jl (author: Deniz Yuret)
 
 struct DataLoader{D,R<:AbstractRNG}
     data::D

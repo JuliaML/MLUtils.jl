@@ -63,20 +63,22 @@
     @test batches[3][1] == batches[3].x == X2[:,5:5]
     @test batches[3][2] == batches[3].y == Y2[5:5]
 
-    # test iteration
-    X3 = zeros(2, 10)
-    d  = DataLoader(X3)
-    for x in d
-        @test size(x) == (2,1)
-    end
-    
-    # test iteration
-    X3 = ones(2, 10)
-    Y3 = fill(5, 10)
-    d  = DataLoader((X3, Y3))
-    for (x, y) in d
-        @test size(x) == (2,1)
-        @test y == [5]
+    @testset "iteration default batchsize (-1)" begin
+        # test iteration
+        X3 = zeros(2, 10)
+        d  = DataLoader(X3)
+        for x in d
+            @test size(x) == (2,)
+        end
+        
+        # test iteration
+        X3 = ones(2, 10)
+        Y3 = fill(5, 10)
+        d  = DataLoader((X3, Y3))
+        for (x, y) in d
+            @test size(x) == (2,)
+            @test y == 5
+        end
     end
 
     @testset "shuffle & rng" begin
