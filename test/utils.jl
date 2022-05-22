@@ -27,11 +27,9 @@ end
                     9 1 7 2
                     7 4 10 6 ]
     unstacked_array=[[8, 9, 9, 7], [9, 6, 1, 4], [3, 6, 7, 10], [5, 9, 2, 6]]
-    @test unbatch(stacked_array) == unstacked_array
-    @test batch(unstacked_array) == stacked_array
-
-    @test_broken @inferred(unbatch(stacked_array)) == unstacked_array
-    @test_broken @inferred(batch(unstacked_array)) == stacked_array
+    
+    @test @inferred(unbatch(stacked_array)) == unstacked_array
+    @test @inferred(batch(unstacked_array)) == stacked_array
 
     # no-op for vector of non-arrays
     @test batch([1,2,3]) == [1,2,3]
