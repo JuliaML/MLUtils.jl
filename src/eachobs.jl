@@ -4,6 +4,8 @@
 Return an iterator over `data`. 
 
 Supports the same arguments as [`DataLoader`](@ref).
+The `batchsize` default is `-1` here while
+it is `1` for `DataLoader`.
 
 # Examples
 
@@ -29,7 +31,9 @@ for (x, y) in eachobs((X, Y))
 end
 ```
 """
-eachobs(data; kws...) = DataLoader(data; kws...)
+function eachobs(data; batchsize=-1, kws...)
+    DataLoader(data; batchsize, kws...)
+end
 
 """
     DataLoader(data; [batchsize, buffer, partial, shuffle, parallel, rng])
@@ -56,7 +60,7 @@ a buffer will be allocated and reused for memory efficiency.
 You can also pass a preallocated object to `buffer`. Default `false`.
 - `batchsize`: If less than 0, iterates over individual observations.
 Otherwise, each iteration (except possibly the last) yields a mini-batch
-containing `batchsize` observations. Default `-1`.
+containing `batchsize` observations. Default `1`.
 - `partial`: This argument is used only when `batchsize > 0`.
   If `partial=false` and the number of observations is not divisible by the batchsize,
   then the last mini-batch is dropped. Default `true`.
@@ -132,13 +136,12 @@ function DataLoader(
         buffer = false,
         parallel = false,
         shuffle = false,
-        batchsize::Int = -1,
+        batchsize::Int = 1,
         partial::Bool = true,
         rng::AbstractRNG = Random.GLOBAL_RNG)
     buffer = buffer isa Bool ? buffer : true
     return DataLoader(data, batchsize, buffer, partial, shuffle, parallel, rng)
 end
-
 
 function Base.iterate(e::DataLoader)
     # Wrapping with ObsView in order to work around
