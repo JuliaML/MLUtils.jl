@@ -1,7 +1,9 @@
 """
     eachobs(data; kws...)
 
-Same as [`DataLoader`](@ref)(data; kws...).
+Return an iterator over `data`. 
+
+Supports the same arguments as [`DataLoader`](@ref).
 
 # Examples
 
