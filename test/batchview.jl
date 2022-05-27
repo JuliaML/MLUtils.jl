@@ -1,7 +1,7 @@
 using MLUtils: obsview
 
 @testset "BatchView" begin
-    
+
     @testset "constructor" begin
         @test_throws DimensionMismatch BatchView((rand(2,10),rand(9)))
         @test_throws DimensionMismatch BatchView((rand(2,10),rand(9)))
@@ -10,7 +10,7 @@ using MLUtils: obsview
         for var in (vars..., tuples..., Xs, ys)
             @test_throws MethodError BatchView(var...)
             @test_throws MethodError BatchView(var, 16)
-            
+
             A = BatchView(var, batchsize=3)
             @test length(A) == 5
             @test batchsize(A) == 3
@@ -19,16 +19,19 @@ using MLUtils: obsview
         end
         A = BatchView(X, batchsize=16)
         @test length(A) == 1
-        @test batchsize(A) == 15            
+        @test batchsize(A) == 15
     end
 
+    @testset "collated" begin
+        @test BatchView(X, batchsize=2, collate=true)[1] |> size == (4, 2)
+        @test BatchView(X, batchsize=2, collate=false)[1] |> size == (2,)
+        @test size.(BatchView(tuples[1], batchsize=2, collate=true)[1]) == ((4, 2), (2,))
+        @test BatchView(tuples[1], batchsize=2, collate=false)[1] |> size == (2,)
+    end
 
     @testset "typestability" begin
-        for var in (vars..., tuples..., Xs, ys)
-            @test typeof(@inferred(BatchView(var))) <: BatchView
-            @test typeof(@inferred(BatchView(var, batchsize=3))) <: BatchView
-            @test typeof(@inferred(BatchView(var, batchsize=3, partial=true))) <: BatchView
-            @test typeof(@inferred(BatchView(var, batchsize=3, partial=false))) <: BatchView
+        for var in (vars..., tuples..., Xs, ys), batchsize in (1, 3), partial in (true, false), collate in (Val(true), Val(false), Val(nothing))
+            @test typeof(@inferred(BatchView(var; batchsize, partial, collate))) <: BatchView
         end
         @test typeof(@inferred(BatchView(CustomType()))) <: BatchView
     end
@@ -68,7 +71,7 @@ using MLUtils: obsview
             A = BatchView(var, batchsize=3)
             @test getobs(@inferred(ObsView(A))) == @inferred(getobs(A))
             @test_throws BoundsError ObsView(A,1:6)
-            
+
             S = @inferred(ObsView(A, 1:2))
             @test typeof(S) <: ObsView
             @test @inferred(numobs(S)) == 2
@@ -77,7 +80,7 @@ using MLUtils: obsview
             @test getobs(@inferred(A[1:2])) == getobs(S)
             @test @inferred(getobs(A,1:2)) == getobs(S)
             @test @inferred(getobs(S)) == getobs(BatchView(ObsView(var,1:6),batchsize=3))
-            
+
             S = @inferred(ObsView(A, 1:2))
             @test typeof(S) <: ObsView
         end
