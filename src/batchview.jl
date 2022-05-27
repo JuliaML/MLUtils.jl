@@ -8,7 +8,7 @@ observations in them. The batch-size
 can be specified using the  parameter `batchsize`.
 In the case that the size of the dataset is not dividable by the
 specified `batchsize`, the remaining observations will
-be ignored if `partial=false`. If  `partial=true` instead 
+be ignored if `partial=false`. If  `partial=true` instead
 the last batch-size can be slightly smaller.
 
 Note that any data access is delayed until `getindex` is called,
@@ -17,7 +17,7 @@ which in general avoids data movement until [`getobs`](@ref) is
 called.
 
 If used as an iterator, the object will iterate over the dataset
-once, effectively denoting an epoch. 
+once, effectively denoting an epoch.
 
 For `BatchView` to work on some data structure, the type of the
 given variable `data` must implement the data container
@@ -29,11 +29,11 @@ interface. See [`ObsView`](@ref) for more info.
     type as long as it implements [`getobs`](@ref) and
     [`numobs`](@ref) (see Details for more information).
 
-- **`batchsize`** : The batch-size of each batch. 
+- **`batchsize`** : The batch-size of each batch.
     It is the number of observations that each batch must contain
     (except possibly for the last one).
 
-- **`partial`** : If `partial=false` and the number of observations is 
+- **`partial`** : If `partial=false` and the number of observations is
     not divisible by the batch-size, then the last mini-batch is dropped.
 
 # Examples
@@ -72,7 +72,7 @@ for (x, y) in BatchView(shuffleobs((X, Y)), batchsize=20)
 end
 ```
 """
-struct BatchView{TElem,TData} <: AbstractDataContainer
+struct BatchView{TElem,TData,TCollate} <: AbstractDataContainer
     data::TData
     batchsize::Int
     count::Int
@@ -81,17 +81,26 @@ struct BatchView{TElem,TData} <: AbstractDataContainer
 end
 
 
-function BatchView(data::T; batchsize::Int=1, partial::Bool=true) where {T}
+function BatchView(data::T; batchsize::Int=1, partial::Bool=true, collate=Val(nothing)) where {T}
     n = numobs(data)
     if n < batchsize
         @warn "Number of observations less than batch-size, decreasing the batch-size to $n"
         batchsize = n
     end
-    E = typeof(obsview(data, 1:batchsize))
+    collate = collate isa Val ? collate : Val(collate)
+    if !(collate ∈ (Val(nothing), Val(true), Val(false)))
+        throw(ArgumentError("`collate` must be one of `nothing`, `true` or `false`."))
+    end
+    E = _batchviewelemtype(data, batchsize, collate)
     imax = partial ? n : n - batchsize + 1
     count = partial ? ceil(Int, n / batchsize) : floor(Int, n / batchsize)
-    BatchView{E,T}(data, batchsize, count, partial, imax)
+    BatchView{E,T,typeof(collate)}(data, batchsize, count, partial, imax)
 end
+
+_batchviewelemtype(data, batchsize, ::Val{nothing}) = typeof(obsview(data, 1:batchsize))
+# Better way to infer type of collated batch?
+_batchviewelemtype(data, _, ::Val{true}) = typeof(batch([getobs(data, 1)]))
+_batchviewelemtype(data, _, ::Val{false}) = Vector{typeof(getobs(data, 1))}
 
 """
     batchsize(data) -> Int
@@ -101,23 +110,31 @@ Return the fixed size of each batch in `data`.
 batchsize(A::BatchView) = A.batchsize
 
 Base.length(A::BatchView) = A.count
-getobs(A::BatchView) = getobs(A.data)
-getobs(A::BatchView, i::Int) = getobs(A.data, _batchrange(A, i))
 
-function getobs(A::BatchView, is::AbstractVector)
+getobs(A::BatchView) = getobs(A.data)
+
+function Base.getindex(A::BatchView, i::Int)
+    obsindices = _batchrange(A, i)
+    _getbatch(A, obsindices)
+end
+
+function Base.getindex(A::BatchView, is::AbstractVector)
     obsindices = union((_batchrange(A, i) for i in is)...)::Vector{Int}
-    getobs(A.data, obsindices)
+    _getbatch(A, obsindices)
+end
+
+function _getbatch(A::BatchView{TElem, TData, Val{true}}, obsindices) where {TElem, TData}
+    batch([getobs(A.data, i) for i in obsindices])
+end
+function _getbatch(A::BatchView{TElem, TData, Val{false}}, obsindices) where {TElem, TData}
+    return [getobs(A.data, i) for i in obsindices]
+end
+function _getbatch(A::BatchView{TElem, TData, Val{nothing}}, obsindices) where {TElem, TData}
+    obsview(A.data, obsindices)
 end
 
 Base.parent(A::BatchView) = A.data
 Base.eltype(::BatchView{Tel}) where Tel = Tel
-
-Base.getindex(A::BatchView, i::Int) = obsview(A.data, _batchrange(A, i))
-
-function Base.getindex(A::BatchView, is::AbstractVector)
-    obsindices = union((_batchrange(A, i) for i in is)...)::Vector{Int}
-    obsview(A.data, obsindices)
-end
 
 # override AbstractDataContainer default
 Base.iterate(A::BatchView, state = 1) =
@@ -130,7 +147,7 @@ obsview(A::BatchView, i) = A[i]
 function _batchrange(a::BatchView, batchindex::Int)
     (batchindex > a.count || batchindex < 0) && throw(BoundsError())
     startidx = (batchindex - 1) * a.batchsize + 1
-    endidx = min(numobs(a.data), startidx + a.batchsize -1) 
+    endidx = min(numobs(a.data), startidx + a.batchsize -1)
     return startidx:endidx
 end
 
@@ -145,4 +162,3 @@ function Base.showarg(io::IO, A::BatchView, toplevel)
 end
 
 # --------------------------------------------------------------------
-
