@@ -22,6 +22,12 @@ using MLUtils: obsview
         @test batchsize(A) == 15
     end
 
+    @testset "collated" begin
+        @test BatchView(X, batchsize=2, collate=true)[1] |> size == (4, 2)
+        @test BatchView(X, batchsize=2, collate=false)[1] |> size == (2,)
+        @test size.(BatchView(tuples[1], batchsize=2, collate=true)[1]) == ((4, 2), (2,))
+        @test BatchView(tuples[1], batchsize=2, collate=false)[1] |> size == (2,)
+    end
 
     @testset "typestability" begin
         for var in (vars..., tuples..., Xs, ys), batchsize in (1, 3), partial in (true, false), collate in (Val(true), Val(false), Val(nothing))
