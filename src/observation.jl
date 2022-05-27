@@ -16,7 +16,7 @@ See also [`getobs`](@ref)
 function numobs end
 
 # Generic Fallbacks
-numobs(data) = length(data)
+numobs(data) = istable(data) ? length(rows(data)) : length(data)
 
 """
     getobs(data, [idx])
@@ -40,13 +40,13 @@ Every author behind some custom data container can make this
 decision themselves.
 The output should be consistent when `idx` is a scalar vs vector.
 
-See also [`getobs!`](@ref) and [`numobs`](@ref) 
+See also [`getobs!`](@ref) and [`numobs`](@ref)
 """
 function getobs end
 
 # Generic Fallbacks
 getobs(data) = data
-getobs(data, idx) = data[idx]
+getobs(data, idx) = istable(data) ? collect(rows(data))[idx] : data[idx]
 
 """
     getobs!(buffer, data, idx)
@@ -82,7 +82,7 @@ Base.lastindex(x::AbstractDataContainer) = numobs(x)
 # --------------------------------------------------------------------
 # Arrays
 # We are very opinionated with arrays: the observation dimension
-# is th last dimension. For different behavior wrap the array in 
+# is th last dimension. For different behavior wrap the array in
 # a custom type, e.g. with Tables.table.
 
 

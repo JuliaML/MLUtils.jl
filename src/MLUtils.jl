@@ -13,6 +13,7 @@ import ChainRulesCore: rrule
 using ChainRulesCore: @non_differentiable, unthunk, AbstractZero,
                       NoTangent, ZeroTangent, ProjectTo
 
+using Tables: istable, rows
 
 include("observation.jl")
 export numobs,
