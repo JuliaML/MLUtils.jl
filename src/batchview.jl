@@ -91,17 +91,18 @@ function BatchView(data::T; batchsize::Int=1, partial::Bool=true, collate=Val(no
     if !(collate ∈ (Val(nothing), Val(true), Val(false)))
         throw(ArgumentError("`collate` must be one of `nothing`, `true` or `false`."))
     end
-    E = _batchviewelemtype(data, batchsize, collate)
+    E = _batchviewelemtype(data, collate)
     imax = partial ? n : n - batchsize + 1
     count = partial ? ceil(Int, n / batchsize) : floor(Int, n / batchsize)
     BatchView{E,T,typeof(collate)}(data, batchsize, count, partial, imax)
 end
 
-_batchviewelemtype(data, batchsize, ::Val{nothing}) = typeof(obsview(data, 1:batchsize))
-_batchviewelemtype(::TData, _, ::Val{false}) where TData =
+_batchviewelemtype(::TData, ::Val{nothing}) where TData =
+    Core.Compiler.return_type(getobs, Tuple{TData, UnitRange{Int}})
+_batchviewelemtype(::TData, ::Val{false}) where TData =
     Vector{Core.Compiler.return_type(getobs, Tuple{TData, Int})}
-_batchviewelemtype(data, _, ::Val{true}) =
-    Core.Compiler.return_type(batch, Tuple{_batchviewelemtype(data, 0, Val(false))})
+_batchviewelemtype(data, ::Val{true}) =
+    Core.Compiler.return_type(batch, Tuple{_batchviewelemtype(data, Val(false))})
 
 """
     batchsize(data) -> Int
@@ -131,7 +132,7 @@ function _getbatch(A::BatchView{TElem, TData, Val{false}}, obsindices) where {TE
     return [getobs(A.data, i) for i in obsindices]
 end
 function _getbatch(A::BatchView{TElem, TData, Val{nothing}}, obsindices) where {TElem, TData}
-    obsview(A.data, obsindices)
+    getobs(A.data, obsindices)
 end
 
 Base.parent(A::BatchView) = A.data
