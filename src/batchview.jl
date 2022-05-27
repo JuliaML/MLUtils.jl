@@ -113,7 +113,9 @@ batchsize(A::BatchView) = A.batchsize
 
 Base.length(A::BatchView) = A.count
 
-getobs(A::BatchView) = getobs(A.data)
+function getobs(A::BatchView)
+    return _getbatch(A, 1:numobs(A.data))
+end
 
 function Base.getindex(A::BatchView, i::Int)
     obsindices = _batchrange(A, i)
