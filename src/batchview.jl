@@ -98,9 +98,10 @@ function BatchView(data::T; batchsize::Int=1, partial::Bool=true, collate=Val(no
 end
 
 _batchviewelemtype(data, batchsize, ::Val{nothing}) = typeof(obsview(data, 1:batchsize))
-# Better way to infer type of collated batch?
-_batchviewelemtype(data, _, ::Val{true}) = typeof(batch([getobs(data, 1)]))
-_batchviewelemtype(data, _, ::Val{false}) = Vector{typeof(getobs(data, 1))}
+_batchviewelemtype(::TData, _, ::Val{false}) where TData =
+    Vector{Core.Compiler.return_type(getobs, Tuple{TData, Int})}
+_batchviewelemtype(data, _, ::Val{true}) =
+    Core.Compiler.return_type(batch, Tuple{_batchviewelemtype(data, 0, Val(false))})
 
 """
     batchsize(data) -> Int
