@@ -1,6 +1,6 @@
 """
-    BatchView(data, batchsize; partial=true)
-    BatchView(data; batchsize=1, partial=true)
+    BatchView(data, batchsize; partial=true, collate=nothing)
+    BatchView(data; batchsize=1, partial=true, collate=nothing)
 
 Create a view of the given `data` that represents it as a vector
 of batches. Each batch will contain an equal amount of
@@ -11,10 +11,7 @@ specified `batchsize`, the remaining observations will
 be ignored if `partial=false`. If  `partial=true` instead
 the last batch-size can be slightly smaller.
 
-Note that any data access is delayed until `getindex` is called,
-and even `getindex` returns an [`ObsView`](@ref)
-which in general avoids data movement until [`getobs`](@ref) is
-called.
+Note that any data access is delayed until `getindex` is called.
 
 If used as an iterator, the object will iterate over the dataset
 once, effectively denoting an epoch.
@@ -35,6 +32,13 @@ interface. See [`ObsView`](@ref) for more info.
 
 - **`partial`** : If `partial=false` and the number of observations is
     not divisible by the batch-size, then the last mini-batch is dropped.
+
+- **`collate`**: Batching behavior. If `nothing` (default), a batch
+    is `getobs(data, indices)`. If `false`, each batch is
+    `[getobs(data, i) for i in indices]`. When `true`, applies [`batch`](@ref)
+    to the vector of observations in a batch, recursively collating
+    arrays in the last dimensions. See [`batch`](@ref) for more information
+    and examples.
 
 # Examples
 
@@ -62,6 +66,12 @@ for (x, y) in BatchView((X, Y), batchsize=20, partial=false)
     @assert typeof(x) <: SubArray{Float64,2}
     @assert typeof(y) <: SubArray{String,1}
     @assert numobs(x) == numobs(y) == 20
+end
+
+# collate tuple observations
+for (x, y) in BatchView((rand(10, 3), ["a", "b", "c"]), batchsize=2, collate=true, partial=false)
+    @assert size(x) == (10, 2)
+    @assert size(y) == (2,)
 end
 
 
