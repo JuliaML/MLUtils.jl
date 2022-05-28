@@ -1,7 +1,7 @@
 """
     eachobs(data; kws...)
 
-Return an iterator over `data`. 
+Return an iterator over `data`.
 
 Supports the same arguments as [`DataLoader`](@ref).
 The `batchsize` default is `-1` here while
@@ -38,7 +38,7 @@ end
 """
     DataLoader(data; [batchsize, buffer, partial, shuffle, parallel, rng])
 
-An object that iterates over mini-batches of `data`, 
+An object that iterates over mini-batches of `data`,
 each mini-batch containing `batchsize` observations
 (except possibly the last one).
 
@@ -73,6 +73,8 @@ containing `batchsize` observations. Default `1`.
     wrapping the data container with `shuffleobs(data)`, `shuffle=true` ensures
     that the observations are shuffled anew every time you start iterating over
     `eachobs`. Default `false`.
+- `collate`: Batching behavior. See [`BatchView`](@ref) for more information. Default
+    `nothing`
 - `rng`: A random number generator. Default `Random.GLOBAL_RNG`
 
 # Examples
@@ -121,13 +123,14 @@ julia> foreach(println∘summary, DataLoader(rand(Int8, 10, 64), batchsize=30)) 
 10×4 Matrix{Int8}
 ```
 """
-struct DataLoader{T, R<:AbstractRNG}
+struct DataLoader{T, R<:AbstractRNG, C<:Val}
     data::T
     batchsize::Int
     buffer::Bool
     partial::Bool
     shuffle::Bool
     parallel::Bool
+    collate::C
     rng::R
 end
 
@@ -138,9 +141,14 @@ function DataLoader(
         shuffle = false,
         batchsize::Int = 1,
         partial::Bool = true,
+        collate = Val(nothing),
         rng::AbstractRNG = Random.GLOBAL_RNG)
     buffer = buffer isa Bool ? buffer : true
-    return DataLoader(data, batchsize, buffer, partial, shuffle, parallel, rng)
+    collate = collate isa Val ? collate : Val(collate)
+    if !(collate ∈ (Val(nothing), Val(true), Val(false)))
+        throw(ArgumentError("`collate` must be one of `nothing`, `true` or `false`."))
+    end
+    return DataLoader(data, batchsize, buffer, partial, shuffle, parallel, collate, rng)
 end
 
 function Base.iterate(e::DataLoader)
@@ -149,8 +157,8 @@ function Base.iterate(e::DataLoader)
     data = ObsView(e.data)
 
     data = e.shuffle ? shuffleobs(e.rng, data) : data
-    data = e.batchsize > 0 ? BatchView(data; e.batchsize, e.partial) : data
-    
+    data = e.batchsize > 0 ? BatchView(data; e.batchsize, e.partial, e.collate) : data
+
     iter = if e.parallel
         eachobsparallel(data; e.buffer)
     else
