@@ -100,7 +100,7 @@ getobs(A::AbstractArray{<:Any, 0}, idx) = A[idx]
 
 function getobs!(buffer::AbstractArray, A::AbstractArray{<:Any, N}, idx) where N
     I = ntuple(_ -> :, N-1)
-    buffer .= A[I..., idx]
+    buffer .= view(A, I..., idx)
     return buffer
 end
 
