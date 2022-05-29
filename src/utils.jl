@@ -449,20 +449,33 @@ end
 ofeltype(x, y) = convert(float(eltype(x)), y)
 epseltype(x) = eps(float(eltype(x)))
 
+"""
+    ones_like(array, [element_type=eltype(array)], [dims=size(array)]))
 
+"""
 ones_like(x::AbstractArray, T::Type, sz=size(x)) = fill!(similar(x, T, sz), 1)
-ones_like(x, sz=size(x)) = ones_like(x, eltype(x), sz)
+ones_like(x::AbstractArray, sz=size(x)) = ones_like(x, eltype(x), sz)
 
+
+"""
+    zeros_like(array, [element_type=eltype(array)], [dims=size(array)]))
+    
+"""
 zeros_like(x::AbstractArray, T::Type, sz=size(x)) = fill!(similar(x, T, sz), 1)
-zeros_like(x, sz=size(x)) = zeros_like(x, eltype(x), sz)
+zeros_like(x::AbstractArray, sz=size(x)) = zeros_like(x, eltype(x), sz)
 
+
+"""
+    fill_like(array, val, [element_type=eltype(array)], [dims=size(array)]))
+    
+"""
 fill_like(x::AbstractArray, val, T::Type, sz=size(x)) = fill!(similar(x, T, sz), val)
-fill_like(x, val, sz=size(x)) = fill_like(x, val, eltype(x), sz)
+fill_like(x::AbstractArray, val, sz=size(x)) = fill_like(x, val, eltype(x), sz)
 
 @non_differentiable zeros_like(::Any...)
 @non_differentiable ones_like(::Any...)
 
-function ChainRulesCore.rrule(::typoof(fill_like), x::AbstractArray, val, T::Type, sz)
+function rrule(::typeof(fill_like), x::AbstractArray, val, T::Type, sz)
     function fill_like_pullback(Δ)
         return (NoTangent(), ZeroTangent(), sum(Δ), NoTangent(), NoTangent())
     end

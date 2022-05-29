@@ -10,18 +10,13 @@ Pages = ["api.md"]
 
 ## Docs
 
-```@autodocs
-Modules = [MLUtils]
-Pages   = ["utils.jl"]
-Private = false
-```
-
 ```@docs
 batch
 batchsize
 BatchView
 DataLoader
 eachobs
+fill_like
 filterobs
 getobs
 getobs!
@@ -33,6 +28,7 @@ mapobs
 numobs
 obsview
 ObsView
+ones_like
 oversample
 MLUtils.rpad
 randobs
@@ -44,6 +40,7 @@ unbatch
 undersample
 unsqueeze
 unstack
+zeros_like
 ```
 
 
