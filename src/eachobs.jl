@@ -73,8 +73,9 @@ containing `batchsize` observations. Default `1`.
     wrapping the data container with `shuffleobs(data)`, `shuffle=true` ensures
     that the observations are shuffled anew every time you start iterating over
     `eachobs`. Default `false`.
-- `collate`: Batching behavior. See [`BatchView`](@ref) for more information. Default
-    `nothing`
+- `collate`: Batching behavior. If `nothing` (default), a batch is `getobs(data, indices)`. If `false`, each batch is
+    `[getobs(data, i) for i in indices]`. When `true`, applies [`batch`](@ref) to the vector of observations in a batch, 
+   recursively collating arrays in the last dimensions. See [`batch`](@ref) for more information and examples.
 - `rng`: A random number generator. Default `Random.GLOBAL_RNG`
 
 # Examples
