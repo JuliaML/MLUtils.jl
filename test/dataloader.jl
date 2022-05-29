@@ -70,7 +70,7 @@
         for x in d
             @test size(x) == (2,1)
         end
-        
+
         # test iteration
         X3 = ones(2, 10)
         Y3 = fill(5, 10)
@@ -96,7 +96,7 @@
         d2 = DataLoader(X4, batchsize=2; shuffle=true, rng=MersenneTwister(1))
         @test first(d1) == first(d2)
     end
-    
+
     # numobs/getobs compatibility
     d = DataLoader(CustomType(), batchsize=2)
     @test first(d) == [1, 2]
@@ -135,14 +135,50 @@
     @testset "no views of arrays" begin
         x = CustomArrayNoView(6)
         @test_throws ErrorException view(x, 1:2)
-        
+
         d = DataLoader(x)
         @test length(collect(d)) == 6 # succesfull iteration
-        
+
         d = DataLoader(x, batchsize=2, shuffle=false)
         @test length(collect(d)) == 3 # succesfull iteration
-        
+
         d = DataLoader(x, batchsize=2, shuffle=true)
         @test length(collect(d)) == 3 # succesfull iteration
+    end
+
+    @testset "collating" begin
+        X_ = rand(10, 20)
+
+        d = DataLoader(X_, collate=false, batchsize = 2)
+        for (i, x) in enumerate(d)
+            @test x == [getobs(X_, 2i-1), getobs(X_, 2i)]
+        end
+
+        d = DataLoader(X_, collate=nothing, batchsize = 2)
+        for (i, x) in enumerate(d)
+            @test x == hcat(getobs(X_, 2i-1), getobs(X_, 2i))
+        end
+
+        d = DataLoader(X_, collate=true, batchsize = 2)
+        for (i, x) in enumerate(d)
+            @test x == hcat(getobs(X_, 2i-1), getobs(X_, 2i))
+        end
+
+        d = DataLoader((X_, X_), collate=false, batchsize = 2)
+        for (i, x) in enumerate(d)
+            @test x isa Vector
+            all((isa).(x, Tuple))
+        end
+
+        d = DataLoader((X_, X_), collate=true, batchsize = 2)
+        for (i, x) in enumerate(d)
+            @test all(==(hcat(getobs(X_, 2i-1), getobs(X_, 2i))), x)
+        end
+
+        @testset "nothing vs. true" begin
+            d = CustomRangeIndex(10)
+            @test first(DataLoader(d, batchsize = 2, collate=nothing)) isa UnitRange
+            @test first(DataLoader(d, batchsize = 2, collate=true)) isa Vector
+        end
     end
 end

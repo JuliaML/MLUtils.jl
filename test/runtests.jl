@@ -42,7 +42,7 @@ MLUtils.numobs(::CustomType) = 15
 MLUtils.getobs(::CustomType, i::Int) = i
 MLUtils.getobs(::CustomType, i::AbstractVector) = collect(i)
 
-struct CustomArray{T,N} <: AbstractArray{T,N} 
+struct CustomArray{T,N} <: AbstractArray{T,N}
     length::Int
     size::NTuple{N, Int}
 
@@ -57,7 +57,7 @@ Base.size(x::CustomArray) = x.size
 Base.getindex(x::CustomArray{T}, i::Int) where T = T(1)
 Base.getindex(x::CustomArray{T, 1}, i::AbstractVector{Int}) where T = CustomArray{T}(length(i))
 
-struct CustomArrayNoView{T,N} <: AbstractArray{T,N} 
+struct CustomArrayNoView{T,N} <: AbstractArray{T,N}
     length::Int
     size::NTuple{N, Int}
 
@@ -72,6 +72,13 @@ Base.size(x::CustomArrayNoView) = x.size
 Base.getindex(x::CustomArrayNoView{T}, i::Int) where T = T(1)
 Base.getindex(x::CustomArrayNoView{T, 1}, i::AbstractVector{Int}) where T = CustomArrayNoView{T}(length(i))
 Base.view(x::CustomArrayNoView, i...) = error("view not allowed")
+
+struct CustomRangeIndex
+    n::Int
+end
+Base.length(r::CustomRangeIndex) = r.n
+Base.getindex(r::CustomRangeIndex, idx::Int) = idx
+Base.getindex(r::CustomRangeIndex, idxs::UnitRange) = idxs
 
 # --------------------------------------------------------------------
 

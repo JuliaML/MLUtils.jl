@@ -55,7 +55,7 @@
         @test collect(reshuffled) != collect(reshuffled)
     end
     @testset "Argument combinations" begin
-        for batchsize ∈ (-1, 2), buffer ∈ (true, false),
+        for batchsize ∈ (-1, 2), buffer ∈ (true, false), collate ∈ (nothing, true, false),
                 parallel ∈ (true, false), shuffle ∈ (true, false), partial ∈ (true, false)
             if !(buffer isa Bool) && batchsize > 0
                 buffer = getobs(BatchView(X; batchsize), 1)
