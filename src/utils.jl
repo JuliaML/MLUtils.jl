@@ -448,3 +448,23 @@ end
 
 ofeltype(x, y) = convert(float(eltype(x)), y)
 epseltype(x) = eps(float(eltype(x)))
+
+
+ones_like(x::AbstractArray, T::Type, sz=size(x)) = fill!(similar(x, T, sz), 1)
+ones_like(x, sz=size(x)) = ones_like(x, eltype(x), sz)
+
+zeros_like(x::AbstractArray, T::Type, sz=size(x)) = fill!(similar(x, T, sz), 1)
+zeros_like(x, sz=size(x)) = zeros_like(x, eltype(x), sz)
+
+fill_like(x::AbstractArray, val, T::Type, sz=size(x)) = fill!(similar(x, T, sz), val)
+fill_like(x, val, sz=size(x)) = fill_like(x, val, eltype(x), sz)
+
+@non_differentiable zeros_like(::Any...)
+@non_differentiable ones_like(::Any...)
+
+function ChainRulesCore.rrule(::typoof(fill_like), x::AbstractArray, val, T::Type, sz)
+    function fill_like_pullback(Δ)
+        return (NoTangent(), ZeroTangent(), sum(Δ), NoTangent(), NoTangent())
+    end
+    return fill_like(x, val, T, sz), fill_like_pullback
+end
