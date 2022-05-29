@@ -20,7 +20,6 @@ Private = false
 batch
 batchsize
 BatchView
-DataLoader
 eachobs
 filterobs
 getobs

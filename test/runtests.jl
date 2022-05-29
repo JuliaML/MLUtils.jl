@@ -1,10 +1,8 @@
 using MLUtils
 using MLUtils.Datasets
-using MLUtils: RingBuffer, eachobsparallel
 using SparseArrays
 using Random, Statistics
 using Test
-using FoldsThreads: TaskPoolEx
 using ChainRulesTestUtils: test_rrule
 using Zygote: ZygoteRuleConfig
 using ChainRulesCore: rrule_via_ad
@@ -88,7 +86,6 @@ include("test_utils.jl")
 
 @testset "batchview" begin; include("batchview.jl"); end
 @testset "eachobs" begin; include("eachobs.jl"); end
-@testset "dataloader" begin; include("dataloader.jl"); end
 @testset "folds" begin; include("folds.jl"); end
 @testset "observation" begin; include("observation.jl"); end
 @testset "obsview" begin; include("obsview.jl"); end
@@ -97,7 +94,6 @@ include("test_utils.jl")
 @testset "resample" begin; include("resample.jl"); end
 @testset "splitobs" begin; include("splitobs.jl"); end
 @testset "utils" begin; include("utils.jl"); end
-@testset "eachobsparallel" begin; include("parallel.jl"); end
 
 @testset "Datasets/datasets" begin; include("Datasets/datasets.jl"); end
 @testset "Datasets/generators" begin; include("Datasets/generators.jl"); end

@@ -7,3 +7,6 @@
 @deprecate frequencies(x) group_counts(x)
 @deprecate eachbatch(data, batchsize; kws...) eachobs(data; batchsize, kws...)
 @deprecate eachbatch(data; size=1, kws...) eachobs(data; batchsize=size, kws...)
+
+# Deprecated in v0.3 
+@deprecate DataLoader(args...; kws...) eachobs(args...; kws...)

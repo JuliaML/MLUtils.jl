@@ -3,9 +3,6 @@ module MLUtils
 using Random
 using Statistics
 using ShowCases: ShowLimit
-using FLoops: @floop
-using FLoops.Transducers: Executor, ThreadedEx
-using FoldsThreads: TaskPoolEx
 import StatsBase: sample
 using Base: @propagate_inbounds
 using Random: AbstractRNG, shuffle!, GLOBAL_RNG
@@ -32,8 +29,6 @@ export batchsize,
 
 include("eachobs.jl")
 export eachobs, DataLoader
-
-include("parallel.jl")
 
 include("folds.jl")
 export kfolds,
