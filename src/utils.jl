@@ -361,6 +361,7 @@ julia> unbatch([1 3 5 7;
  [3, 4]
  [5, 6]
  [7, 8]
+```                                                                                          
 """
 unbatch(x::AbstractArray) = [getobs(x, i) for i in 1:numobs(x)]
 unbatch(x::AbstractVector) = x
