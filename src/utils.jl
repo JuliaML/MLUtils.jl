@@ -449,3 +449,136 @@ end
 
 ofeltype(x, y) = convert(float(eltype(x)), y)
 epseltype(x) = eps(float(eltype(x)))
+
+"""
+    ones_like(x, [element_type=eltype(x)], [dims=size(x)]))
+
+Create an array with the given element type and size, based upon the given source array `x`.
+All element of the new array will be set to 1. 
+The second and third arguments are both optional, defaulting to the given array's eltype and
+size. The dimensions may be specified as an integer or as a tuple argument.
+
+See also [`zeros_like`](@ref) and [`fill_like`](@ref).
+
+# Examples
+
+```julia-repl
+julia> x = rand(Float32, 2)
+2-element Vector{Float32}:
+ 0.8621633
+ 0.5158395
+
+julia> ones_like(x, (3, 3))
+3×3 Matrix{Float32}:
+ 1.0  1.0  1.0
+ 1.0  1.0  1.0
+ 1.0  1.0  1.0
+
+julia> using CUDA
+
+julia> x = CUDA.rand(2, 2)
+2×2 CuArray{Float32, 2, CUDA.Mem.DeviceBuffer}:
+ 0.82297   0.656143
+ 0.701828  0.391335
+
+julia> ones_like(x, Float64)
+2×2 CuArray{Float64, 2, CUDA.Mem.DeviceBuffer}:
+ 1.0  1.0
+ 1.0  1.0
+```
+"""
+ones_like(x::AbstractArray, T::Type, sz=size(x)) = fill!(similar(x, T, sz), 1)
+ones_like(x::AbstractArray, sz=size(x)) = ones_like(x, eltype(x), sz)
+
+
+"""
+    zeros_like(x, [element_type=eltype(x)], [dims=size(x)]))
+
+
+Create an array with the given element type and size, based upon the given source array `x`.
+All element of the new array will be set to 0. 
+The second and third arguments are both optional, defaulting to the given array's eltype and
+size. The dimensions may be specified as an integer or as a tuple argument.
+
+See also [`ones_like`](@ref) and [`fill_like`](@ref).
+
+# Examples
+
+```julia-repl
+julia> x = rand(Float32, 2)
+2-element Vector{Float32}:
+ 0.4005432
+ 0.36934233
+
+julia> zeros_like(x, (3, 3))
+3×3 Matrix{Float32}:
+ 0.0  0.0  0.0
+ 0.0  0.0  0.0
+ 0.0  0.0  0.0
+
+julia> using CUDA
+
+julia> x = CUDA.rand(2, 2)
+2×2 CuArray{Float32, 2, CUDA.Mem.DeviceBuffer}:
+ 0.0695155  0.667979
+ 0.558468   0.59903
+
+julia> zeros_like(x, Float64)
+2×2 CuArray{Float64, 2, CUDA.Mem.DeviceBuffer}:
+ 0.0  0.0
+ 0.0  0.0
+```
+"""
+zeros_like(x::AbstractArray, T::Type, sz=size(x)) = fill!(similar(x, T, sz), 0)
+zeros_like(x::AbstractArray, sz=size(x)) = zeros_like(x, eltype(x), sz)
+
+
+"""
+    fill_like(x, val, [element_type=eltype(x)], [dims=size(x)]))
+
+Create an array with the given element type and size, based upon the given source array `x`.
+All element of the new array will be set to `val`. 
+The third and fourth arguments are both optional, defaulting to the given array's eltype and
+size. The dimensions may be specified as an integer or as a tuple argument.
+
+See also [`zeros_like`](@ref) and [`ones_like`](@ref).
+
+# Examples
+
+```julia-repl
+julia> x = rand(Float32, 2)
+2-element Vector{Float32}:
+ 0.16087806
+ 0.89916044
+
+julia> fill_like(x, 1.7, (3, 3))
+3×3 Matrix{Float32}:
+ 1.7  1.7  1.7
+ 1.7  1.7  1.7
+ 1.7  1.7  1.7
+
+julia> using CUDA
+
+julia> x = CUDA.rand(2, 2)
+2×2 CuArray{Float32, 2, CUDA.Mem.DeviceBuffer}:
+ 0.803167  0.476101
+ 0.303041  0.317581
+
+julia> fill_like(x, 1.7, Float64)
+2×2 CuArray{Float64, 2, CUDA.Mem.DeviceBuffer}:
+ 1.7  1.7
+ 1.7  1.7
+```
+"""
+fill_like(x::AbstractArray, val, T::Type, sz=size(x)) = fill!(similar(x, T, sz), val)
+fill_like(x::AbstractArray, val, sz=size(x)) = fill_like(x, val, eltype(x), sz)
+
+@non_differentiable zeros_like(::Any...)
+@non_differentiable ones_like(::Any...)
+
+function rrule(::typeof(fill_like), x::AbstractArray, val, T::Type, sz)
+    function fill_like_pullback(Δ)
+        return (NoTangent(), ZeroTangent(), sum(Δ), NoTangent(), NoTangent())
+    end
+    return fill_like(x, val, T, sz), fill_like_pullback
+end

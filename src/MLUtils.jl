@@ -57,14 +57,17 @@ include("utils.jl")
 export batch,
        batchseq,
        chunk,
+       fill_like,
        flatten,
        group_counts,
        group_indices,
        normalise,
+       ones_like,
        stack,
        unbatch,
        unsqueeze,
-       unstack
+       unstack,
+       zeros_like
        # rpad
 
 include("Datasets/Datasets.jl")
