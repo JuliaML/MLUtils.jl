@@ -138,3 +138,30 @@ end
     @test bs[2] == [2, 5]
     @test bs[3] == [3, -1]
 end
+
+@testset "ones_like" begin
+    x = rand(Float16, 2, 3)
+    y = ones_like(x, (2, 4, 2))
+    @test y isa AbstractArray{Float16}
+    @test y == ones(Float16, 2, 4, 2)
+
+    test_zygote(ones_like, rand(5), (2, 4, 2))
+end
+
+@testset "zeros_like" begin
+    x = rand(Float16, 2, 3)
+    y = zeros_like(x, (2, 4, 2))
+    @test y isa AbstractArray{Float16}
+    @test y == zeros(Float16, 2, 4, 2)
+
+    test_zygote(zeros_like, rand(5), (2, 4, 2))
+end
+
+@testset "fill_like" begin
+    x = rand(Float16, 2, 3)
+    y = fill_like(x, 2.2, (2, 4, 2))
+    @test y isa AbstractArray{Float16}
+    @test y == fill!(rand(Float16, 2, 4, 2), 2.2)
+
+    test_zygote(fill_like, rand(5), rand(), (2, 4, 2))
+end
