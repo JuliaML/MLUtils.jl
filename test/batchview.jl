@@ -66,8 +66,7 @@ using MLUtils: obsview
 
 
     @testset "subsetting" begin
-        # for var in (vars..., tuples..., Xs, ys)
-            for var in (vars[1], )
+        for var in (vars..., tuples..., Xs, ys)
             A = BatchView(var, batchsize=3)
             @test getobs(@inferred(ObsView(A))) == @inferred(getobs(A))
             @test_throws BoundsError ObsView(A,1:6)
@@ -88,6 +87,13 @@ using MLUtils: obsview
         @test typeof(A.data) <: Array
         S = @inferred(obsview(A))
         S === A
+    end
+
+    @testset "obsview and batchview" begin
+        x = rand(2, 6)
+        bv = BatchView(x; batchsize=2)
+        ov = obsview(bv, 1:2)
+        @test getobs(ov, 1) == x[:,1:2]
     end
 
     # @testset "nesting with ObsView" begin

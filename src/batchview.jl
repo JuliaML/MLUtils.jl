@@ -154,9 +154,6 @@ Base.eltype(::BatchView{Tel}) where Tel = Tel
 Base.iterate(A::BatchView, state = 1) =
     (state > numobs(A)) ? nothing : (A[state], state + 1)
 
-obsview(A::BatchView) = A
-obsview(A::BatchView, i) = A[i]
-
 # Helper function to translate a batch-index into a range of observations.
 function _batchrange(a::BatchView, batchindex::Int)
     (batchindex > a.count || batchindex < 0) && throw(BoundsError())
