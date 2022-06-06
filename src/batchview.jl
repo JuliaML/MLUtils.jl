@@ -172,4 +172,14 @@ function Base.showarg(io::IO, A::BatchView, toplevel)
     toplevel && print(io, " with eltype ", nameof(eltype(A))) # simplify
 end
 
+"""
+    shuffleobs(rng::AbstractRNG, data::BatchView)
+
+Returns a new `BatchView` with the observations shuffled into a new set of batches.
+"""
+function shuffleobs(rng::AbstractRNG, data::BatchView{TElem,TData,Val{Collate}}) where {TElem,TData,Collate}
+    obs = shuffleobs(rng, data.data)
+    return BatchView(obs; batchsize=data.batchsize, partial=data.partial, collate=Collate)
+end
+
 # --------------------------------------------------------------------

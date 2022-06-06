@@ -96,6 +96,15 @@ using MLUtils: obsview
         @test getobs(ov, 1) == x[:,1:2]
     end
 
+    @testset "shuffleobs" begin
+        for var in (vars..., tuples..., Xs, ys), collate in [true, false, nothing]
+            A = BatchView(var; batchsize=3, collate)
+            S = @inferred BatchView shuffleobs(A)
+            @test typeof(S) <: BatchView
+            @test any(x -> x ∉ A, S)
+        end
+    end
+
     # @testset "nesting with ObsView" begin
     #     for var in vars
     #         @test eltype(@inferred(BatchView(ObsView(var)))[1]) <: Union{SubArray,String}
