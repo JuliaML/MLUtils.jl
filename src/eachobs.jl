@@ -225,9 +225,9 @@ end
 
 @inline function _dataloader_foldl3(rf, val, e::DataLoader, data)
     if e.buffer > 0
-        _dataloader_foldl4_buffered(rf, val, e, data)
+        _dataloader_foldl4_buffered(rf, val, data)
     else
-        _dataloader_foldl4(rf, val, e, data)
+        _dataloader_foldl4(rf, val, data)
     end
 end
 
