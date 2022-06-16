@@ -181,4 +181,28 @@
             @test first(DataLoader(d, batchsize = 2, collate=true)) isa Vector
         end
     end
+
+    @testset "Transducers foldl" begin
+        dloader = DataLoader(1:10)
+        @test foldl(+, Map(x -> x[1]), dloader; init = 0) == 55
+        @inferred foldl(+, Map(x -> x[1]), dloader; init = 0)
+
+        dloader = DataLoader(1:10; shuffle = true)
+        @test foldl(+, Map(x -> x[1]), dloader; init = 0) == 55
+
+        dloader = DataLoader(1:10; batchsize = 2)
+        @test foldl(+, Map(x -> x[1]), dloader; init = 0) == 25
+
+        dloader = DataLoader(1:1000; shuffle = false)
+        @test copy(Map(x -> x[1]), Vector{Int}, dloader) == collect(1:1000)
+
+        dloader = DataLoader(1:1000; shuffle = true)
+        @test copy(Map(x -> x[1]), Vector{Int}, dloader) != collect(1:1000)
+
+        dloader = DataLoader(1:1000; batchsize = 2, shuffle = false)
+        @test copy(Map(x -> x[1]), Vector{Int}, dloader) == collect(1:2:1000)
+
+        dloader = DataLoader(1:1000; batchsize = 2, shuffle = true)
+        @test copy(Map(x -> x[1]), Vector{Int}, dloader) != collect(1:2:1000)
+    end
 end

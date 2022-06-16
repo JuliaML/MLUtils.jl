@@ -206,3 +206,52 @@ Base.IteratorEltype(::DataLoader) = Base.EltypeUnknown()
 #         e.data
 #     end)
 # end
+
+@inline function _dataloader_foldl1(rf, val, e::DataLoader, data)
+    if e.shuffle
+        _dataloader_foldl2(rf, val, e, shuffleobs(e.rng, data))
+    else
+        _dataloader_foldl2(rf, val, e, data)
+    end
+end
+
+@inline function _dataloader_foldl2(rf, val, e::DataLoader, data)
+    if e.batchsize > 0
+        _dataloader_foldl3(rf, val, e, BatchView(data; e.batchsize, e.partial))
+    else
+        _dataloader_foldl3(rf, val, e, data)
+    end
+end
+
+@inline function _dataloader_foldl3(rf, val, e::DataLoader, data)
+    if e.buffer > 0
+        _dataloader_foldl4_buffered(rf, val, data)
+    else
+        _dataloader_foldl4(rf, val, data)
+    end
+end
+
+@inline function _dataloader_foldl4(rf, val, data)
+    for i in 1:numobs(data)
+        @inbounds x = getobs(data, i)
+        # TODO: in 1.8 we could @inline this at the callsite,
+        #       optimizer seems to be very sensitive to inlining and
+        #       quite brittle in its capacity to keep this type stable
+        val = Transducers.@next(rf, val, x)
+    end
+    Transducers.complete(rf, val)
+end
+
+@inline function _dataloader_foldl4_buffered(rf, val, data)
+    buf = getobs(data, 1)
+    for i in 1:numobs(data)
+        @inbounds x = getobs!(buf, data, i)
+        val = Transducers.@next(rf, val, x)
+    end
+    Transducers.complete(rf, val)
+end
+
+@inline function Transducers.__foldl__(rf, val, e::DataLoader)
+    e.parallel && throw(ArgumentError("Transducer fold protocol not supported on parallel data loads"))
+    _dataloader_foldl1(rf, val, e, ObsView(e.data))
+end

@@ -131,8 +131,8 @@ numobs(data::Union{Tuple, NamedTuple}) = _check_numobs(data)
 
 getobs(tup::Union{Tuple, NamedTuple}) = map(x -> getobs(x), tup)
 
-function getobs(tup::Union{Tuple, NamedTuple}, indices)
-    _check_numobs(tup)
+Base.@propagate_inbounds function getobs(tup::Union{Tuple, NamedTuple}, indices)
+    @boundscheck _check_numobs(tup)
     return map(x -> getobs(x, indices), tup)
 end
 

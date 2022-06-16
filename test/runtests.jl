@@ -4,6 +4,7 @@ using MLUtils: RingBuffer, eachobsparallel
 using SparseArrays
 using Random, Statistics
 using Test
+using Transducers
 using FoldsThreads: TaskPoolEx
 using ChainRulesTestUtils: test_rrule
 using Zygote: ZygoteRuleConfig
