@@ -8,7 +8,7 @@ using FLoops.Transducers: Executor, ThreadedEx
 using FoldsThreads: TaskPoolEx
 import StatsBase: sample
 using Base: @propagate_inbounds
-using Random: AbstractRNG, shuffle!, GLOBAL_RNG
+using Random: AbstractRNG, shuffle!, GLOBAL_RNG, rand!, randn!
 import ChainRulesCore: rrule
 using ChainRulesCore: @non_differentiable, unthunk, AbstractZero,
                       NoTangent, ZeroTangent, ProjectTo

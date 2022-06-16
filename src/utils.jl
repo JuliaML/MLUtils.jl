@@ -532,6 +532,87 @@ julia> zeros_like(x, Float64)
 zeros_like(x::AbstractArray, T::Type, sz=size(x)) = fill!(similar(x, T, sz), 0)
 zeros_like(x::AbstractArray, sz=size(x)) = zeros_like(x, eltype(x), sz)
 
+"""
+    rand_like(x, [element_type=eltype(x)], [dims=size(x)])
+
+Create an array with the given element type and size, based upon the given source array `x`.
+All element of the new array will be set to a random value.
+The second and third arguments are both optional, defaulting to the given array's eltype and
+size. The dimensions may be specified as an integer or as a tuple argument.
+
+See also `Base.rand` and [`randn_like`](@ref).
+
+# Examples
+
+```julia-repl
+julia> x = rand(Float32, 2)
+2-element Vector{Float32}:
+ 0.15713859
+ 0.86794513
+
+julia> rand_like(x, (3, 3))
+3×3 Matrix{Float32}:
+ 0.780032  0.920552  0.53689
+ 0.121451  0.741334  0.5449
+ 0.55348   0.138136  0.556404
+
+julia> using CUDA
+
+julia> x = CUDA.rand(2, 2)
+2×2 CuArray{Float32, 2, CUDA.Mem.DeviceBuffer}:
+ 0.0255932  0.597988
+ 0.799096   0.900623
+
+julia> rand_like(x, Float64)
+2×2 CuArray{Float64, 2, CUDA.Mem.DeviceBuffer}:
+ 0.429274  0.135379
+ 0.718895  0.0098756
+```
+"""
+rand_like(x::AbstractArray, T::Type, sz=size(x)) = rand!(similar(x, T, sz))
+rand_like(x::AbstractArray, sz=size(x)) = rand_like(x, eltype(x), sz)
+
+
+"""
+    randn_like(x, [element_type=eltype(x)], [dims=size(x)])
+
+Create an array with the given element type and size, based upon the given source array `x`.
+All element of the new array will be set to a random value drawn from a normal distribution.
+The second and third arguments are both optional, defaulting to the given array's eltype and
+size. The dimensions may be specified as an integer or as a tuple argument.
+
+See also `Base.randn` and [`rand_like`](@ref).
+
+# Examples
+```julia-repl
+julia> x = rand(Float32, 2)
+2-element Vector{Float32}:
+ 0.95613086
+ 0.87280667
+
+julia> randn_like(x, (3, 3))
+3×3 Matrix{Float32}:
+ -0.385331    0.956231   0.0745102
+  1.43756    -0.967328   2.06311
+  0.0482372   1.78728   -0.902547
+
+julia> using CUDA
+
+julia> x = CUDA.rand(2, 2)
+
+julia> x = CUDA.rand(2, 2)
+2×2 CuArray{Float32, 2, CUDA.Mem.DeviceBuffer}:
+ 0.275791    0.796167
+ 0.00773016  0.537203
+
+julia> randn_like(x, Float64)
+2×2 CuArray{Float64, 2, CUDA.Mem.DeviceBuffer}:
+ -0.578527   0.823445
+ -1.01338   -0.612053
+```
+"""
+randn_like(x::AbstractArray, T::Type, sz=size(x)) = randn!(similar(x, T, sz))
+randn_like(x::AbstractArray, sz=size(x)) = randn_like(x, eltype(x), sz)
 
 """
     fill_like(x, val, [element_type=eltype(x)], [dims=size(x)]))
