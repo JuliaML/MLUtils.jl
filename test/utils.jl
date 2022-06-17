@@ -157,6 +157,22 @@ end
     test_zygote(zeros_like, rand(5), (2, 4, 2))
 end
 
+@testset "rand_like" begin
+    seed = 42
+    x = rand(Float16, 2, 3)
+    y = rand_like(rr(seed), x, (2, 4, 2))
+    @test y isa AbstractArray{Float16}
+    @test y == rand(rr(seed), Float16, 2, 4, 2)
+end
+
+@testset "randn_like" begin
+    seed = 42
+    x = rand(Float16, 2, 3)
+    y = randn_like(rr(seed), x, (2, 4, 2))
+    @test y isa AbstractArray{Float16}
+    @test y == randn(rr(seed), Float16, 2, 4, 2)
+end
+
 @testset "fill_like" begin
     x = rand(Float16, 2, 3)
     y = fill_like(x, 2.2, (2, 4, 2))

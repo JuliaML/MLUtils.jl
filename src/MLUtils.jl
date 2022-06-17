@@ -9,7 +9,7 @@ using FoldsThreads: TaskPoolEx
 import StatsBase: sample
 using Transducers
 using Base: @propagate_inbounds
-using Random: AbstractRNG, shuffle!, GLOBAL_RNG
+using Random: AbstractRNG, shuffle!, GLOBAL_RNG, rand!, randn!
 import ChainRulesCore: rrule
 using ChainRulesCore: @non_differentiable, unthunk, AbstractZero,
                       NoTangent, ZeroTangent, ProjectTo
@@ -64,6 +64,8 @@ export batch,
        group_indices,
        normalise,
        ones_like,
+       rand_like,
+       randn_like,
        stack,
        unbatch,
        unsqueeze,
