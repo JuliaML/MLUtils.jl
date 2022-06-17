@@ -20,6 +20,7 @@ FLoops = "0.2"
 FoldsThreads = "0.1"
 ShowCases = "0.1"
 StatsBase = "0.33"
+Transducers = "0.4"
 julia = "1.6"
 
 [extras]
