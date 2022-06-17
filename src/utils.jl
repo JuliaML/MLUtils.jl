@@ -533,7 +533,7 @@ zeros_like(x::AbstractArray, T::Type, sz=size(x)) = fill!(similar(x, T, sz), 0)
 zeros_like(x::AbstractArray, sz=size(x)) = zeros_like(x, eltype(x), sz)
 
 """
-    rand_like(x, [element_type=eltype(x)], [dims=size(x)])
+    rand_like([rng=GLOBAL_RNG], x, [element_type=eltype(x)], [dims=size(x)])
 
 Create an array with the given element type and size, based upon the given source array `x`.
 All element of the new array will be set to a random value.
@@ -571,10 +571,11 @@ julia> rand_like(x, Float64)
 """
 rand_like(x::AbstractArray, T::Type, sz=size(x)) = rand!(similar(x, T, sz))
 rand_like(x::AbstractArray, sz=size(x)) = rand_like(x, eltype(x), sz)
-
+rand_like(rng::AbstractRNG, x::AbstractArray, T::Type, sz=size(x)) = rand!(rng, similar(x, T, sz))
+rand_like(rng::AbstractRNG, x::AbstractArray, sz=size(x)) = rand_like(rng, x, eltype(x), sz)
 
 """
-    randn_like(x, [element_type=eltype(x)], [dims=size(x)])
+    randn_like([rng=GLOBAL_RNG], x, [element_type=eltype(x)], [dims=size(x)])
 
 Create an array with the given element type and size, based upon the given source array `x`.
 All element of the new array will be set to a random value drawn from a normal distribution.
@@ -613,6 +614,8 @@ julia> randn_like(x, Float64)
 """
 randn_like(x::AbstractArray, T::Type, sz=size(x)) = randn!(similar(x, T, sz))
 randn_like(x::AbstractArray, sz=size(x)) = randn_like(x, eltype(x), sz)
+randn_like(rng::AbstractRNG, x::AbstractArray, T::Type, sz=size(x)) = randn!(rng, similar(x, T, sz))
+randn_like(rng::AbstractRNG, x::AbstractArray, sz=size(x)) = randn_like(rng, x, eltype(x), sz)
 
 """
     fill_like(x, val, [element_type=eltype(x)], [dims=size(x)]))
@@ -656,6 +659,8 @@ fill_like(x::AbstractArray, val, sz=size(x)) = fill_like(x, val, eltype(x), sz)
 
 @non_differentiable zeros_like(::Any...)
 @non_differentiable ones_like(::Any...)
+@non_differentiable rand_like(::Any...)
+@non_differentiable randn_like(::Any...)
 
 function rrule(::typeof(fill_like), x::AbstractArray, val, T::Type, sz)
     function fill_like_pullback(Δ)
