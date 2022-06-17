@@ -537,18 +537,21 @@ zeros_like(x::AbstractArray, sz=size(x)) = zeros_like(x, eltype(x), sz)
 
 Create an array with the given element type and size, based upon the given source array `x`.
 All element of the new array will be set to a random value.
-The second and third arguments are both optional, defaulting to the given array's eltype and
+The last two arguments are both optional, defaulting to the given array's eltype and
 size. The dimensions may be specified as an integer or as a tuple argument.
+
+The default random number generator is used, unless a custom one is passed in explicitly
+as the first argument.
 
 See also `Base.rand` and [`randn_like`](@ref).
 
 # Examples
 
 ```julia-repl
-julia> x = rand(Float32, 2)
+julia> x = ones(Float32, 2)
 2-element Vector{Float32}:
- 0.15713859
- 0.86794513
+ 1.0
+ 1.0
 
 julia> rand_like(x, (3, 3))
 3×3 Matrix{Float32}:
@@ -558,10 +561,10 @@ julia> rand_like(x, (3, 3))
 
 julia> using CUDA
 
-julia> x = CUDA.rand(2, 2)
+julia> CUDA.ones(2, 2)
 2×2 CuArray{Float32, 2, CUDA.Mem.DeviceBuffer}:
- 0.0255932  0.597988
- 0.799096   0.900623
+ 1.0  1.0
+ 1.0  1.0
 
 julia> rand_like(x, Float64)
 2×2 CuArray{Float64, 2, CUDA.Mem.DeviceBuffer}:
@@ -579,17 +582,20 @@ rand_like(rng::AbstractRNG, x::AbstractArray, sz=size(x)) = rand_like(rng, x, el
 
 Create an array with the given element type and size, based upon the given source array `x`.
 All element of the new array will be set to a random value drawn from a normal distribution.
-The second and third arguments are both optional, defaulting to the given array's eltype and
+The last two arguments are both optional, defaulting to the given array's eltype and
 size. The dimensions may be specified as an integer or as a tuple argument.
+
+The default random number generator is used, unless a custom one is passed in explicitly
+as the first argument.
 
 See also `Base.randn` and [`rand_like`](@ref).
 
 # Examples
 ```julia-repl
-julia> x = rand(Float32, 2)
+julia> x = ones(Float32, 2)
 2-element Vector{Float32}:
- 0.95613086
- 0.87280667
+ 1.0
+ 1.0
 
 julia> randn_like(x, (3, 3))
 3×3 Matrix{Float32}:
@@ -599,12 +605,10 @@ julia> randn_like(x, (3, 3))
 
 julia> using CUDA
 
-julia> x = CUDA.rand(2, 2)
-
-julia> x = CUDA.rand(2, 2)
+julia> CUDA.ones(2, 2)
 2×2 CuArray{Float32, 2, CUDA.Mem.DeviceBuffer}:
- 0.275791    0.796167
- 0.00773016  0.537203
+ 1.0  1.0
+ 1.0  1.0
 
 julia> randn_like(x, Float64)
 2×2 CuArray{Float64, 2, CUDA.Mem.DeviceBuffer}:
