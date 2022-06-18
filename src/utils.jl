@@ -533,7 +533,7 @@ zeros_like(x::AbstractArray, T::Type, sz=size(x)) = fill!(similar(x, T, sz), 0)
 zeros_like(x::AbstractArray, sz=size(x)) = zeros_like(x, eltype(x), sz)
 
 """
-    rand_like([rng=GLOBAL_RNG], x, [element_type=eltype(x)], [dims=size(x)])
+    rand_like([rng=default_rng()], x, [element_type=eltype(x)], [dims=size(x)])
 
 Create an array with the given element type and size, based upon the given source array `x`.
 All element of the new array will be set to a random value.
@@ -578,7 +578,7 @@ rand_like(rng::AbstractRNG, x::AbstractArray, T::Type, sz=size(x)) = rand!(rng, 
 rand_like(rng::AbstractRNG, x::AbstractArray, sz=size(x)) = rand_like(rng, x, eltype(x), sz)
 
 """
-    randn_like([rng=GLOBAL_RNG], x, [element_type=eltype(x)], [dims=size(x)])
+    randn_like([rng=default_rng()], x, [element_type=eltype(x)], [dims=size(x)])
 
 Create an array with the given element type and size, based upon the given source array `x`.
 All element of the new array will be set to a random value drawn from a normal distribution.
