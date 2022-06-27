@@ -87,9 +87,7 @@ struct BatchView{TElem,TData,TCollate} <: AbstractDataContainer
     batchsize::Int
     count::Int
     partial::Bool
-    imax::Int
 end
-
 
 function BatchView(data::T; batchsize::Int=1, partial::Bool=true, collate=Val(nothing)) where {T}
     n = numobs(data)
@@ -102,9 +100,8 @@ function BatchView(data::T; batchsize::Int=1, partial::Bool=true, collate=Val(no
         throw(ArgumentError("`collate` must be one of `nothing`, `true` or `false`."))
     end
     E = _batchviewelemtype(data, collate)
-    imax = partial ? n : n - batchsize + 1
     count = partial ? ceil(Int, n / batchsize) : floor(Int, n / batchsize)
-    BatchView{E,T,typeof(collate)}(data, batchsize, count, partial, imax)
+    BatchView{E,T,typeof(collate)}(data, batchsize, count, partial)
 end
 
 _batchviewelemtype(::TData, ::Val{nothing}) where TData =
@@ -155,10 +152,10 @@ Base.iterate(A::BatchView, state = 1) =
     (state > numobs(A)) ? nothing : (A[state], state + 1)
 
 # Helper function to translate a batch-index into a range of observations.
-@inline function _batchrange(a::BatchView, batchindex::Int)
-    @boundscheck (batchindex > a.count || batchindex < 0) && throw(BoundsError())
-    startidx = (batchindex - 1) * a.batchsize + 1
-    endidx = min(a.imax, startidx + a.batchsize -1)
+@inline function _batchrange(A::BatchView, batchindex::Int)
+    @boundscheck (batchindex > A.count || batchindex < 0) && throw(BoundsError())
+    startidx = (batchindex - 1) * A.batchsize + 1
+    endidx = min(numobs(parent(A)), startidx + A.batchsize -1)
     return startidx:endidx
 end
 
