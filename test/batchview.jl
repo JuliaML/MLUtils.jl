@@ -107,4 +107,13 @@ using MLUtils: obsview
     #         @test eltype(@inferred(BatchView(ObsView(var)))[1]) <: SubArray
     #     end
     # end
+
+    @testset "partial=false" begin
+        x = [1:12;]
+        bv = BatchView(x, batchsize=5, partial=false)
+        @test length(bv) == 2
+        @test bv[1] == 1:5
+        @test bv[2] == 6:10
+        @test_throws BoundsError bv[3]
+    end
 end
