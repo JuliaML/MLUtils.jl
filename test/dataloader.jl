@@ -81,6 +81,14 @@
         end
     end
 
+    @testset "partial=false" begin
+        x = [1:12;]
+        d = DataLoader(x, batchsize=5, partial=false) |> collect
+        @test length(d) == 2
+        @test d[1] == 1:5
+        @test d[2] == 6:10
+    end
+
     @testset "shuffle & rng" begin
         X4 = rand(2, 1000)
         d1 = DataLoader(X4, batchsize=2; shuffle=true)
@@ -96,6 +104,7 @@
         d2 = DataLoader(X4, batchsize=2; shuffle=true, rng=MersenneTwister(1))
         @test first(d1) == first(d2)
     end
+
 
     # numobs/getobs compatibility
     d = DataLoader(CustomType(), batchsize=2)
