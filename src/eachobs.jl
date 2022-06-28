@@ -36,7 +36,7 @@ function eachobs(data; batchsize=-1, kws...)
 end
 
 """
-    DataLoader(data; [batchsize, buffer, partial, shuffle, parallel, rng])
+    DataLoader(data; [batchsize, buffer, collate, parallel, partial, rng, shuffle])
 
 An object that iterates over mini-batches of `data`,
 each mini-batch containing `batchsize` observations
@@ -55,28 +55,28 @@ The original data is preserved in the `data` field of the DataLoader.
 
 - `data`: The data to be iterated over. The data type has to be supported by
   [`numobs`](@ref) and [`getobs`](@ref).
-- `buffer`: If `buffer=true` and supported by the type of `data`,
-a buffer will be allocated and reused for memory efficiency.
-You can also pass a preallocated object to `buffer`. Default `false`.
 - `batchsize`: If less than 0, iterates over individual observations.
-Otherwise, each iteration (except possibly the last) yields a mini-batch
-containing `batchsize` observations. Default `1`.
-- `partial`: This argument is used only when `batchsize > 0`.
-  If `partial=false` and the number of observations is not divisible by the batchsize,
-  then the last mini-batch is dropped. Default `true`.
+  Otherwise, each iteration (except possibly the last) yields a mini-batch
+  containing `batchsize` observations. Default `1`.
+- `buffer`: If `buffer=true` and supported by the type of `data`,
+  a buffer will be allocated and reused for memory efficiency.
+  You can also pass a preallocated object to `buffer`. Default `false`.
+- `collate`: Batching behavior. If `nothing` (default), a batch is `getobs(data, indices)`. If `false`, each batch is
+   `[getobs(data, i) for i in indices]`. When `true`, applies [`batch`](@ref) to the vector of observations in a batch, 
+   recursively collating arrays in the last dimensions. See [`batch`](@ref) for more information and examples.
 - `parallel`: Whether to use load data in parallel using worker threads. Greatly
     speeds up data loading by factor of available threads. Requires starting
     Julia with multiple threads. Check `Threads.nthreads()` to see the number of
     available threads. **Passing `parallel = true` breaks ordering guarantees**.
     Default `false`.
+- `partial`: This argument is used only when `batchsize > 0`.
+  If `partial=false` and the number of observations is not divisible by the batchsize,
+  then the last mini-batch is dropped. Default `true`.
+- `rng`: A random number generator. Default `Random.GLOBAL_RNG`.
 - `shuffle`: Whether to shuffle the observations before iterating. Unlike
     wrapping the data container with `shuffleobs(data)`, `shuffle=true` ensures
     that the observations are shuffled anew every time you start iterating over
     `eachobs`. Default `false`.
-- `collate`: Batching behavior. If `nothing` (default), a batch is `getobs(data, indices)`. If `false`, each batch is
-    `[getobs(data, i) for i in indices]`. When `true`, applies [`batch`](@ref) to the vector of observations in a batch, 
-   recursively collating arrays in the last dimensions. See [`batch`](@ref) for more information and examples.
-- `rng`: A random number generator. Default `Random.GLOBAL_RNG`
 
 # Examples
 
