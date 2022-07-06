@@ -111,10 +111,10 @@ end
     n = 2
     dims = 2
     x = rand(4, 5)
-    y = chunk(x, 2)
-    dy = randn!.(collect.(y))
-    idxs = MLUtils._partition_idxs(x, n, dims)
-    test_zygote(MLUtils.∇chunk, dy, x, idxs, Val(dims), check_inferred=false)
+    l = chunk(x, 2)
+    dl = randn!.(collect.(l))
+    idxs = MLUtils._partition_idxs(x, ceil(Int, size(x, dims) / n), dims)
+    test_zygote(MLUtils.∇chunk, dl, x, idxs, Val(dims), check_inferred=false)
 end
 
 @testset "group_counts" begin

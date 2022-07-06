@@ -158,27 +158,26 @@ julia> xs[1]
  3  8  13  18
 ```
 """
-chunk(x, n::Int) = collect(Iterators.partition(x, ceil(Int, length(x) / n)))
+chunk(x; size::Int) = collect(Iterators.partition(x, size))
+chunk(x, n::Int) = chunk(x; size = ceil(Int, length(x) / n))
 
-function chunk(x::AbstractArray, n::Int; dims::Int=ndims(x))
-    idxs = _partition_idxs(x, n, dims) 
+function chunk(x::AbstractArray; size::Int, dims::Int=ndims(x))
+    idxs = _partition_idxs(x, size, dims)
     [selectdim(x, dims, i) for i in idxs]
 end
+chunk(x::AbstractArray, n::Int; dims::Int=ndims(x)) = chunk(x; size = ceil(Int, size(x, dims) / n), dims)
 
-function _partition_idxs(x, n, dims)
-    bs = ceil(Int, size(x, dims) / n)
-    Iterators.partition(axes(x, dims), bs)
-end
-
-function rrule(::typeof(chunk), x::AbstractArray, n::Int; dims::Int=ndims(x))
+function rrule(::typeof(chunk), x::AbstractArray; size::Int, dims::Int=ndims(x))
     # this is the implementation of chunk
-    idxs = _partition_idxs(x, n, dims) 
+    idxs = _partition_idxs(x, size, dims)
     y = [selectdim(x, dims, i) for i in idxs]
     valdims = Val(dims)
-    chunk_pullback(dy) = (NoTangent(), ∇chunk(unthunk(dy), x, idxs, valdims), NoTangent())
-    
+    chunk_pullback(dy) = (NoTangent(), ∇chunk(unthunk(dy), x, idxs, valdims))
+
     return y, chunk_pullback
 end
+
+_partition_idxs(x, size, dims) = Iterators.partition(axes(x, dims), size)
 
 # Similar to ∇eachslice  https://github.com/JuliaDiff/ChainRules.jl/blob/8108a77a96af5d4b0c460aac393e44f8943f3c5e/src/rulesets/Base/indexing.jl#L77
 function ∇chunk(dys, x::AbstractArray, idxs, vd::Val{dim}) where {dim}
