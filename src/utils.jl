@@ -122,9 +122,10 @@ unstack(xs; dims::Int) = [copy(selectdim(xs, dims, i)) for i in 1:size(xs, dims)
 
 """
     chunk(x, n; [dims])
+    chunk(x; [size, dims])
 
-Split `x` into `n` parts. The parts contain the same number of elements
-except possibly for the last one that can be smaller.
+Split `x` into `n` parts or alternatively, into equal chunks of size `size`. The parts contain 
+the same number of elements except possibly for the last one that can be smaller.
 
 If `x` is an array, `dims` can be used to specify along which dimension to 
 split (defaults to the last dimension).
@@ -136,6 +137,14 @@ julia> chunk(1:10, 3)
 3-element Vector{UnitRange{Int64}}:
  1:4
  5:8
+ 9:10
+
+julia> chunk(1:10; size = 2)
+5-element Vector{UnitRange{Int64}}:
+ 1:2
+ 3:4
+ 5:6
+ 7:8
  9:10
 
 julia> x = reshape(collect(1:20), (5, 4))
@@ -156,6 +165,19 @@ julia> xs[1]
  1  6  11  16
  2  7  12  17
  3  8  13  18
+
+julia> xes = chunk(x; size = 2, dims = 2)
+2-element Vector{SubArray{Int64, 2, Matrix{Int64}, Tuple{Base.Slice{Base.OneTo{Int64}}, UnitRange{Int64}}, true}}:
+ [1 6; 2 7; … ; 4 9; 5 10]
+ [11 16; 12 17; … ; 14 19; 15 20]
+
+julia> xes[2]
+5×2 view(::Matrix{Int64}, :, 3:4) with eltype Int64:
+ 11  16
+ 12  17
+ 13  18
+ 14  19
+ 15  20
 ```
 """
 chunk(x; size::Int) = collect(Iterators.partition(x, size))
