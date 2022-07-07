@@ -181,13 +181,13 @@ julia> xes[2]
 ```
 """
 chunk(x; size::Int) = collect(Iterators.partition(x, size))
-chunk(x, n::Int) = chunk(x; size = ceil(Int, length(x) / n))
+chunk(x, n::Int) = chunk(x; size = cld(length(x), n))
 
 function chunk(x::AbstractArray; size::Int, dims::Int=ndims(x))
     idxs = _partition_idxs(x, size, dims)
     [selectdim(x, dims, i) for i in idxs]
 end
-chunk(x::AbstractArray, n::Int; dims::Int=ndims(x)) = chunk(x; size = ceil(Int, size(x, dims) / n), dims)
+chunk(x::AbstractArray, n::Int; dims::Int=ndims(x)) = chunk(x; size = cld(size(x, dims), n), dims)
 
 function rrule(::typeof(chunk), x::AbstractArray; size::Int, dims::Int=ndims(x))
     # this is the implementation of chunk

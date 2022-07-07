@@ -100,7 +100,7 @@ function BatchView(data::T; batchsize::Int=1, partial::Bool=true, collate=Val(no
         throw(ArgumentError("`collate` must be one of `nothing`, `true` or `false`."))
     end
     E = _batchviewelemtype(data, collate)
-    count = partial ? ceil(Int, n / batchsize) : floor(Int, n / batchsize)
+    count = partial ? cld(n, batchsize) : fld(n, batchsize)
     BatchView{E,T,typeof(collate)}(data, batchsize, count, partial)
 end
 
