@@ -101,9 +101,16 @@ end
     x = reshape(collect(1:20), (5, 4))
     cs = chunk(x, 2)
     @test length(cs) == 2
-    cs[1] == [1  6; 2  7; 3  8; 4  9; 5 10]
-    cs[2] == [11 16; 12 17; 13 18; 14 19; 15 20]
-    
+    @test cs[1] == [1  6; 2  7; 3  8; 4  9; 5 10]
+    @test cs[2] == [11 16; 12 17; 13 18; 14 19; 15 20]
+
+    x = permutedims(reshape(collect(1:10), (2, 5)))
+    cs = chunk(x; size = 2, dims = 1)
+    @test length(cs) == 3
+    @test cs[1] == [1 2; 3 4]
+    @test cs[2] == [5 6; 7 8]
+    @test cs[3] == [9 10]
+
     # test gradient
     test_zygote(chunk, rand(10), 3, check_inferred=false)
 
@@ -111,10 +118,10 @@ end
     n = 2
     dims = 2
     x = rand(4, 5)
-    y = chunk(x, 2)
-    dy = randn!.(collect.(y))
-    idxs = MLUtils._partition_idxs(x, n, dims)
-    test_zygote(MLUtils.∇chunk, dy, x, idxs, Val(dims), check_inferred=false)
+    l = chunk(x, 2)
+    dl = randn!.(collect.(l))
+    idxs = MLUtils._partition_idxs(x, cld(size(x, dims), n), dims)
+    test_zygote(MLUtils.∇chunk, dl, x, idxs, Val(dims), check_inferred=false)
 end
 
 @testset "group_counts" begin
