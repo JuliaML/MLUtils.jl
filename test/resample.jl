@@ -4,7 +4,9 @@
     y2 = ["c", "c", "c", "a", "b"]
     
     o = oversample((x, ya), fraction=1, shuffle=false) 
-    @test o == oversample((x, ya), ya, shuffle=false) 
+    @test o == oversample((x, ya), ya, shuffle=false)[1]
+    xo, yo = oversample(x, ya, shuffle=false)
+    @test (xo, yo) == o
     ox, oy = getobs(o)
     @test ox isa Matrix
     @test oy isa Vector 
@@ -15,7 +17,7 @@
     @test oy[1:5] == ya
     @test oy[6] == ya[5]
 
-    o = oversample((x, ya), y2, shuffle=false) 
+    o = oversample((x, ya), y2, shuffle=false)[1] 
     ox, oy = getobs(o)
     @test ox isa Matrix
     @test oy isa Vector 
@@ -35,6 +37,8 @@ end
     y2 = ["c", "c", "c", "a", "b"]
     
     o = undersample((x, ya), shuffle=false) 
+    xo, yo = undersample(x, ya, shuffle=false)
+    @test (xo, yo) == o
     ox, oy = getobs(o)
     @test ox isa Matrix
     @test oy isa Vector 
@@ -42,7 +46,7 @@ end
     @test size(oy) == (3,)
     @test ox[:,3] == x[:,5]
     
-    o = undersample((x, ya), y2, shuffle=false) 
+    o = undersample((x, ya), y2, shuffle=false)[1] 
     ox, oy = getobs(o)
     @test ox isa Matrix
     @test oy isa Vector 
