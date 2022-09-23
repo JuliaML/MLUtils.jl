@@ -256,7 +256,8 @@ end
     _dataloader_foldl1(rf, val, e, ObsView(e.data))
 end
 
-function Base.show(io::IO, e::DataLoader)
+# Base uses this function for composable array printing, e.g. adjoint(view(::Matrix)))
+function Base.showarg(io::IO, e::DataLoader, toplevel)
     print(io, "DataLoader(")
     Base.showarg(io, e.data, false)
     e.buffer == false || print(io, ", buffer=", e.buffer)
@@ -269,15 +270,26 @@ function Base.show(io::IO, e::DataLoader)
     print(io, ")")
 end
 
+Base.show(io::IO, e::DataLoader) = Base.showarg(io, e, false)
+
 function Base.show(io::IO, m::MIME"text/plain", e::DataLoader)
-    print(io, length(e), "-element ")
-    show(io, e)
-    # print(io, " for ", numobs(e.data), " observations,")
-    println(io, "\n  starting with:")
-    print(io, "  ", _summary(first(e)))
+    if Base.haslength(e)
+        print(io, length(e), "-element ")
+    else
+        print(io, "Unknown-length ")
+    end
+    Base.showarg(io, e, false)
+    print(io, "\n  with first element:")
+    print(io, "\n  ", _expanded_summary(first(e)))
 end
 
-_summary(x) = summary(x)
-_summary(xs::Tuple) = "tuple(" * join([_summary(x) for x in xs], ", ") * ")"
-_summary(xs::NamedTuple) = "(; " * join(["$k = "*_summary(x) for (k,x) in zip(keys(xs),xs)], ", ") * ")"
+_expanded_summary(x) = summary(x)
+function _expanded_summary(xs::Tuple)
+  parts = [_expanded_summary(x) for x in xs]
+  "(" * join(parts, ", ") * ",)"
+end
+function _expanded_summary(xs::NamedTuple)
+  parts = ["$k = "*_expanded_summary(x) for (k,x) in zip(keys(xs), xs)]
+  "(; " * join(parts, ", ") * ")"
+end
 
