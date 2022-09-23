@@ -255,3 +255,29 @@ end
     e.parallel && throw(ArgumentError("Transducer fold protocol not supported on parallel data loads"))
     _dataloader_foldl1(rf, val, e, ObsView(e.data))
 end
+
+function Base.show(io::IO, e::DataLoader)
+    print(io, "DataLoader(")
+    Base.showarg(io, e.data, false)
+    e.buffer == false || print(io, ", buffer=", e.buffer)
+    e.parallel == false || print(io, ", parallel=", e.parallel)
+    e.shuffle == false || print(io, ", shuffle=", e.shuffle)
+    e.batchsize == 1 || print(io, ", batchsize=", e.batchsize)
+    e.partial == true || print(io, ", partial=", e.partial)
+    e.collate == Val(nothing) || print(io, ", collate=", e.collate)
+    e.rng == Random.GLOBAL_RNG || print(io, ", rng=", e.rng)
+    print(io, ")")
+end
+
+function Base.show(io::IO, m::MIME"text/plain", e::DataLoader)
+    print(io, length(e), "-element ")
+    show(io, e)
+    # print(io, " for ", numobs(e.data), " observations,")
+    println(io, "\n  starting with:")
+    print(io, "  ", _summary(first(e)))
+end
+
+_summary(x) = summary(x)
+_summary(xs::Tuple) = "tuple(" * join([_summary(x) for x in xs], ", ") * ")"
+_summary(xs::NamedTuple) = "(; " * join(["$k = "*_summary(x) for (k,x) in zip(keys(xs),xs)], ", ") * ")"
+
