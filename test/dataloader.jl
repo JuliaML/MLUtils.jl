@@ -214,4 +214,25 @@
         dloader = DataLoader(1:1000; batchsize = 2, shuffle = true)
         @test copy(Map(x -> x[1]), Vector{Int}, dloader) != collect(1:2:1000)
     end
+    
+    @testset "printing" begin
+        X2 = reshape(Float32[1:10;], (2, 5))
+        Y2 = [1:5;]
+
+        d = DataLoader((X2, Y2), batchsize=3)
+        
+        @test contains(repr(d), "DataLoader(::Tuple{Matrix")
+        @test contains(repr(d), "batchsize=3")
+
+        @test contains(repr(MIME"text/plain"(), d), "2-element DataLoader")
+        @test contains(repr(MIME"text/plain"(), d), "2×3 Matrix{Float32}, 3-element Vector")
+        
+        d2 = DataLoader((x = X2, y = Y2), batchsize=2, partial=false)
+
+        @test contains(repr(d2), "DataLoader(::NamedTuple")
+        @test contains(repr(d2), "partial=false")
+
+        @test contains(repr(MIME"text/plain"(), d2), "2-element DataLoader(::NamedTuple")
+        @test contains(repr(MIME"text/plain"(), d2), "x = 2×2 Matrix{Float32}, y = 2-element Vector")
+    end
 end

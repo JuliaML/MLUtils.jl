@@ -255,3 +255,41 @@ end
     e.parallel && throw(ArgumentError("Transducer fold protocol not supported on parallel data loads"))
     _dataloader_foldl1(rf, val, e, ObsView(e.data))
 end
+
+# Base uses this function for composable array printing, e.g. adjoint(view(::Matrix)))
+function Base.showarg(io::IO, e::DataLoader, toplevel)
+    print(io, "DataLoader(")
+    Base.showarg(io, e.data, false)
+    e.buffer == false || print(io, ", buffer=", e.buffer)
+    e.parallel == false || print(io, ", parallel=", e.parallel)
+    e.shuffle == false || print(io, ", shuffle=", e.shuffle)
+    e.batchsize == 1 || print(io, ", batchsize=", e.batchsize)
+    e.partial == true || print(io, ", partial=", e.partial)
+    e.collate == Val(nothing) || print(io, ", collate=", e.collate)
+    e.rng == Random.GLOBAL_RNG || print(io, ", rng=", e.rng)
+    print(io, ")")
+end
+
+Base.show(io::IO, e::DataLoader) = Base.showarg(io, e, false)
+
+function Base.show(io::IO, m::MIME"text/plain", e::DataLoader)
+    if Base.haslength(e)
+        print(io, length(e), "-element ")
+    else
+        print(io, "Unknown-length ")
+    end
+    Base.showarg(io, e, false)
+    print(io, "\n  with first element:")
+    print(io, "\n  ", _expanded_summary(first(e)))
+end
+
+_expanded_summary(x) = summary(x)
+function _expanded_summary(xs::Tuple)
+  parts = [_expanded_summary(x) for x in xs]
+  "(" * join(parts, ", ") * ",)"
+end
+function _expanded_summary(xs::NamedTuple)
+  parts = ["$k = "*_expanded_summary(x) for (k,x) in zip(keys(xs), xs)]
+  "(; " * join(parts, ", ") * ")"
+end
+
