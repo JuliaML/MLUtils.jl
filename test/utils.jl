@@ -14,7 +14,7 @@ end
     x = randn(3,3)
     stacked = stack([x, x], dims=2)
     @test size(stacked) == (3,2,3)
-    @test_broken @inferred(stack([x, x], dims=2)) == stacked
+    @test @inferred(stack([x, x], dims=2)) == stacked
 
     stacked_array=[ 8 9 3 5; 9 6 6 9; 9 1 7 2; 7 4 10 6 ]
     unstacked_array=[[8, 9, 9, 7], [9, 6, 1, 4], [3, 6, 7, 10], [5, 9, 2, 6]]
@@ -30,7 +30,6 @@ end
     a = [[1] for i in 1:10000]
     @test size(stack(a, dims=1)) == (10000, 1)
     @test size(stack(a, dims=2)) == (1, 10000)
-    @test size(stack(a, dims=3)) == (1, 1, 10000)
 end
 
 @testset "batch and unbatch" begin

@@ -22,7 +22,11 @@ import NNlib
 @traitdef IsTable{X}
 @traitimpl IsTable{X} <- Tables.istable(X)
                       
-
+if VERSION < v"1.9.0-DEV.1163"
+    import Compat: stack
+else
+    import Base: stack
+end
 include("observation.jl")
 export numobs,
        getobs,
@@ -75,7 +79,7 @@ export batch,
        rand_like,
        randn_like,
        rpad_constant,
-       stack,
+       stack, # in Base since julia v1.9
        unbatch,
        unsqueeze,
        unstack,
