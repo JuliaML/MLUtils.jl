@@ -6,6 +6,8 @@
     @test @inferred(unsqueeze(x; dims=4)) == reshape(x, 2, 3, 2, 1)
 
     @test unsqueeze(dims=2)(x) == unsqueeze(x, dims=2)
+
+    @test_throws AssertionError unsqueeze(rand(2,2), dims=4)
 end
 
 @testset "stack and unstack" begin
@@ -19,6 +21,16 @@ end
     @test unstack(stacked_array, dims=2) == unstacked_array
     @test stack(unstacked_array, dims=2) == stacked_array
     @test stack(unstack(stacked_array, dims=1), dims=1) == stacked_array
+
+    for d in (1,2,3)
+        test_zygote(stack, [x,2x], fkwargs=(; dims=d), check_inferred=false)
+    end
+
+    # Issue #121
+    a = [[1] for i in 1:10000]
+    @test size(stack(a, dims=1)) == (10000, 1)
+    @test size(stack(a, dims=2)) == (1, 10000)
+    @test size(stack(a, dims=3)) == (1, 1, 10000)
 end
 
 @testset "batch and unbatch" begin

@@ -5,6 +5,7 @@
 
 Return `x` reshaped into an array one dimensionality higher than `x`,
 where `dims` indicates in which dimension `x` is extended.
+`dims` can be an integer between 1 and `ndims(x)+1`.
 
 See also [`flatten`](@ref), [`stack`](@ref).
 
@@ -33,8 +34,9 @@ julia> unsqueeze(xs, dims=1)
  [1, 2]  [3, 4]  [5, 6]
 ```
 """
-function unsqueeze(x::AbstractArray; dims::Int)
-    sz = ntuple(i -> i < dims ? size(x, i) : i == dims ? 1 : size(x, i - 1), ndims(x) + 1)
+function unsqueeze(x::AbstractArray{T,N}; dims::Int) where {T, N}
+    # @assert 1 <= dims <= N + 1
+    sz = ntuple(i -> i < dims ? size(x, i) : i == dims ? 1 : size(x, i - 1), N + 1)
     return reshape(x, sz)
 end
 
@@ -59,9 +61,11 @@ Base.show_function(io::IO, u::Base.Fix2{typeof(_unsqueeze)}, ::Bool) = print(io,
     stack(xs; dims)
 
 Concatenate the given array of arrays `xs` into a single array along the
-given dimension `dims`.
+given dimension `dims`. All arrays need to be of the same size.
+The number of dimension in the final arrays is one more than the number
+of dimensions in the input arrays.
 
-See also [`stack`](@ref) and [`batch`](@ref).
+See also [`unsqueeze`](@ref), [`unstack`](@ref) and [`batch`](@ref).
 
 # Examples
 
@@ -98,7 +102,28 @@ julia> stack(xs, dims=3)
  6
 ```
 """
-stack(xs; dims::Int) = cat(unsqueeze.(xs; dims)...; dims)
+function stack(xs; dims::Int)
+    N = ndims(xs[1])
+    if dims <= N
+        vs = unsqueeze.(xs; dims)
+    else
+        vs = xs
+    end
+    if dims == 1
+        return reduce(vcat, vs)
+    elseif dims === 2
+        return reduce(hcat, vs)
+    else
+        return reduce((x, y) -> cat(x, y; dims=dims), vs)
+    end
+end
+
+function rrule(::typeof(stack), xs; dims::Int)
+    function stack_pullback(Δ)
+        return (NoTangent(), unstack(unthunk(Δ); dims=dims))
+    end
+    return stack(xs; dims=dims), stack_pullback
+end
 
 """
     unstack(xs; dims)
