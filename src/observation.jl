@@ -16,7 +16,7 @@ See also [`getobs`](@ref)
 function numobs end
 
 # Generic Fallbacks
-numobs(data) = length(data)
+numobs(data) = Tables.istable(data) ? DataAPI.nrow(x) : length(data)
 
 """
     getobs(data, [idx])
@@ -46,7 +46,7 @@ function getobs end
 
 # Generic Fallbacks
 getobs(data) = data
-getobs(data, idx) = data[idx]
+getobs(data, idx) = Tables.istable(data) ? Tables.subset(data, idx) : data[idx]
 
 """
     getobs!(buffer, data, idx)
