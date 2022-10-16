@@ -16,7 +16,9 @@ See also [`getobs`](@ref)
 function numobs end
 
 # Generic Fallbacks
-numobs(data) = Tables.istable(data) ? DataAPI.nrow(x) : length(data)
+@traitfn numobs(data::X) where {X; IsTable{X}} = DataAPI.nrow(data)
+@traitfn numobs(data::X) where {X; !IsTable{X}} = length(data)
+
 
 """
     getobs(data, [idx])
@@ -46,7 +48,11 @@ function getobs end
 
 # Generic Fallbacks
 getobs(data) = data
-getobs(data, idx) = Tables.istable(data) ? Tables.subset(data, idx) : data[idx]
+# getobs(data, idx) = data[idx]
+
+@traitfn getobs(data::X, idx) where {X; IsTable{X}} = Tables.subset(data, idx, viewhint=false)
+@traitfn getobs(data::X, idx) where {X; !IsTable{X}} = data[idx]
+
 
 """
     getobs!(buffer, data, idx)
@@ -161,3 +167,5 @@ function getobs!(buffers, data::Dict, i)
 
     return buffers
 end
+
+
