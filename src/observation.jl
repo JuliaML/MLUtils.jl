@@ -47,8 +47,8 @@ See also [`getobs!`](@ref) and [`numobs`](@ref)
 function getobs end
 
 # Generic Fallbacks
+
 getobs(data) = data
-# getobs(data, idx) = data[idx]
 
 @traitfn getobs(data::X, idx) where {X; IsTable{X}} = Tables.subset(data, idx, viewhint=false)
 @traitfn getobs(data::X, idx) where {X; !IsTable{X}} = data[idx]
