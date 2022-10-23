@@ -36,9 +36,7 @@ obsview
 ObsView
 ones_like
 oversample
-MLUtils.rpad
 randobs
-rpad(::AbstractVector, ::Integer, ::Any)
 shuffleobs
 splitobs
 stack

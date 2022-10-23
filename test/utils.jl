@@ -129,11 +129,6 @@ end
     @test d == Dict('a' => 1, 'b' => 2)
 end
 
-@testset "rpad" begin
-    @test rpad([1, 2], 4, 0) == [1, 2, 0, 0]
-    @test rpad([1, 2, 3], 2, 0) == [1,2,3]
-end
-
 @testset "batchseq" begin
     bs = batchseq([[1, 2, 3], [4, 5]], 0)
     @test bs[1] == [1, 4]
@@ -144,6 +139,11 @@ end
     @test bs[1] == [1, 4]
     @test bs[2] == [2, 5]
     @test bs[3] == [3, -1]
+
+    batchseq([ones(2,4), zeros(2, 3), ones(2,2)]) ==[[1.0 0.0 1.0; 1.0 0.0 1.0]
+                                                    [1.0 0.0 1.0; 1.0 0.0 1.0]
+                                                    [1.0 0.0 0.0; 1.0 0.0 0.0]
+                                                    [1.0 0.0 0.0; 1.0 0.0 0.0]]
 end
 
 @testset "ones_like" begin

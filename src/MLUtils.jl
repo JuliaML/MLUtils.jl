@@ -17,6 +17,7 @@ using ChainRulesCore: @non_differentiable, unthunk, AbstractZero,
                       NoTangent, ZeroTangent, ProjectTo
 
 using SimpleTraits
+using NNlib
 
 @traitdef IsTable{X}
 @traitimpl IsTable{X} <- Tables.istable(X)
@@ -78,7 +79,6 @@ export batch,
        unsqueeze,
        unstack,
        zeros_like
-       # rpad
 
 include("Datasets/Datasets.jl")
 using .Datasets
