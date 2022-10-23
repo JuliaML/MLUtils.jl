@@ -3,13 +3,18 @@
 
 Return the total number of observations contained in `data`.
 
-If `data` does not have `numobs` defined, then this function
-falls back to `length(data)`.
+If `data` does not have `numobs` defined, 
+then in the case of `Tables.table(data) == true`
+returns the number of rows, otherwise returns `length(data)`.
+
 Authors of custom data containers should implement
 `Base.length` for their type instead of `numobs`.
 `numobs` should only be implemented for types where there is a
 difference between `numobs` and `Base.length`
 (such as multi-dimensional arrays).
+
+`getobs` supports by default nested combinations of array, tuple,
+named tuples, and dictionaries. 
 
 See also [`getobs`](@ref)
 """
@@ -23,12 +28,15 @@ function numobs end
 """
     getobs(data, [idx])
 
-Return the observations corresponding to the observation-index `idx`.
+Return the observations corresponding to the observation index `idx`.
 Note that `idx` can be any type as long as `data` has defined
-`getobs` for that type.
+`getobs` for that type. If `idx` is not provided, then materialize
+all observations in `data`.
 
-If `data` does not have `getobs` defined, then this function
-falls back to `data[idx]`.
+If `data` does not have `getobs` defined,
+then in the case of `Tables.table(data) == true`
+returns the row(s) in position `idx`, otherwise returns `data[idx]`.
+
 Authors of custom data containers should implement
 `Base.getindex` for their type instead of `getobs`.
 `getobs` should only be implemented for types where there is a
@@ -42,7 +50,27 @@ Every author behind some custom data container can make this
 decision themselves.
 The output should be consistent when `idx` is a scalar vs vector.
 
-See also [`getobs!`](@ref) and [`numobs`](@ref) 
+`getobs` supports by default nested combinations of array, tuple,
+named tuples, and dictionaries. 
+
+See also [`getobs!`](@ref) and [`numobs`](@ref).
+
+# Examples
+
+```jldoctest
+# named tuples 
+x = (a = [1, 2, 3], b = rand(6, 3))
+
+getobs(x, 2) == (a = 2, b = x.b[:, 2])
+getobs(x, [1, 3]) == (a = [1, 3], b = x.b[:, [1, 3]])
+
+
+# dictionaries
+x = Dict(:a => [1, 2, 3], :b => rand(6, 3))
+
+getobs(x, 2) == Dict(:a => 2, :b => x[:b][:, 2])
+getobs(x, [1, 3]) == Dict(:a => [1, 3], :b => x[:b][:, [1, 3]])
+```
 """
 function getobs end
 
@@ -67,6 +95,8 @@ method is provided for the type of `data`, then `buffer` will be
 because the type of `data` may not lend itself to the concept
 of `copy!`. Thus, supporting a custom `getobs!` is optional
 and not required.
+
+See also [`getobs`](@ref) and [`numobs`](@ref). 
 """
 function getobs! end
 # getobs!(buffer, data) = getobs(data)
