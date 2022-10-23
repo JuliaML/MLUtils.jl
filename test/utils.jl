@@ -188,3 +188,11 @@ end
 
     test_zygote(fill_like, rand(5), rand(), (2, 4, 2))
 end
+
+@testset "rpad_constant" begin
+    @test rpad_constant([1, 2], 4, -1) == [1, 2, -1, -1]
+    @test rpad_constant([1, 2, 3], 2)  == [1, 2, 3]
+    @test rpad_constant([1 2; 3 4], 4; dims=1) == [1 2; 3 4; 0 0; 0 0]
+    @test rpad_constant([1 2; 3 4], 4) == [1 2 0 0; 3 4 0 0; 0 0 0 0; 0 0 0 0]
+    @test rpad_constant([1 2; 3 4], (3, 4)) == [1 2 0 0; 3 4 0 0; 0 0 0 0]
+end

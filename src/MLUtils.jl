@@ -17,7 +17,7 @@ using ChainRulesCore: @non_differentiable, unthunk, AbstractZero,
                       NoTangent, ZeroTangent, ProjectTo
 
 using SimpleTraits
-using NNlib
+import NNlib
 
 @traitdef IsTable{X}
 @traitimpl IsTable{X} <- Tables.istable(X)
@@ -74,6 +74,7 @@ export batch,
        ones_like,
        rand_like,
        randn_like,
+       rpad_constant,
        stack,
        unbatch,
        unsqueeze,

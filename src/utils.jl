@@ -409,17 +409,56 @@ function batchseq(xs, val = 0, n = nothing)
     [batch([obsview(xs_[j], i) for j = 1:length(xs_)]) for i = 1:n]
 end
 
-function rpad_constant(x, n, val = 0; dims=:)
-    ns = Int[]
-    _dims = dims === Colon() ? (1:ndims(x)) : dims
-    _n = n isa Integer ? ntuple(i -> n, length(dims)) : n
-    for i in length(_n)
-        push!(ns, 0)
-        push!(ns, n - size(x, _dims[i]))
-    end
-    return pad_constant(x, tuple(ns...), val; dims)
+"""
+    rpad_constant(v::AbstractArray, n::Union{Integer, Tuple}, val = 0; dims=:)
+
+Return the given sequence padded with `val` along the dimensions `dims`
+up to a maximum length in each direction specified by `n`.
+
+# Examples
+```jldoctest
+julia> rpad_constant([1, 2], 4, -1) # passing with -1 up to size 4
+4-element Vector{Int64}:
+ 1
+ 2
+ -1
+ -1
+
+julia> rpad_constant([1, 2, 3], 2) # no padding if length is already greater than n
+3-element Vector{Int64}:
+ 1
+ 2
+ 3
+
+julia> rpad_constant([1 2; 3 4], 4; dims=1) # padding along the first dimension
+4×2 Matrix{Int64}:
+ 1  2
+ 3  4
+ 0  0
+ 0  0 
+
+julia> rpad_constant([1 2; 3 4], 4) # padding along all dimensions by default
+4×2 Matrix{Int64}:
+ 1  2
+ 3  4
+ 0  0
+ 0  0 
+```
+"""
+function rpad_constant(x::AbstractArray, n::Union{Integer, Tuple}, val=0; dims=:)
+    ns = _rpad_pads(x, n, dims)
+    return NNlib.pad_constant(x, ns, val; dims)
 end
 
+function _rpad_pads(x, n, dims)
+    _dims = dims === Colon() ? (1:ndims(x)) : dims
+    _n = n isa Integer ? ntuple(i -> n, length(_dims)) : n
+    @assert length(_dims) == length(_n)
+    ns = ntuple(i -> isodd(i) ? 0 : max(_n[i÷2] - size(x, _dims[i÷2]), 0), 2*length(_n))
+    return ns
+end
+
+@non_differentiable _rpad_pads(::Any...)
 
 """
     flatten(x::AbstractArray)

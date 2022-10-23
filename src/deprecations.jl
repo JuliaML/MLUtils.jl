@@ -9,8 +9,4 @@
 @deprecate eachbatch(data; size=1, kws...) eachobs(data; batchsize=size, kws...)
 
 # Deprecated in v0.3
-
-function Base.rpad(v::AbstractVector, n::Integer, p)
-    @warn "rpad is deprecated, NNlib.pad_zeros or NNlib.pad_constant instead"
-    return [v; fill(p, max(n - length(v), 0))]
-end
+@deprecate rpad(v::AbstractVector, n::Integer, p) rpad_constant(v, n, p)
