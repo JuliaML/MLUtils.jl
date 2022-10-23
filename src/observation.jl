@@ -16,7 +16,35 @@ difference between `numobs` and `Base.length`
 `getobs` supports by default nested combinations of array, tuple,
 named tuples, and dictionaries. 
 
-See also [`getobs`](@ref)
+See also [`getobs`](@ref).
+
+# Examples
+```jldoctest
+
+# named tuples 
+x = (a = [1, 2, 3], b = rand(6, 3))
+numobs(x) == 3
+
+# dictionaries
+x = Dict(:a => [1, 2, 3], :b => rand(6, 3))
+numobs(x) == 3
+```
+All internal containers must have the same number of observations:
+```juliarepl
+julia> x = (a = [1, 2, 3, 4], b = rand(6, 3));
+
+julia> numobs(x)
+ERROR: DimensionMismatch: All data containers must have the same number of observations.
+Stacktrace:
+ [1] _check_numobs_error()
+   @ MLUtils ~/.julia/dev/MLUtils/src/observation.jl:163
+ [2] _check_numobs
+   @ ~/.julia/dev/MLUtils/src/observation.jl:130 [inlined]
+ [3] numobs(data::NamedTuple{(:a, :b), Tuple{Vector{Int64}, Matrix{Float64}}})
+   @ MLUtils ~/.julia/dev/MLUtils/src/observation.jl:177
+ [4] top-level scope
+   @ REPL[35]:1
+```
 """
 function numobs end
 
