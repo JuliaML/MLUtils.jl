@@ -37,6 +37,7 @@ ObsView
 ones_like
 oversample
 randobs
+rpad_constant
 shuffleobs
 splitobs
 stack
