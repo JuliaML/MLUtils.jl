@@ -8,12 +8,19 @@ using FLoops.Transducers: Executor, ThreadedEx
 using FoldsThreads: TaskPoolEx
 import StatsBase: sample
 using Transducers
+using Tables
+using DataAPI
 using Base: @propagate_inbounds
 using Random: AbstractRNG, shuffle!, GLOBAL_RNG, rand!, randn!
 import ChainRulesCore: rrule
 using ChainRulesCore: @non_differentiable, unthunk, AbstractZero,
                       NoTangent, ZeroTangent, ProjectTo
 
+using SimpleTraits
+
+@traitdef IsTable{X}
+@traitimpl IsTable{X} <- Tables.istable(X)
+                      
 
 include("observation.jl")
 export numobs,

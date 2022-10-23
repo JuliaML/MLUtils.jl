@@ -190,4 +190,12 @@ end
         @test getobs!((nothing,xbuf),(Xs,X), 3:4) == (getobs(Xs,3:4),xbuf)
         @test xbuf == getobs(X,3:4)
     end
+
+    @testset "tables" begin
+        df = DataFrame(a=[1,2,3], y=["a","b","c"])
+        @test getobs(df) == df
+        @test getobs(df, 1) == df[1,:]
+        @test getobs(df, 2:3) == df[2:3,:]
+        @test numobs(df) == 3
+    end
 end
