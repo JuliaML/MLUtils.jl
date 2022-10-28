@@ -1,4 +1,4 @@
-# Deprecations v0.1
+# Deprecated in v0.2
 @deprecate stack(x, dims) stack(x; dims=dims)
 @deprecate unstack(x, dims) unstack(x; dims=dims)
 @deprecate unsqueeze(x::AbstractArray, dims::Int) unsqueeze(x; dims=dims)
@@ -7,3 +7,6 @@
 @deprecate frequencies(x) group_counts(x)
 @deprecate eachbatch(data, batchsize; kws...) eachobs(data; batchsize, kws...)
 @deprecate eachbatch(data; size=1, kws...) eachobs(data; batchsize=size, kws...)
+
+# Deprecated in v0.3
+@deprecate rpad(v::AbstractVector, n::Integer, p) rpad_constant(v, n, p)
