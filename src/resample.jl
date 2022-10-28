@@ -21,6 +21,8 @@ resulting data will be shuffled after its creation; if it is not
 shuffled then all the repeated samples will be together at the
 end, sorted by class. Defaults to `true`.
 
+The output will contain both the resampled data and classes.
+
 ```julia
 # 6 observations with 3 features each
 X = rand(3, 6)
@@ -40,14 +42,7 @@ X_bal, Y_bal = oversample(X, Y)
 ```
 
 For this function to work, the type of `data` must implement
-[`numobs`](@ref) and [`getobs`](@ref). For example, the following
-code allows `oversample` to work on a `DataFrame`.
-
-```julia
-# Make DataFrames.jl work
-MLUtils.getobs(data::DataFrame, i) = data[i,:]
-MLUtils.numobs(data::DataFrame) = nrow(data)
-```
+[`numobs`](@ref) and [`getobs`](@ref). 
 
 Note that if `data` is a tuple and `classes` is not given, 
 then it will be assumed that the last element of the tuple contains the classes.
@@ -98,16 +93,22 @@ function oversample(data, classes; fraction=1, shuffle::Bool=true)
             append!(inds, inds_for_lbl)
         end
         if num_extra_needed > 0
-            append!(inds, sample(inds_for_lbl, num_extra_needed; replace=false))
+            if shuffle
+                append!(inds, sample(inds_for_lbl, num_extra_needed; replace=false))
+            else
+                append!(inds, inds_for_lbl[1:num_extra_needed])
+            end
         end
     end
 
     shuffle && shuffle!(inds)
-    return obsview(data, inds)
+    return obsview(data, inds), obsview(classes, inds)
 end
 
-oversample(data::Tuple; kws...) = oversample(data, data[end]; kws...)
-
+function oversample(data::Tuple; kws...)
+    d, c = oversample(data[1:end-1], data[end]; kws...)
+    return (d..., c)
+end
 
 """
     undersample(data, classes; shuffle=true)
@@ -122,6 +123,8 @@ The convenience parameter `shuffle` determines if the
 resulting data will be shuffled after its creation; if it is not
 shuffled then all the observations will be in their original
 order. Defaults to `false`.
+
+The output will contain both the resampled data and classes.
 
 ```julia
 # 6 observations with 3 features each
@@ -142,14 +145,8 @@ X_bal, Y_bal = undersample(X, Y)
 ```
 
 For this function to work, the type of `data` must implement
-[`numobs`](@ref) and [`getobs`](@ref). For example, the following
-code allows `undersample` to work on a `DataFrame`.
+[`numobs`](@ref) and [`getobs`](@ref). 
 
-```julia
-# Make DataFrames.jl work
-MLUtils.getobs(data::DataFrame, i) = data[i,:]
-MLUtils.numobs(data::DataFrame) = nrow(data)
-```
 Note that if `data` is a tuple, then it will be assumed that the
 last element of the tuple contains the targets.
 
@@ -186,11 +183,18 @@ function undersample(data, classes; shuffle::Bool=true)
     inds = Int[]
     
     for (lbl, inds_for_lbl) in lm
-        append!(inds, sample(inds_for_lbl, mincount; replace=false))
+        if shuffle
+            append!(inds, sample(inds_for_lbl, mincount; replace=false))
+        else
+            append!(inds, inds_for_lbl[1:mincount])
+        end
     end
 
     shuffle ? shuffle!(inds) : sort!(inds)
-    return obsview(data, inds)
+    return obsview(data, inds), obsview(classes, inds)
 end
 
-undersample(data::Tuple; kws...) = undersample(data, data[end]; kws...)
+function undersample(data::Tuple; kws...)
+    d, c = undersample(data[1:end-1], data[end]; kws...)
+    return (d..., c)
+end
