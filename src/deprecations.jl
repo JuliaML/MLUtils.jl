@@ -9,4 +9,5 @@
 @deprecate eachbatch(data; size=1, kws...) eachobs(data; batchsize=size, kws...)
 
 # Deprecated in v0.3
+import Base: rpad
 @deprecate rpad(v::AbstractVector, n::Integer, p) rpad_constant(v, n, p)
