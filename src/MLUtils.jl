@@ -21,12 +21,9 @@ import NNlib
 
 @traitdef IsTable{X}
 @traitimpl IsTable{X} <- Tables.istable(X)
-                      
-if VERSION < v"1.9.0-DEV.1163"
-    import Compat: stack
-else
-    import Base: stack
-end
+    
+using Compat: stack
+
 include("observation.jl")
 export numobs,
        getobs,
