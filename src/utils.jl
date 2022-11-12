@@ -5,6 +5,7 @@
 
 Return `x` reshaped into an array one dimensionality higher than `x`,
 where `dims` indicates in which dimension `x` is extended.
+`dims` can be an integer between 1 and `ndims(x)+1`.
 
 See also [`flatten`](@ref), [`stack`](@ref).
 
@@ -33,8 +34,9 @@ julia> unsqueeze(xs, dims=1)
  [1, 2]  [3, 4]  [5, 6]
 ```
 """
-function unsqueeze(x::AbstractArray; dims::Int)
-    sz = ntuple(i -> i < dims ? size(x, i) : i == dims ? 1 : size(x, i - 1), ndims(x) + 1)
+function unsqueeze(x::AbstractArray{T,N}; dims::Int) where {T, N}
+    @assert 1 <= dims <= N + 1
+    sz = ntuple(i -> i < dims ? size(x, i) : i == dims ? 1 : size(x, i - 1), N + 1)
     return reshape(x, sz)
 end
 
@@ -54,51 +56,6 @@ unsqueeze(; dims::Int) = Base.Fix2(_unsqueeze, dims)
 _unsqueeze(x, dims) = unsqueeze(x; dims)
 
 Base.show_function(io::IO, u::Base.Fix2{typeof(_unsqueeze)}, ::Bool) = print(io, "unsqueeze(dims=", u.x, ")")
-
-"""
-    stack(xs; dims)
-
-Concatenate the given array of arrays `xs` into a single array along the
-given dimension `dims`.
-
-See also [`stack`](@ref) and [`batch`](@ref).
-
-# Examples
-
-```jldoctest
-julia> xs = [[1, 2], [3, 4], [5, 6]]
-3-element Vector{Vector{Int64}}:
- [1, 2]
- [3, 4]
- [5, 6]
-
-julia> stack(xs, dims=1)
-3×2 Matrix{Int64}:
- 1  2
- 3  4
- 5  6
-
-julia> stack(xs, dims=2)
-2×3 Matrix{Int64}:
- 1  3  5
- 2  4  6
-
-julia> stack(xs, dims=3)
-2×1×3 Array{Int64, 3}:
-[:, :, 1] =
- 1
- 2
-
-[:, :, 2] =
- 3
- 4
-
-[:, :, 3] =
- 5
- 6
-```
-"""
-stack(xs; dims::Int) = cat(unsqueeze.(xs; dims)...; dims)
 
 """
     unstack(xs; dims)
@@ -329,17 +286,7 @@ end
 
 batchindex(xs, i) = (reverse(Base.tail(reverse(axes(xs))))..., i)
 
-function batch(xs::AbstractArray{<:AbstractArray})
-    # Don't use stack(xs, dims=N+1), it is much slower.
-    # Here we do reduce(vcat, xs) along with some reshapes.
-    szxs = size(xs)
-    @assert length(xs) > 0 "Minimum batch size is 1."
-    szx = size(xs[1])
-    @assert all(x -> size(x) == szx, xs) "All arrays must be of the same size."
-    vxs = vec(vec.(xs))
-    y = reduce(vcat, vxs)
-    return reshape(y, szx..., szxs...)
-end
+batch(xs::AbstractArray{<:AbstractArray}) = stack(xs)
 
 function batch(xs::Vector{<:Tuple})
     @assert length(xs) > 0 "Input should be non-empty"
