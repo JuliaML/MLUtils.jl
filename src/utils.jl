@@ -138,28 +138,46 @@ julia> xes[2]
 ```
 """
 chunk(x; size::Int) = collect(Iterators.partition(x, size))
+
 chunk(x, n::Int) = chunk(x; size = cld(length(x), n))
 
-function chunk(x::AbstractArray; size::Int, dims::Int=ndims(x))
-    idxs = _partition_idxs(x, size, dims)
-    [selectdim(x, dims, i) for i in idxs]
-end
 chunk(x::AbstractArray, n::Int; dims::Int=ndims(x)) = chunk(x; size = cld(size(x, dims), n), dims)
 
-function rrule(::typeof(chunk), x::AbstractArray; size::Int, dims::Int=ndims(x))
-    # this is the implementation of chunk
+function chunk(x::AbstractArray; size, dims::Int=ndims(x))
     idxs = _partition_idxs(x, size, dims)
+    return [selectdim(x, dims, i) for i in idxs]
+end
+
+function rrule(::typeof(chunk), x::AbstractArray; size, dims::Int=ndims(x))
+    # This is the implementation of chunk
+    @show size Base.size(x) dims
+    idxs = _partition_idxs(x, size, dims)
+    @show idxs
     y = [selectdim(x, dims, i) for i in idxs]
     valdims = Val(dims)
+    # TODO avoid capturing x in the pullback
     chunk_pullback(dy) = (NoTangent(), ∇chunk(unthunk(dy), x, idxs, valdims))
 
     return y, chunk_pullback
 end
 
-_partition_idxs(x, size, dims) = Iterators.partition(axes(x, dims), size)
+_partition_idxs(x, size::Int, dims::Int) = Iterators.partition(axes(x, dims), size)
+
+_partition_idxs(x, size, dims::Int) = _partition_idxs(x, collect(size), dims)
+
+function _partition_idxs(x, size::AbstractVector{<:Integer}, dims::Int)
+    n = length(axes(x, dims))
+    cumsz = cumsum(size)
+    if cumsz[end] != n
+        throw(ArgumentError("The sum of the sizes must be equal to $n, the length of the dimension."))
+    end
+    return [(i==1 ? 1 : cumsz[i-1]+1):cumsz[i]  for i=1:length(cumsz)]
+end
+
+@non_differentiable _partition_idxs(::Any...)
 
 # Similar to ∇eachslice  https://github.com/JuliaDiff/ChainRules.jl/blob/8108a77a96af5d4b0c460aac393e44f8943f3c5e/src/rulesets/Base/indexing.jl#L77
-function ∇chunk(dys, x::AbstractArray, idxs, vd::Val{dim}) where {dim}
+function ∇chunk(dys, x, idxs, vd::Val{dim}) where {dim}
     i1 = findfirst(dy -> !(dy isa AbstractZero), dys)
     if i1 === nothing  # all slices are Zero!
         return _zero_fill!(similar(x, float(eltype(x))))

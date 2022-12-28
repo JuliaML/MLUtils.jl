@@ -133,6 +133,16 @@ end
     dl = randn!.(collect.(l))
     idxs = MLUtils._partition_idxs(x, cld(size(x, dims), n), dims)
     test_zygote(MLUtils.∇chunk, dl, x, idxs, Val(dims), check_inferred=false)
+
+    @testset "size collection" begin
+        a = reshape(collect(1:10), (5, 2))
+        y = chunk(a; dims = 1, size = (1, 4))
+        @test length(y) == 2
+        @test y[1] == [1 6]
+        @test y[2] == [2 7; 3 8; 4 9; 5 10]
+
+        test_zygote(x -> chunk(x; dims = 1, size = (1, 4)), a)
+    end
 end
 
 @testset "group_counts" begin
