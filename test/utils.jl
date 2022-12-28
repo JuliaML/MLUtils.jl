@@ -143,6 +143,15 @@ end
 
         test_zygote(x -> chunk(x; dims = 1, size = (1, 4)), a)
     end
+
+    if CUDA.functional()
+        # https://github.com/JuliaML/MLUtils.jl/issues/103
+        x = rand(2, 10) |> cu
+        cs = chunk(x, 2)
+        @test length(cs) == 2
+        @test cs[1] isa CuArray
+        @test cs[1] == x[:, 1:5]
+    end
 end
 
 @testset "group_counts" begin
