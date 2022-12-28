@@ -81,8 +81,11 @@ unstack(xs; dims::Int) = [copy(selectdim(xs, dims, i)) for i in 1:size(xs, dims)
     chunk(x, n; [dims])
     chunk(x; [size, dims])
 
-Split `x` into `n` parts or alternatively, into equal chunks of size `size`. The parts contain 
-the same number of elements except possibly for the last one that can be smaller.
+Split `x` into `n` parts or alternatively, if `size` is an integer, into equal chunks of size `size`. 
+The parts contain the same number of elements except possibly for the last one that can be smaller.
+
+In case `size` is a collection of integers instead, the elements of `x` are split into chunks of
+the given sizes.
 
 If `x` is an array, `dims` can be used to specify along which dimension to 
 split (defaults to the last dimension).
@@ -135,31 +138,60 @@ julia> xes[2]
  13  18
  14  19
  15  20
+
+julia> chunk(1:6; size = [2, 4])
+2-element Vector{UnitRange{Int64}}:
+ 1:2
+ 3:6
 ```
 """
 chunk(x; size::Int) = collect(Iterators.partition(x, size))
+
 chunk(x, n::Int) = chunk(x; size = cld(length(x), n))
 
-function chunk(x::AbstractArray; size::Int, dims::Int=ndims(x))
-    idxs = _partition_idxs(x, size, dims)
-    [selectdim(x, dims, i) for i in idxs]
-end
 chunk(x::AbstractArray, n::Int; dims::Int=ndims(x)) = chunk(x; size = cld(size(x, dims), n), dims)
 
-function rrule(::typeof(chunk), x::AbstractArray; size::Int, dims::Int=ndims(x))
-    # this is the implementation of chunk
+function chunk(x::AbstractArray; size, dims::Int=ndims(x))
     idxs = _partition_idxs(x, size, dims)
-    y = [selectdim(x, dims, i) for i in idxs]
+    return [_selectdim(x, dims, i) for i in idxs]
+end
+
+# work around https://github.com/JuliaML/MLUtils.jl/issues/103
+_selectdim(x::AbstractArray, dims::Int, i) = selectdim(x, dims, i)
+_selectdim(x::AbstractArray, dims::Int, i::UnitRange) = _selectdim(x, Val(dims), i)
+
+function _selectdim(x::AbstractArray{T,N}, ::Val{dims}, i::UnitRange) where {T,N,dims}
+    return view(x, ntuple(_ -> Colon(), dims-1)..., i, ntuple(_ -> Colon(), N-dims)...)
+end
+
+function rrule(::typeof(chunk), x::AbstractArray; size, dims::Int=ndims(x))
+    # This is the implementation of chunk
+    idxs = _partition_idxs(x, size, dims)
+    y = [_selectdim(x, dims, i) for i in idxs]
     valdims = Val(dims)
+    # TODO avoid capturing x in the pullback
     chunk_pullback(dy) = (NoTangent(), ∇chunk(unthunk(dy), x, idxs, valdims))
 
     return y, chunk_pullback
 end
 
-_partition_idxs(x, size, dims) = Iterators.partition(axes(x, dims), size)
+_partition_idxs(x, size::Int, dims::Int) = Iterators.partition(axes(x, dims), size)
+
+_partition_idxs(x, size, dims::Int) = _partition_idxs(x, collect(size), dims)
+
+function _partition_idxs(x, size::AbstractVector{<:Integer}, dims::Int)
+    n = length(axes(x, dims))
+    cumsz = cumsum(size)
+    if cumsz[end] != n
+        throw(ArgumentError("The sum of the sizes must be equal to $n, the length of the dimension."))
+    end
+    return [(i==1 ? 1 : cumsz[i-1]+1):cumsz[i]  for i=1:length(cumsz)]
+end
+
+@non_differentiable _partition_idxs(::Any...)
 
 # Similar to ∇eachslice  https://github.com/JuliaDiff/ChainRules.jl/blob/8108a77a96af5d4b0c460aac393e44f8943f3c5e/src/rulesets/Base/indexing.jl#L77
-function ∇chunk(dys, x::AbstractArray, idxs, vd::Val{dim}) where {dim}
+function ∇chunk(dys, x, idxs, vd::Val{dim}) where {dim}
     i1 = findfirst(dy -> !(dy isa AbstractZero), dys)
     if i1 === nothing  # all slices are Zero!
         return _zero_fill!(similar(x, float(eltype(x))))
@@ -168,7 +200,7 @@ function ∇chunk(dys, x::AbstractArray, idxs, vd::Val{dim}) where {dim}
     # The whole point of this gradient is that we can allocate one `dx` array:
     dx = similar(x, T)
     for (k, i) in enumerate(idxs)
-        slice = selectdim(dx, dim, i)
+        slice = _selectdim(dx, dim, i)
         if dys[k] isa AbstractZero
             _zero_fill!(slice)  # Avoids this: copyto!([1,2,3], ZeroTangent()) == [0,2,3]
         else

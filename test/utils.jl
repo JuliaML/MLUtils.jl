@@ -133,6 +133,25 @@ end
     dl = randn!.(collect.(l))
     idxs = MLUtils._partition_idxs(x, cld(size(x, dims), n), dims)
     test_zygote(MLUtils.∇chunk, dl, x, idxs, Val(dims), check_inferred=false)
+
+    @testset "size collection" begin
+        a = reshape(collect(1:10), (5, 2))
+        y = chunk(a; dims = 1, size = (1, 4))
+        @test length(y) == 2
+        @test y[1] == [1 6]
+        @test y[2] == [2 7; 3 8; 4 9; 5 10]
+
+        test_zygote(x -> chunk(x; dims = 1, size = (1, 4)), a)
+    end
+
+    if CUDA.functional()
+        # https://github.com/JuliaML/MLUtils.jl/issues/103
+        x = rand(2, 10) |> cu
+        cs = chunk(x, 2)
+        @test length(cs) == 2
+        @test cs[1] isa CuArray
+        @test cs[1] == x[:, 1:5]
+    end
 end
 
 @testset "group_counts" begin

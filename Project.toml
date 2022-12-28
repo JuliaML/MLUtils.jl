@@ -36,10 +36,11 @@ julia = "1.6"
 
 [extras]
 ChainRulesTestUtils = "cdddcdb0-9152-4a09-a978-84456f9df70a"
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["ChainRulesTestUtils", "DataFrames", "SparseArrays", "Test", "Zygote"]
+test = ["ChainRulesTestUtils", "CUDA", "DataFrames", "SparseArrays", "Test", "Zygote"]
