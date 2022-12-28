@@ -11,6 +11,7 @@ using ChainRulesTestUtils: test_rrule
 using Zygote: ZygoteRuleConfig
 using ChainRulesCore: rrule_via_ad
 using DataFrames
+using CUDA
 
 showcompact(io, x) = show(IOContext(io, :compact => true), x)
 
