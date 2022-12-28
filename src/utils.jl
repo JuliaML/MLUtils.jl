@@ -81,8 +81,11 @@ unstack(xs; dims::Int) = [copy(selectdim(xs, dims, i)) for i in 1:size(xs, dims)
     chunk(x, n; [dims])
     chunk(x; [size, dims])
 
-Split `x` into `n` parts or alternatively, into equal chunks of size `size`. The parts contain 
-the same number of elements except possibly for the last one that can be smaller.
+Split `x` into `n` parts or alternatively, if `size` is an integer, into equal chunks of size `size`. 
+The parts contain the same number of elements except possibly for the last one that can be smaller.
+
+In case `size` is a collection of integers instead, the elements of `x` are split into chunks of
+the given sizes.
 
 If `x` is an array, `dims` can be used to specify along which dimension to 
 split (defaults to the last dimension).
@@ -135,6 +138,11 @@ julia> xes[2]
  13  18
  14  19
  15  20
+
+julia> chunk(1:6; size = [2, 4])
+2-element Vector{UnitRange{Int64}}:
+ 1:2
+ 3:6
 ```
 """
 chunk(x; size::Int) = collect(Iterators.partition(x, size))
@@ -150,9 +158,7 @@ end
 
 function rrule(::typeof(chunk), x::AbstractArray; size, dims::Int=ndims(x))
     # This is the implementation of chunk
-    @show size Base.size(x) dims
     idxs = _partition_idxs(x, size, dims)
-    @show idxs
     y = [selectdim(x, dims, i) for i in idxs]
     valdims = Val(dims)
     # TODO avoid capturing x in the pullback
