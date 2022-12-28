@@ -153,7 +153,14 @@ chunk(x::AbstractArray, n::Int; dims::Int=ndims(x)) = chunk(x; size = cld(size(x
 
 function chunk(x::AbstractArray; size, dims::Int=ndims(x))
     idxs = _partition_idxs(x, size, dims)
-    return [selectdim(x, dims, i) for i in idxs]
+    return [_selectdim(x, dims, i) for i in idxs]
+end
+
+_selectdim(x::AbstractArray, dims::Int, i) = selectdim(x, dims, i)
+_selectdim(x::AbstractArray, dims::Int, i::UnitRange) = _selectdim(x, Val(dims), i)
+
+function _selectdim(x::AbstractArray{T,N}, ::Val{dims}, i::UnitRange) where {T,N,dims}
+    return view(x, ntuple(_ -> Colon(), dims-1)..., i, ntuple(_ -> Colon(), N-dims)...)
 end
 
 function rrule(::typeof(chunk), x::AbstractArray; size, dims::Int=ndims(x))
