@@ -156,6 +156,7 @@ function chunk(x::AbstractArray; size, dims::Int=ndims(x))
     return [_selectdim(x, dims, i) for i in idxs]
 end
 
+# work around https://github.com/JuliaML/MLUtils.jl/issues/103
 _selectdim(x::AbstractArray, dims::Int, i) = selectdim(x, dims, i)
 _selectdim(x::AbstractArray, dims::Int, i::UnitRange) = _selectdim(x, Val(dims), i)
 
@@ -166,7 +167,7 @@ end
 function rrule(::typeof(chunk), x::AbstractArray; size, dims::Int=ndims(x))
     # This is the implementation of chunk
     idxs = _partition_idxs(x, size, dims)
-    y = [selectdim(x, dims, i) for i in idxs]
+    y = [_selectdim(x, dims, i) for i in idxs]
     valdims = Val(dims)
     # TODO avoid capturing x in the pullback
     chunk_pullback(dy) = (NoTangent(), ∇chunk(unthunk(dy), x, idxs, valdims))
@@ -199,7 +200,7 @@ function ∇chunk(dys, x, idxs, vd::Val{dim}) where {dim}
     # The whole point of this gradient is that we can allocate one `dx` array:
     dx = similar(x, T)
     for (k, i) in enumerate(idxs)
-        slice = selectdim(dx, dim, i)
+        slice = _selectdim(dx, dim, i)
         if dys[k] isa AbstractZero
             _zero_fill!(slice)  # Avoids this: copyto!([1,2,3], ZeroTangent()) == [0,2,3]
         else
