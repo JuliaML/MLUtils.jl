@@ -156,6 +156,46 @@ function chunk(x::AbstractArray; size, dims::Int=ndims(x))
     return [_selectdim(x, dims, i) for i in idxs]
 end
 
+
+"""
+    chunk(x, partition_idxs; [npartitions, dims])
+
+Partition the array `x` along the dimension `dims` according to the indexes 
+in `partition_idxs`.
+
+`partition_idxs` must be sorted and contain only positive integers 
+between 1 and the number of partitions. 
+
+If the number of partition `npartitions` is not provided, 
+it is inferred from `partition_idxs`.
+
+If `dims` is not provided, it defaults to the last dimension.
+
+See also [`unbatch`](@ref).
+
+# Examples
+
+```jldoctest
+julia> x = reshape([1:10;], 2, 5)
+2×5 Matrix{Int64}:
+ 1  3  5  7   9
+ 2  4  6  8  10
+
+julia> chunk(x, [1, 2, 2, 3, 3])
+3-element Vector{SubArray{Int64, 2, Matrix{Int64}, Tuple{Base.Slice{Base.OneTo{Int64}}, UnitRange{Int64}}, true}}:
+ [1; 2;;]
+ [3 5; 4 6]
+ [7 9; 8 10]
+```
+"""
+function chunk(x::AbstractArray{T,N}, partition_idxs::AbstractVector; 
+        npartitions=nothing, dims=ndims(x)) where {T, N}
+    @assert issorted(partition_idxs) "partition_idxs must be sorted"
+    m = npartitions === nothing ? maximum(partition_idxs) : npartitions
+    degrees = NNlib.scatter(+, ones_like(partition_idxs), partition_idxs, dstsize=(m,))
+    return chunk(x; size=degrees, dims)
+end
+
 # work around https://github.com/JuliaML/MLUtils.jl/issues/103
 _selectdim(x::AbstractArray, dims::Int, i) = selectdim(x, dims, i)
 _selectdim(x::AbstractArray, dims::Int, i::UnitRange) = _selectdim(x, Val(dims), i)
@@ -355,7 +395,7 @@ See also [`unstack`](@ref).
 
 ```jldoctest
 julia> unbatch([1 3 5 7;
-                     2 4 6 8])
+                2 4 6 8])
 4-element Vector{Vector{Int64}}:
  [1, 2]
  [3, 4]
