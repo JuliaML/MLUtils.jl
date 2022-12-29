@@ -134,6 +134,16 @@ end
     idxs = MLUtils._partition_idxs(x, cld(size(x, dims), n), dims)
     test_zygote(MLUtils.∇chunk, dl, x, idxs, Val(dims), check_inferred=false)
 
+
+    if CUDA.functional()
+        # https://github.com/JuliaML/MLUtils.jl/issues/103
+        x = rand(2, 10) |> cu
+        cs = chunk(x, 2)
+        @test length(cs) == 2
+        @test cs[1] isa CuArray
+        @test cs[1] == x[:, 1:5]
+    end
+
     @testset "size collection" begin
         a = reshape(collect(1:10), (5, 2))
         y = chunk(a; dims = 1, size = (1, 4))
@@ -144,13 +154,25 @@ end
         test_zygote(x -> chunk(x; dims = 1, size = (1, 4)), a)
     end
 
-    if CUDA.functional()
-        # https://github.com/JuliaML/MLUtils.jl/issues/103
-        x = rand(2, 10) |> cu
-        cs = chunk(x, 2)
-        @test length(cs) == 2
-        @test cs[1] isa CuArray
-        @test cs[1] == x[:, 1:5]
+    @testset "chunk by partition_idxs" begin
+        x = reshape(collect(1:15), (3, 5))
+        partition_idxs = [1,1,3,3,4]
+
+        y = chunk(x, partition_idxs)
+        @test length(y) == 4
+        @test y[1] == [1 4; 2 5; 3 6]
+        @test size(y[2]) == (3, 0)
+        @test y[3] == [7 10; 8 11; 9 12]
+        @test y[4] == reshape([13, 14, 15], 3, 1)
+
+        y = chunk(x, partition_idxs; npartitions=5)
+        @test length(y) == 5
+        @test size(y[5]) == (3, 0)
+
+        y = chunk(x, [1,1,2]; dims=1)
+        @test length(y) == 2
+        @test y[1] == [1 4 7 10 13; 2 5 8 11 14]
+        @test y[2] == [3 6 9 12 15]
     end
 end
 
