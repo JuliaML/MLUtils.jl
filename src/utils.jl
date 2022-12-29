@@ -62,7 +62,8 @@ Base.show_function(io::IO, u::Base.Fix2{typeof(_unsqueeze)}, ::Bool) = print(io,
 
 Unroll the given `xs` into an array of arrays along the given dimension `dims`.
 
-See also [`stack`](@ref) and [`unbatch`](@ref).
+See also [`stack`](@ref), [`unbatch`](@ref),
+and [`chunk`](@ref).
 
 # Examples
 
@@ -389,7 +390,7 @@ end
 Reverse of the [`batch`](@ref) operation,
 unstacking the last dimension of the array `x`.
 
-See also [`unstack`](@ref).
+See also [`unstack`](@ref) and [`chunk`](@ref).
 
 # Examples
 
