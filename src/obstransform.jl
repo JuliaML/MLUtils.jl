@@ -37,11 +37,11 @@ Indexing triggers the transformation `f`.
 The batched keyword argument controls the behavior of `mdata[idx]` and `mdata[idxs]` 
 where `idx` is an integer and `idxs` is a vector of integers:
 - `batched=:auto` (default). Let `f` handle the two cases. 
-   Call `f(getobs(data, idx))` and `f(getobs(data, idxs))`.
-- `batched=:never`. `f` is always called on a single observation. 
-   Call `f(getobs(data, idx))` and `[f(getobs(data, idx)) for idx in idxs]`.
-- `batched=:always`. `f` is always called on a batch of observations.
-    Call `getobs(f(getobs(data, [idx])), 1)` and `f(getobs(data, idxs))`.
+   Calls `f(getobs(data, idx))` and `f(getobs(data, idxs))`.
+- `batched=:never`. The function `f` is always called on a single observation. 
+   Calls `f(getobs(data, idx))` and `[f(getobs(data, idx)) for idx in idxs]`.
+- `batched=:always`. The function `f` is always called on a batch of observations.
+    Calls `getobs(f(getobs(data, [idx])), 1)` and `f(getobs(data, idxs))`.
 
 # Examples
 

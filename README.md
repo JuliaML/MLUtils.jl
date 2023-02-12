@@ -43,7 +43,11 @@ cv_data, test_data = splitobs((Xs, Ys); at=0.85)
 
 # Next we partition the data using a 10-fold scheme.
 for (train_data, val_data) in kfolds(cv_data; k=10)
-    for epoch = 1:100
+
+    # We apply a lazy transform for data augmentation
+    train_data = mapobs(xy -> (xy[1] .+ 0.1 .* randn.(), xy[2]),  train_data)
+
+    for epoch = 1:10
         # Iterate over the data using mini-batches of 5 observations each
         for (x, y) in eachobs(train_data, batchsize=5)
             # ... train supervised model on minibatches here
