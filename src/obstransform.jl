@@ -1,33 +1,66 @@
 
 # mapobs
 
-struct MappedData{F,D} <: AbstractDataContainer
+struct MappedData{batched, F, D} <: AbstractDataContainer
     f::F
     data::D
 end
 
-Base.show(io::IO, data::MappedData) = print(io, "mapobs($(data.f), $(summary(data.data)))")
-Base.show(io::IO, data::MappedData{F,<:AbstractArray}) where {F} =
-    print(io, "mapobs($(data.f), $(ShowLimit(data.data, limit=80)))")
+function Base.show(io::IO, data::MappedData{batched}) where {batched}
+    print(io, "mapobs(")
+    print(IOContext(io, :compact=>true), data.f)
+    print(io, ", ")
+    print(IOContext(io, :compact=>true), data.data)
+    print(io, "; batched=:$(batched))")
+end
+
 Base.length(data::MappedData) = numobs(data.data)
-Base.getindex(data::MappedData, idx::Int) = data.f(getobs(data.data, idx))
-Base.getindex(data::MappedData, idxs::AbstractVector) = data.f.(getobs(data.data, idxs))
+Base.getindex(data::MappedData, ::Colon) = data[1:length(data)]
+
+Base.getindex(data::MappedData{:auto}, idx::Int) = data.f(getobs(data.data, idx))
+Base.getindex(data::MappedData{:auto}, idxs::AbstractVector) = data.f(getobs(data.data, idxs))
+
+Base.getindex(data::MappedData{:never}, idx::Int) = data.f(getobs(data.data, idx))
+Base.getindex(data::MappedData{:never}, idxs::AbstractVector) = [data.f(getobs(data.data, idx)) for idx in idxs]
+
+Base.getindex(data::MappedData{:always}, idx::Int) = getobs(data.f(getobs(data.data, [idx])), 1)
+Base.getindex(data::MappedData{:always}, idxs::AbstractVector) = data.f(getobs(data.data, idxs))
 
 
 """
-    mapobs(f, data)
+    mapobs(f, data; batched=:auto)
 
 Lazily map `f` over the observations in a data container `data`.
+Returns a new data container `mdata` that can be indexed and has a length.
+Indexing triggers the transformation `f`.
+
+The batched keyword argument controls the behavior of `mdata[idx]` and `mdata[idxs]` 
+where `idx` is an integer and `idxs` is a vector of integers:
+- `batched=:auto` (default). Let `f` handle the two cases. 
+   Call `f(getobs(data, idx))` and `f(getobs(data, idxs))`.
+- `batched=:never`. `f` is always called on a single observation. 
+   Call `f(getobs(data, idx))` and `[f(getobs(data, idx)) for idx in idxs]`.
+- `batched=:always`. `f` is always called on a batch of observations.
+    Call `getobs(f(getobs(data, [idx])), 1)` and `f(getobs(data, idxs))`.
+
+# Examples
+
 ```julia
-data = 1:10
-getobs(data, 8) == 8
-mdata = mapobs(-, data)
-getobs(mdata, 8) == -8
+julia> data = (a=[1,2,3], b=[1,2,3]);
+
+julia> mdata = mapobs(data) do x
+         (c = x.a .+ x.b,  d = x.a .- x.b)
+       end
+mapobs(#25, (a = [1, 2, 3], b = [1, 2, 3]); batched=:auto))
+
+julia> mdata[1]
+(c = 2, d = 0)
+
+julia> mdata[1:2]
+(c = [2, 4], d = [0, 0])
 ```
 """
-mapobs(f, data) = MappedData(f, data)
-mapobs(f::typeof(identity), data) = data
-
+mapobs(f::F, data::D; batched=:auto) where {F,D} = MappedData{batched, F, D}(f, data)
 
 """
     mapobs(fs, data)
