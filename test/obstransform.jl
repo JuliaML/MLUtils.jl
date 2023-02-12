@@ -3,12 +3,18 @@
     mdata = mapobs(-, data)
     @test getobs(mdata, 8) == -8
 
+    @test length(mdata) == 10
+    @test numobs(mdata) == 10
+
     mdata2 = mapobs((-, x -> 2x), data)
     @test getobs(mdata2, 8) == (-8, 16)
 
     nameddata = mapobs((x = sqrt, y = log), data)
     @test getobs(nameddata, 10) == (x = sqrt(10), y = log(10))
     @test getobs(nameddata.x, 10) == sqrt(10)
+
+    # colon
+    @test mapobs(x -> 2x, [1:10;])[:] == [2:2:20;]
 
     @testset "batched = :auto" begin
         data = (a = [1:10;],)
