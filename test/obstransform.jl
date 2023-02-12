@@ -10,9 +10,61 @@
     @test getobs(nameddata, 10) == (x = sqrt(10), y = log(10))
     @test getobs(nameddata.x, 10) == sqrt(10)
 
-    # multiple obs and indexing
-    mdata = mapobs(x -> sum(x.a) + sum(x.b), (a = 1:10, b = 11:20))
-    @test mdata[1:2] == 26
+    @testset "batched = :auto" begin
+        data = (a = [1:10;],)
+
+        m = mapobs(data; batched=:auto) do x 
+            @test x.a isa Int 
+            return (; c = 2 .* x.a) 
+        end[1]
+        @test m == (; c = 2)
+        m = mapobs(data) do x 
+            @test x.a isa Vector{Int} 
+            return (; c = 2 .* x.a) 
+        end[1:2]
+        @test m == (; c = [2, 4])
+
+        # check that :auto is the default
+        m = mapobs(data) do x 
+            @test x.a isa Int 
+            return (; c = 2 .* x.a) 
+        end[1]
+        @test m == (; c = 2)
+        m = mapobs(data) do x 
+            @test x.a isa Vector{Int} 
+            return (; c = 2 .* x.a) 
+        end[1:2]
+        @test m == (; c = [2, 4]) 
+    end
+
+    @testset "batched = :always" begin
+        data = (; a = [1:10;],)
+
+        m = mapobs(data; batched=:always) do x 
+            @test x.a isa Vector{Int} 
+            return (; c = 2 .* x.a) 
+        end[1]
+        @test m == (; c = 2)
+        m = mapobs(data; batched=:always) do x 
+            @test x.a isa Vector{Int} 
+            return (; c = 2 .* x.a) 
+        end[1:2]
+        @test m == (; c = [2, 4])
+    end
+
+    @testset "batched = :never" begin
+        data = (; a = [1:10;],)
+        m = mapobs(data; batched=:never) do x 
+            @test x.a isa Int
+            return (; c = 2 .* x.a) 
+        end[1]
+        @test m == (; c = 2)
+        m = mapobs(data; batched=:never) do x 
+            @test x.a isa Int 
+            return (; c = 2 .* x.a) 
+        end[1:2]
+        @test m == [(; c = 2), (; c = 4)]
+    end
 end
 
 @testset "filterobs" begin
