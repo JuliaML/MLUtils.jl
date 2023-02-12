@@ -9,6 +9,10 @@
     nameddata = mapobs((x = sqrt, y = log), data)
     @test getobs(nameddata, 10) == (x = sqrt(10), y = log(10))
     @test getobs(nameddata.x, 10) == sqrt(10)
+
+    # multiple obs and indexing
+    mdata = mapobs(x -> sum(x.a) + sum(x.b), (a = 1:10, b = 11:20))
+    @test mdata[1:2] == 26
 end
 
 @testset "filterobs" begin

@@ -11,18 +11,26 @@ Base.show(io::IO, data::MappedData{F,<:AbstractArray}) where {F} =
     print(io, "mapobs($(data.f), $(ShowLimit(data.data, limit=80)))")
 Base.length(data::MappedData) = numobs(data.data)
 Base.getindex(data::MappedData, idx::Int) = data.f(getobs(data.data, idx))
-Base.getindex(data::MappedData, idxs::AbstractVector) = data.f.(getobs(data.data, idxs))
+Base.getindex(data::MappedData, idxs::AbstractVector) = data.f(getobs(data.data, idxs))
 
 
 """
     mapobs(f, data)
 
 Lazily map `f` over the observations in a data container `data`.
+Returns a new data container `mdata` that can be indexed and has a length.
+
+When `mdata[idx]` is executed, `f(getobs(data, idx))` is returned.
+Notice that `idx` can be either an integer or a vector of integers,
+so possibly `f` should handle both cases.
+
+# Examples
+
 ```julia
 data = 1:10
 getobs(data, 8) == 8
 mdata = mapobs(-, data)
-getobs(mdata, 8) == -8
+mdata[8] == -8
 ```
 """
 mapobs(f, data) = MappedData(f, data)
