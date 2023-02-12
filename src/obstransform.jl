@@ -34,7 +34,7 @@ Lazily map `f` over the observations in a data container `data`.
 Returns a new data container `mdata` that can be indexed and has a length.
 Indexing triggers the transformation `f`.
 
-The batched keyword argument controls the behavior `mdata[idx]` and `mdata[idxs]` 
+The batched keyword argument controls the behavior of `mdata[idx]` and `mdata[idxs]` 
 where `idx` is an integer and `idxs` is a vector of integers:
 - `batched=:auto` (default). Let `f` handle the two cases. 
    Call `f(getobs(data, idx))` and `f(getobs(data, idxs))`.
