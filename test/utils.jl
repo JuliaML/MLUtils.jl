@@ -19,6 +19,7 @@ end
     stacked_array=[ 8 9 3 5; 9 6 6 9; 9 1 7 2; 7 4 10 6 ]
     unstacked_array=[[8, 9, 9, 7], [9, 6, 1, 4], [3, 6, 7, 10], [5, 9, 2, 6]]
     @test unstack(stacked_array, dims=2) == unstacked_array
+    @test @inferred(unstack(stacked_array, Val(2))) == unstacked_array
     @test stack(unstacked_array, dims=2) == stacked_array
     @test stack(unstack(stacked_array, dims=1), dims=1) == stacked_array
 
