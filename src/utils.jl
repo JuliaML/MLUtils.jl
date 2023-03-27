@@ -76,8 +76,12 @@ julia> unstack([1 3 5 7; 2 4 6 8], dims=2)
  [7, 8]
 ```
 """
-unstack(xs; dims::Int) = [copy(selectdim(xs, dims, i)) for i in 1:size(xs, dims)]
-unstack(xs, dims::Val{D}) where {D} = [copy(selectdim(xs, D, i)) for i in 1:size(xs, D)]
+@inline unstack(xs; dims) = _unstack(dims, xs)
+
+dims2unstack(::Val{dims}) where dims = dims2unstack(dims)
+dims2unstack(dims::Integer) = dims
+
+@inline _unstack(dims, xs) = [copy(selectdim(xs, dims2unstack(dims), i)) for i in axes(xs, dims2unstack(dims))]
 
 """
     chunk(x, n; [dims])
