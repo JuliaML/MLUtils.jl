@@ -76,7 +76,7 @@ julia> unstack([1 3 5 7; 2 4 6 8], dims=2)
  [7, 8]
 ```
 """
-@inline unstack(xs; dims) = _unstack(dims, xs)
+unstack(xs; dims) = _unstack(dims, xs)
 
 dims2unstack(::Val{dims}) where dims = dims2unstack(dims)
 dims2unstack(dims::Integer) = dims
