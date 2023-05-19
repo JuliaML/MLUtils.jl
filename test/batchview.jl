@@ -116,4 +116,31 @@ using MLUtils: obsview
         @test bv[2] == 6:10
         @test_throws BoundsError bv[3]
     end
+
+
+    @testset "getobs!" begin
+        buf1 = rand(4, 3)
+        bv = BatchView(X, batchsize=3) 
+        @test @inferred(getobs!(buf1, bv, 2)) === buf1
+        @test buf1 == getobs(bv, 2)
+        
+        buf2 = rand(4, 6)
+        @test @inferred(getobs!(buf2, bv, [1,3])) === buf2
+        @test buf2 == getobs(bv, [1,3])
+
+        @testset "custom type" begin # issue #156
+            struct DummyData{X} 
+                x::X
+            end
+            MLUtils.numobs(data::DummyData) = numobs(data.x)
+            MLUtils.getobs(data::DummyData, idx) = getobs(data.x, idx)
+            MLUtils.getobs!(buffer, data::DummyData, idx) = getobs!(buffer, data.x, idx)
+            
+            data = DummyData(X)
+            buf = rand(4, 3)
+            bv = BatchView(data, batchsize=3)
+            @test @inferred(getobs!(buf, bv, 2)) === buf
+            @test buf == getobs(bv, 2)
+        end
+    end
 end
