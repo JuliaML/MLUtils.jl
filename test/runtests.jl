@@ -6,7 +6,6 @@ using SparseArrays
 using Random, Statistics
 using Test
 using Transducers
-using FoldsThreads: TaskPoolEx
 using ChainRulesTestUtils: test_rrule
 using Zygote: ZygoteRuleConfig
 using ChainRulesCore: rrule_via_ad

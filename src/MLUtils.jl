@@ -5,7 +5,6 @@ using Statistics
 using ShowCases: ShowLimit
 using FLoops: @floop
 using FLoops.Transducers: Executor, ThreadedEx
-using FoldsThreads: TaskPoolEx
 import StatsBase: sample
 using Transducers
 using Tables
