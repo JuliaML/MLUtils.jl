@@ -8,8 +8,8 @@
         @test length(unique(X_)) == 10
     end
 
-    @testset "With `TaskPoolEx`" begin
-        iter = eachobsparallel(collect(1:10); executor = TaskPoolEx())
+    @testset "With `ThreadedEx`" begin
+        iter = eachobsparallel(collect(1:10); executor = ThreadedEx())
         @test_nowarn for i in iter end
         X_ = collect(iter)
         @test all(x ∈ 1:10 for x in X_)
