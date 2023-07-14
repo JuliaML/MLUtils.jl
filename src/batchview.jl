@@ -112,9 +112,19 @@ _batchviewelemtype(data, ::Val{true}) =
     Core.Compiler.return_type(batch, Tuple{_batchviewelemtype(data, Val(false))})
 
 """
-    batchsize(data) -> Int
+    batchsize(data::BatchView) -> Int
 
 Return the fixed size of each batch in `data`.
+
+# Examples
+
+```julia
+using MLUtils
+X, Y = MLUtils.load_iris()
+
+A = BatchView(X, batchsize=30)
+@assert batchsize(A) == 30
+```
 """
 batchsize(A::BatchView) = A.batchsize
 
