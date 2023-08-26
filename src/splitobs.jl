@@ -42,7 +42,8 @@ end
 
 Partition the `data` into two or more subsets.
 When `at` is a number (between 0 and 1) this specifies the proportion in the first subset.
-When `at::Tuple`, each entry specifies the proportion an a subset, with the last having `1-sum(ast)`.
+When `at` is a tuple, each entry specifies the proportion an a subset,
+with the last having `1-sum(at)`. In all there are `length(at)+1` subsets returned.
 
 If `shuffle=true`, randomly permute the observations before splitting.
 
