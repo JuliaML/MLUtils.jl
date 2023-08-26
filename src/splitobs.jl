@@ -55,10 +55,13 @@ Supports any datatype implementing the [`numobs`](@ref) and
 julia> splitobs(permutedims(1:100); at=0.7)  # simple 70%-30% split, of a matrix
 ([1 2 … 69 70], [71 72 … 99 100])
 
-julia> splitobs((x=ones(1,10), n=1:10), at=(0.5, 0.3))  # a 50%-30%-20% split, of a NamedTuple
-((x = [1.0 1.0 … 1.0 1.0], n = 1:5), (x = [1.0 1.0 1.0], n = 6:8), (x = [1.0 1.0], n = 9:10))
+julia> data = (x=ones(2,10), n=1:10)  # a NamedTuple, consistent last dimension
+(x = [1.0 1.0 … 1.0 1.0; 1.0 1.0 … 1.0 1.0], n = 1:10)
 
-julia> train, test = Flux.splitobs((permutedims(1:100), 101:200), at=0.7, shuffle=true);
+julia> splitobs(data, at=(0.5, 0.3))  # a 50%-30%-20% split, e.g. train/test/validation
+((x = [1.0 1.0 … 1.0 1.0; 1.0 1.0 … 1.0 1.0], n = 1:5), (x = [1.0 1.0 1.0; 1.0 1.0 1.0], n = 6:8), (x = [1.0 1.0; 1.0 1.0], n = 9:10))
+
+julia> train, test = splitobs((permutedims(1.0:100.0), 101:200), at=0.7, shuffle=true);  # split a Tuple
 
 julia> vec(test[1]) .+ 100 == test[2]
 true
