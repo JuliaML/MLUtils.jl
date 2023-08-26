@@ -31,6 +31,7 @@
             @test @inferred(getobs(subset)) == getobs(var)
             @test @inferred(ObsView(subset)) === subset
             @test @inferred(ObsView(subset, 1:15)) === subset
+            @test subset[begin] == obsview(var, 1)
             @test subset[end] == obsview(var, 15)
             @test @inferred(subset[15]) == obsview(var, 15)
             @test @inferred(subset[2:5]) == obsview(var, 2:5)
@@ -178,6 +179,7 @@ end
             @test @inferred(A[1]) == obsview(var, 1)
             @test @inferred(A[11]) == obsview(var, 11)
             @test @inferred(A[15]) == obsview(var, 15)
+            @test A[begin] == A[1]
             @test A[end] == A[15]
             @test @inferred(getobs(A,1)) == getobs(var, 1)
             @test @inferred(getobs(A,11)) == getobs(var, 11)
