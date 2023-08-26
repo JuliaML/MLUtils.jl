@@ -40,26 +40,28 @@ end
 """
     splitobs(data; at, shuffle=false) -> Tuple
 
-Split the `data` into multiple subsets proportional to the
-value(s) of `at`. 
+Partition the `data` into two or more subsets.
+When `at` is a number (between 0 and 1) this specifies the proportion in the first subset.
+When `at::Tuple`, each entry specifies the proportion an a subset, with the last having `1-sum(ast)`.
 
 If `shuffle=true`, randomly permute the observations before splitting.
 
 Supports any datatype implementing the [`numobs`](@ref) and
-[`getobs`](@ref) interfaces.
+[`getobs`](@ref) interfaces -- including arrays, tuples & NamedTuples of arrays.
 
 # Examples
 
-```julia
-# A 70%-30% split
-train, test = splitobs(X, at=0.7)
+```jldoctest
+julia> splitobs(permutedims(1:100); at=0.7)  # simple 70%-30% split, of a matrix
+([1 2 … 69 70], [71 72 … 99 100])
 
-# A 50%-30%-20% split
-train, val, test = splitobs(X, at=(0.5, 0.3))
+julia> splitobs((x=ones(1,10), n=1:10), at=(0.5, 0.3))  # a 50%-30%-20% split, of a NamedTuple
+((x = [1.0 1.0 … 1.0 1.0], n = 1:5), (x = [1.0 1.0 1.0], n = 6:8), (x = [1.0 1.0], n = 9:10))
 
-# A 70%-30% split with multiple arrays and shuffling
-train, test = splitobs((X, y), at=0.7, shuffle=true)
-Xtrain, Ytrain = train
+julia> train, test = Flux.splitobs((permutedims(1:100), 101:200), at=0.7, shuffle=true);
+
+julia> vec(test[1]) .+ 100 == test[2]
+true
 ```
 """
 function splitobs(data; at, shuffle::Bool=false)
