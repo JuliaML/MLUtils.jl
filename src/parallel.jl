@@ -223,7 +223,7 @@ function Base.put!(f!, ringbuffer::RingBuffer)
     return buf_
 end
 
-Base.put!(::Channel{T}, ::MLUtils.RingBuffer) = error("method not defined for RingBuffer")
+Base.put!(c::Channel{T}, b::MLUtils.RingBuffer) = throw(MethodError(put!, (c, b)))
 
 function Base.close(ringbuffer::RingBuffer, args...)
     close(ringbuffer.results, args...)
