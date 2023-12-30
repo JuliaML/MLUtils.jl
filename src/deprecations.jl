@@ -10,4 +10,4 @@
 # Deprecated in v0.3
 import Base: rpad
 @deprecate rpad(v::AbstractVector, n::Integer, p) rpad_constant(v, n, p)
-@deprecate rpad(v::AbstractVector, n::Integer, p::Union{AbstractChar, AbstractString}) = rpad_constant(v, n, p)
+@deprecate rpad(v::AbstractVector, n::Integer, p::Union{AbstractChar, AbstractString}) rpad_constant(v, n, p)
