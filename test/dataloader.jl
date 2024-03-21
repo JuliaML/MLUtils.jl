@@ -8,7 +8,8 @@
     batches = collect(d)
     @test_broken  eltype(d) == typeof(X2)
     @test eltype(batches) == typeof(X2)
-    @test length(batches) == 3
+    @test length(batches) == length(d) == 3
+    @test size(batches) == size(d) == (3,)
     @test batches[1] == X2[:,1:2]
     @test batches[2] == X2[:,3:4]
     @test batches[3] == X2[:,5:5]
