@@ -195,6 +195,8 @@ function Base.length(e::DataLoader)
     end)
 end
 
+Base.size(e::DataLoader) = (length(e),)
+
 
 Base.IteratorEltype(::DataLoader) = Base.EltypeUnknown()
 
