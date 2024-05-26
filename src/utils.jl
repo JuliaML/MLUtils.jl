@@ -62,7 +62,7 @@ Base.show_function(io::IO, u::Base.Fix2{typeof(_unsqueeze)}, ::Bool) = print(io,
 
 Unroll the given `xs` into an array of arrays along the given dimension `dims`.
 
-See also [`stack`](@ref), [`unbatch`](@ref),
+See also [`stack`](https://docs.julialang.org/en/v1/base/arrays/#Base.stack), [`unbatch`](@ref),
 and [`chunk`](@ref).
 
 # Examples
