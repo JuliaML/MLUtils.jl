@@ -139,22 +139,22 @@ Base.@propagate_inbounds function Base.getindex(A::BatchView, i)
     _getbatch(A, obsindices)
 end
 
-function _getbatch(A::BatchView{TElem, TData, Val{true}}, obsindices) where {TElem, TData}
+function _getbatch(A::BatchView{<:Any, <:Any, Val{true}}, obsindices)
     batch([getobs(A.data, i) for i in obsindices])
 end
-function _getbatch(A::BatchView{TElem, TData, Val{false}}, obsindices) where {TElem, TData}
+function _getbatch(A::BatchView{<:Any, <:Any, Val{false}}, obsindices)
     return [getobs(A.data, i) for i in obsindices]
 end
-function _getbatch(A::BatchView{TElem, TData, Val{nothing}}, obsindices) where {TElem, TData}
+function _getbatch(A::BatchView{<:Any, <:Any, Val{nothing}}, obsindices)
     getobs(A.data, obsindices)
 end
 
-function getobs!(buffer, A::BatchView{TElem, TData, Val{nothing}}, i) where {TElem, TData}
+function getobs!(buffer, A::BatchView{<:Any, <:Any, Val{nothing}}, i)
     obsindices = _batchindexes(A, i)
     return _getbatch!(buffer, A, obsindices)
 end
 
-function _getbatch!(buffer, A::BatchView{TElem, TData, Val{nothing}}, obsindices) where {TElem, TData}
+function _getbatch!(buffer, A::BatchView{<:Any, <:Any, Val{nothing}}, obsindices)
     return getobs!(buffer, A.data, obsindices)
 end
 
