@@ -149,13 +149,28 @@ function _getbatch(A::BatchView{<:Any, <:Any, Val{nothing}}, obsindices)
     getobs(A.data, obsindices)
 end
 
-function getobs!(buffer, A::BatchView{<:Any, <:Any, Val{nothing}}, i)
+function getobs!(buffer, A::BatchView, i)
     obsindices = _batchindexes(A, i)
     return _getbatch!(buffer, A, obsindices)
 end
 
 function _getbatch!(buffer, A::BatchView{<:Any, <:Any, Val{nothing}}, obsindices)
     return getobs!(buffer, A.data, obsindices)
+end
+
+# This collate=true specialization doesn't seem to be particularly useful, use collate=nothing instead.
+function _getbatch!(buffer, A::BatchView{<:Any, <:Any, Val{true}}, obsindices)
+    for (i, idx) in enumerate(obsindices)
+        getobs!(buffer[i], A.data, idx)
+    end
+    return batch(buffer)
+end
+
+function _getbatch!(buffer, A::BatchView{<:Any, <:Any, Val{false}}, obsindices)
+    for (i, idx) in enumerate(obsindices)
+        getobs!(buffer[i], A.data, idx)
+    end
+    return buffer
 end
 
 Base.parent(A::BatchView) = A.data

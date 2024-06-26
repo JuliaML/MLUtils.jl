@@ -123,6 +123,11 @@ using MLUtils: obsview
         bv = BatchView(X, batchsize=3) 
         @test @inferred(getobs!(buf1, bv, 2)) === buf1
         @test buf1 == getobs(bv, 2)
+
+        buf12 = [rand(4) for _=1:3]
+        bv12 = BatchView(X, batchsize=3, collate=false)
+        @test @inferred(getobs!(buf12, bv12, 2)) === buf12
+        @test buf12 == getobs(bv12, 2)
         
         buf2 = rand(4, 6)
         @test @inferred(getobs!(buf2, bv, [1,3])) === buf2
