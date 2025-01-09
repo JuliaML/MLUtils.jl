@@ -36,7 +36,7 @@ julia> unsqueeze(xs, dims=1)
 """
 function unsqueeze(x::AbstractArray{T,N}; dims::Int) where {T, N}
     @assert 1 <= dims <= N + 1
-    sz = ntuple(i -> i < dims ? size(x, i) : i == dims ? 1 : size(x, i - 1), N + 1)
+    sz = ntuple(i -> i < dims ? size(x, i) : i == dims ? 1 : size(x, i - 1), Val(N + 1))
     return reshape(x, sz)
 end
 
