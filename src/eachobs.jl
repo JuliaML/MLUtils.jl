@@ -53,27 +53,31 @@ The original data is preserved in the `data` field of the DataLoader.
 
 # Arguments
 
-- `data`: The data to be iterated over. The data type has to be supported by
+- **`data`**: The data to be iterated over. The data type has to be supported by
   [`numobs`](@ref) and [`getobs`](@ref).
-- `batchsize`: If less than 0, iterates over individual observations.
+- **`batchsize`**: If less than 0, iterates over individual observations.
   Otherwise, each iteration (except possibly the last) yields a mini-batch
   containing `batchsize` observations. Default `1`.
-- `buffer`: If `buffer=true` and supported by the type of `data`,
+- **`buffer`**: If `buffer=true` and supported by the type of `data`,
   a buffer will be allocated and reused for memory efficiency.
   You can also pass a preallocated object to `buffer`. Default `false`.
-- `collate`: Batching behavior. If `nothing` (default), a batch is `getobs(data, indices)`. If `false`, each batch is
-   `[getobs(data, i) for i in indices]`. When `true`, applies [`batch`](@ref) to the vector of observations in a batch, 
-   recursively collating arrays in the last dimensions. See [`batch`](@ref) for more information and examples.
-- `parallel`: Whether to use load data in parallel using worker threads. Greatly
+- **`collate`**: Defines the batching behavior. Default `nothing`. 
+  - If `nothing` , a batch is `getobs(data, indices)`. 
+  - If `false`, each batch is `[getobs(data, i) for i in indices]`. 
+  - If `true`, applies MLUtils to the vector of observations in a batch, 
+    recursively collating arrays in the last dimensions. See [`MLUtils.batch`](@ref) for more information
+    and examples.
+  - If a custom function, it will be used in place of `MLUtils.batch`. It should take a vector of observations as input.
+- **`parallel`**: Whether to use load data in parallel using worker threads. Greatly
     speeds up data loading by factor of available threads. Requires starting
     Julia with multiple threads. Check `Threads.nthreads()` to see the number of
     available threads. **Passing `parallel = true` breaks ordering guarantees**.
     Default `false`.
-- `partial`: This argument is used only when `batchsize > 0`.
+- **`partial`**: This argument is used only when `batchsize > 0`.
   If `partial=false` and the number of observations is not divisible by the batchsize,
   then the last mini-batch is dropped. Default `true`.
-- `rng`: A random number generator. Default `Random.GLOBAL_RNG`.
-- `shuffle`: Whether to shuffle the observations before iterating. Unlike
+- **`rng`**: A random number generator. Default `Random.default_rng()`.
+- **`shuffle**: Whether to shuffle the observations before iterating. Unlike
     wrapping the data container with `shuffleobs(data)`, `shuffle=true` ensures
     that the observations are shuffled anew every time you start iterating over
     `eachobs`. Default `false`.
@@ -122,9 +126,15 @@ julia> foreach(println∘summary, DataLoader(rand(Int8, 10, 64), batchsize=30)) 
 10×30 Matrix{Int8}
 10×30 Matrix{Int8}
 10×4 Matrix{Int8}
+
+
+julia> collate_fn(batch) = join(batch)
+
+julia> first(DataLoader(["a", "b", "c", "d"], batchsize=2, collate=collate_fn)) == "ab"
+true
 ```
 """
-struct DataLoader{T, R<:AbstractRNG, C<:Val}
+struct DataLoader{T, R<:AbstractRNG, C}
     data::T
     batchsize::Int
     buffer::Bool
@@ -143,11 +153,11 @@ function DataLoader(
         batchsize::Int = 1,
         partial::Bool = true,
         collate = Val(nothing),
-        rng::AbstractRNG = Random.GLOBAL_RNG)
+        rng::AbstractRNG = Random.default_rng())
+
     buffer = buffer isa Bool ? buffer : true
-    collate = collate isa Val ? collate : Val(collate)
-    if !(collate ∈ (Val(nothing), Val(true), Val(false)))
-        throw(ArgumentError("`collate` must be one of `nothing`, `true` or `false`."))
+    if collate isa Bool || collate === nothing
+        collate = Val(collate)
     end
     return DataLoader(data, batchsize, buffer, partial, shuffle, parallel, collate, rng)
 end
@@ -209,6 +219,70 @@ Base.IteratorEltype(::DataLoader) = Base.EltypeUnknown()
 #     end)
 # end
 
+"""
+    mapobs(f, d::DataLoader)
+
+Return a new dataloader based on `d`  that applies `f` at each iteration. 
+
+# Examples
+
+```jldoctest
+julia> X = ones(3, 6);
+
+julia> function f(x)
+           @show x
+           return x
+       end
+f (generic function with 1 method)
+
+julia> d = DataLoader(X, batchsize=2, collate=false);
+
+julia> d = mapobs(f, d);
+
+julia> for x in d
+           @assert size(x) == (2,)
+           @assert size(x[1]) == (3,)
+       end
+x = [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]]
+x = [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]]
+x = [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]]
+
+julia> d2 = DataLoader(X, batchsize=2, collate=true);
+
+julia> d2 = mapobs(f, d2);
+
+julia> for x in d2
+           @assert size(x) == (3, 2)
+       end
+x = [1.0 1.0; 1.0 1.0; 1.0 1.0]
+x = [1.0 1.0; 1.0 1.0; 1.0 1.0]
+x = [1.0 1.0; 1.0 1.0; 1.0 1.0]
+```
+"""
+function mapobs(f, d::DataLoader)
+    @assert d.batchsize > 0 "Mapping over individual observations is not supported, set `batchsize > 0` 
+    or apply mapobs to the underlying data container."
+   
+    @assert d.collate !== Val(nothing) "`collate==nothing` not supported by mapobs"
+    if d.collate == Val(false)
+        collate = f
+    elseif d.collate === Val(true)
+        collate = f ∘ batch
+    else
+        collate = f ∘ d.collate
+    end
+
+    DataLoader(d.data,
+               batchsize=d.batchsize,
+               buffer=d.buffer,
+               partial=d.partial,
+               shuffle=d.shuffle,
+               parallel=d.parallel,
+               collate=collate,
+               rng=d.rng)
+end
+
+
 @inline function _dataloader_foldl1(rf, val, e::DataLoader, data)
     if e.shuffle
         _dataloader_foldl2(rf, val, e, shuffleobs(e.rng, data))
@@ -267,8 +341,8 @@ function Base.showarg(io::IO, e::DataLoader, toplevel)
     e.shuffle == false || print(io, ", shuffle=", e.shuffle)
     e.batchsize == 1 || print(io, ", batchsize=", e.batchsize)
     e.partial == true || print(io, ", partial=", e.partial)
-    e.collate == Val(nothing) || print(io, ", collate=", e.collate)
-    e.rng == Random.GLOBAL_RNG || print(io, ", rng=", e.rng)
+    e.collate === Val(nothing) || print(io, ", collate=", e.collate)
+    e.rng == Random.default_rng() || print(io, ", rng=", e.rng)
     print(io, ")")
 end
 
