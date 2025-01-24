@@ -215,6 +215,21 @@
         dloader = DataLoader(1:1000; batchsize = 2, shuffle = true)
         @test copy(Map(x -> x[1]), Vector{Int}, dloader) != collect(1:2:1000)
     end
+
+    @testset "collate function" begin
+        function collate_fn(batch)
+            # collate observations into a custom batch
+            return hcat([x[1] for x in batch]...), join([x[2] for x in batch])
+        end
+
+        loader = DataLoader((rand(10, 4), ["a", "b", "c", "d"]), batchsize=2, collate=collate_fn)
+        for (x, y) in loader
+            @test size(x) == (10, 2)
+            @test y isa String
+        end
+
+        @test first(loader)[2] == "ab"
+    end
     
     if VERSION > v"1.10"
         @testset "printing" begin

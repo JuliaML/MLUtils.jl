@@ -10,7 +10,7 @@ using Transducers
 using Tables
 using DataAPI
 using Base: @propagate_inbounds
-using Random: AbstractRNG, shuffle!, GLOBAL_RNG, rand!, randn!
+using Random: AbstractRNG, shuffle!, rand!, randn!
 import ChainRulesCore: rrule
 using ChainRulesCore: @non_differentiable, unthunk, AbstractZero,
                       NoTangent, ZeroTangent, ProjectTo
