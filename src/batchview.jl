@@ -134,24 +134,43 @@ Base.@propagate_inbounds function getobs(A::BatchView)
     return _getbatch(A, 1:numobs(A.data))
 end
 
-Base.@propagate_inbounds function Base.getindex(A::BatchView, i::Int)
-    obsindices = _batchrange(A, i)
+Base.@propagate_inbounds function Base.getindex(A::BatchView, i)
+    obsindices = _batchindexes(A, i)
     _getbatch(A, obsindices)
 end
 
-Base.@propagate_inbounds function Base.getindex(A::BatchView, is::AbstractVector)
-    obsindices = union((_batchrange(A, i) for i in is)...)::Vector{Int}
-    _getbatch(A, obsindices)
-end
-
-function _getbatch(A::BatchView{TElem, TData, Val{true}}, obsindices) where {TElem, TData}
+function _getbatch(A::BatchView{<:Any, <:Any, Val{true}}, obsindices)
     batch([getobs(A.data, i) for i in obsindices])
 end
-function _getbatch(A::BatchView{TElem, TData, Val{false}}, obsindices) where {TElem, TData}
+function _getbatch(A::BatchView{<:Any, <:Any, Val{false}}, obsindices)
     return [getobs(A.data, i) for i in obsindices]
 end
-function _getbatch(A::BatchView{TElem, TData, Val{nothing}}, obsindices) where {TElem, TData}
+function _getbatch(A::BatchView{<:Any, <:Any, Val{nothing}}, obsindices)
     getobs(A.data, obsindices)
+end
+
+function getobs!(buffer, A::BatchView, i)
+    obsindices = _batchindexes(A, i)
+    return _getbatch!(buffer, A, obsindices)
+end
+
+function _getbatch!(buffer, A::BatchView{<:Any, <:Any, Val{nothing}}, obsindices)
+    return getobs!(buffer, A.data, obsindices)
+end
+
+# This collate=true specialization doesn't seem to be particularly useful, use collate=nothing instead.
+function _getbatch!(buffer, A::BatchView{<:Any, <:Any, Val{true}}, obsindices)
+    for (i, idx) in enumerate(obsindices)
+        getobs!(buffer[i], A.data, idx)
+    end
+    return batch(buffer)
+end
+
+function _getbatch!(buffer, A::BatchView{<:Any, <:Any, Val{false}}, obsindices)
+    for (i, idx) in enumerate(obsindices)
+        getobs!(buffer[i], A.data, idx)
+    end
+    return buffer
 end
 
 Base.parent(A::BatchView) = A.data
@@ -169,6 +188,9 @@ Base.iterate(A::BatchView, state = 1) =
     return startidx:endidx
 end
 
+@inline _batchindexes(A::BatchView, i::Integer) = _batchrange(A, i)
+@inline _batchindexes(A::BatchView, is::AbstractVector{<:Integer}) = union((_batchrange(A, i) for i in is)...)::Vector{Int}
+
 function Base.showarg(io::IO, A::BatchView, toplevel)
     print(io, "BatchView(")
     Base.showarg(io, parent(A), false)
@@ -178,5 +200,3 @@ function Base.showarg(io::IO, A::BatchView, toplevel)
     print(io, ')')
     toplevel && print(io, " with eltype ", nameof(eltype(A))) # simplify
 end
-
-# --------------------------------------------------------------------
