@@ -105,7 +105,7 @@ function BatchView(data::T; batchsize::Int=1, partial::Bool=true, collate=Val(no
         batchsize = n
     end
     if collate === nothing || collate isa Bool
-        collate = collate = Val(collate)
+        collate = Val(collate)
     end
     if collate === Val(true)
         collate = MLUtils.batch
