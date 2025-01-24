@@ -231,6 +231,34 @@
         @test first(loader)[2] == "ab"
     end
     
+    @testset "mapobs" begin
+        X = ones(3, 6)
+
+        function f_mapobs(x)
+            return sum(x[1])
+        end
+
+        d = DataLoader(X, batchsize=2, collate=false);
+
+        d = mapobs(f_mapobs, d);
+
+        for x in d
+            @test x == 3
+        end
+
+        d2 = DataLoader(X, batchsize=2, collate=true);
+
+        function f2_mapobs(x)
+            return sum(x)
+        end
+
+        d2 = mapobs(f2_mapobs, d2);
+
+        for x in d2
+           @test x == 6
+        end
+    end
+
     if VERSION > v"1.10"
         @testset "printing" begin
             X2 = reshape(Float32[1:10;], (2, 5))
