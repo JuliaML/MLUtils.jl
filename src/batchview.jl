@@ -11,10 +11,12 @@ specified `batchsize`, the remaining observations will
 be ignored if `partial=false`. If  `partial=true` instead
 the last batch-size can be slightly smaller.
 
-Note that any data access is delayed until `getindex` is called.
-
 If used as an iterator, the object will iterate over the dataset
-once, effectively denoting an epoch.
+once, effectively denoting an epoch. 
+
+Any data access is delayed until iteration or indexing is perfomed. 
+The [`Flux.getobs`](@ref) function is called on the data object to retrieve the
+observations.
 
 For `BatchView` to work on some data structure, the type of the
 given variable `data` must implement the data container
@@ -33,53 +35,59 @@ interface. See [`ObsView`](@ref) for more info.
 - **`partial`** : If `partial=false` and the number of observations is
     not divisible by the batch-size, then the last mini-batch is dropped.
 
-- **`collate`**: Batching behavior. If `nothing` (default), a batch
-    is `getobs(data, indices)`. If `false`, each batch is
-    `[getobs(data, i) for i in indices]`. When `true`, applies [`batch`](@ref)
-    to the vector of observations in a batch, recursively collating
-    arrays in the last dimensions. See [`batch`](@ref) for more information
-    and examples.
+- **`collate`**: Defines the batching behavior. 
+    - If `nothing` (default), a batch is `getobs(data, indices)`. 
+    - If `false`, each batch is `[getobs(data, i) for i in indices]`. 
+    - If `true`, applies MLUtils to the vector of observations in a batch, 
+      recursively collating arrays in the last dimensions. See [`MLUtils.batch`](@ref) for more information
+      and examples.
+    - If a custom function, it will be used in place of `MLUtils.batch`. It should take a vector of observations as input.
+
+
+Se also [`DataLoader`](@ref).
 
 # Examples
 
-```julia
-using MLUtils
-X, Y = MLUtils.load_iris()
+```jldoctest
+julia> using MLUtils
 
-A = BatchView(X, batchsize=30)
-@assert typeof(A) <: BatchView <: AbstractVector
-@assert eltype(A) <: SubArray{Float64,2}
-@assert length(A) == 5 # Iris has 150 observations
-@assert size(A[1]) == (4,30) # Iris has 4 features
+julia> X, Y = MLUtils.load_iris();
 
-# 5 batches of size 30 observations
-for x in BatchView(X, batchsize=30)
-    @assert typeof(x) <: SubArray{Float64,2}
-    @assert numobs(x) === 30
-end
+julia> A = BatchView(X, batchsize=30);
 
-# 7 batches of size 20 observations
-# Note that the iris dataset has 150 observations,
-# which means that with a batchsize of 20, the last
-# 10 observations will be ignored
-for (x, y) in BatchView((X, Y), batchsize=20, partial=false)
-    @assert typeof(x) <: SubArray{Float64,2}
-    @assert typeof(y) <: SubArray{String,1}
-    @assert numobs(x) == numobs(y) == 20
-end
+julia> @assert eltype(A) <: Matrix{Float64}
 
-# collate tuple observations
-for (x, y) in BatchView((rand(10, 3), ["a", "b", "c"]), batchsize=2, collate=true, partial=false)
-    @assert size(x) == (10, 2)
-    @assert size(y) == (2,)
-end
+julia> @assert length(A) == 5 # Iris has 150 observations
 
+julia> @assert size(A[1]) == (4,30) # Iris has 4 features
 
-# randomly assign observations to one and only one batch.
-for (x, y) in BatchView(shuffleobs((X, Y)), batchsize=20)
-    @assert typeof(x) <: SubArray{Float64,2}
-    @assert typeof(y) <: SubArray{String,1}
-end
+julia> for x in BatchView(X, batchsize=30)
+           # 5 batches of size 30 observations
+           @assert size(x) == (4, 30)
+           @assert numobs(x) === 30
+       end
+
+julia> for (x, y) in BatchView((X, Y), batchsize=20, partial=true)
+           # 7 batches of size 20 observations + 1 batch of 10 observations
+           @assert typeof(x) <: Matrix{Float64}
+           @assert typeof(y) <: Vector{String}
+       end
+
+julia> for batch in BatchView((X, Y), batchsize=20, partial=false, collate=false)
+           # 7 batches of size 20 observations
+           @assert length(batch) == 20
+           x1, y1 = batch[1]
+       end
+
+julia> function collate_fn(batch)
+           # collate observations into a custom batch
+           return hcat([x[1] for x in batch]...), join([x[2] for x in batch])
+        end;
+
+julia> for (x, y) in BatchView((rand(10, 4), ["a", "b", "c", "d"]), batchsize=2, collate=collate_fn)
+           @assert size(x) == (10, 2)
+           @assert y isa String
+       end
 ```
 """
 struct BatchView{TElem,TData,TCollate} <: AbstractDataContainer
@@ -87,6 +95,7 @@ struct BatchView{TElem,TData,TCollate} <: AbstractDataContainer
     batchsize::Int
     count::Int
     partial::Bool
+    collate::TCollate
 end
 
 function BatchView(data::T; batchsize::Int=1, partial::Bool=true, collate=Val(nothing)) where {T}
@@ -95,21 +104,30 @@ function BatchView(data::T; batchsize::Int=1, partial::Bool=true, collate=Val(no
         @warn "Number of observations less than batch-size, decreasing the batch-size to $n"
         batchsize = n
     end
-    collate = collate isa Val ? collate : Val(collate)
-    if !(collate ∈ (Val(nothing), Val(true), Val(false)))
-        throw(ArgumentError("`collate` must be one of `nothing`, `true` or `false`."))
+    if collate === nothing || collate isa Bool
+        collate = collate = Val(collate)
+    end
+    if collate === Val(true)
+        collate = MLUtils.batch
     end
     E = _batchviewelemtype(data, collate)
     count = partial ? cld(n, batchsize) : fld(n, batchsize)
-    BatchView{E,T,typeof(collate)}(data, batchsize, count, partial)
+    return BatchView{E,T,typeof(collate)}(data, batchsize, count, partial, collate)
 end
 
 _batchviewelemtype(::TData, ::Val{nothing}) where TData =
     Core.Compiler.return_type(getobs, Tuple{TData, UnitRange{Int}})
 _batchviewelemtype(::TData, ::Val{false}) where TData =
     Vector{Core.Compiler.return_type(getobs, Tuple{TData, Int})}
-_batchviewelemtype(data, ::Val{true}) =
-    Core.Compiler.return_type(batch, Tuple{_batchviewelemtype(data, Val(false))})
+_batchviewelemtype(data, collate) =
+    Core.Compiler.return_type(collate, Tuple{_batchviewelemtype(data, Val(false))})
+
+function Base.show(io::IO, A::BatchView)
+    print(io, "BatchView(")
+    show(io, A.data)
+    print(io, ", batchsize=$(A.batchsize), partial=$(A.partial), collate=$(A.collate)")
+    print(io, ')')
+end
 
 """
     batchsize(data::BatchView) -> Int
@@ -136,22 +154,22 @@ end
 
 Base.@propagate_inbounds function Base.getindex(A::BatchView, i::Int)
     obsindices = _batchrange(A, i)
-    _getbatch(A, obsindices)
+    return _getbatch(A, obsindices)
 end
 
 Base.@propagate_inbounds function Base.getindex(A::BatchView, is::AbstractVector)
     obsindices = union((_batchrange(A, i) for i in is)...)::Vector{Int}
-    _getbatch(A, obsindices)
+    return _getbatch(A, obsindices)
 end
 
-function _getbatch(A::BatchView{TElem, TData, Val{true}}, obsindices) where {TElem, TData}
-    batch([getobs(A.data, i) for i in obsindices])
+function _getbatch(A::BatchView{TElem, TData, TCollate}, obsindices) where {TElem, TData, TCollate}
+    return A.collate([getobs(A.data, i) for i in obsindices])
 end
 function _getbatch(A::BatchView{TElem, TData, Val{false}}, obsindices) where {TElem, TData}
     return [getobs(A.data, i) for i in obsindices]
 end
 function _getbatch(A::BatchView{TElem, TData, Val{nothing}}, obsindices) where {TElem, TData}
-    getobs(A.data, obsindices)
+    return getobs(A.data, obsindices)
 end
 
 Base.parent(A::BatchView) = A.data
