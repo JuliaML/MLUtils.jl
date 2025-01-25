@@ -734,6 +734,25 @@ julia> fill_like(x, 1.7, Float64)
 fill_like(x::AbstractArray, val, T::Type, sz=size(x)) = fill!(similar(x, T, sz), val)
 fill_like(x::AbstractArray, val, sz=size(x)) = fill_like(x, val, eltype(x), sz)
 
+"""
+    trues_like(x, [dims=size(x)])
+
+Equivalent to `fill_like(x, true, dims)`.
+
+See also [`fill_like`] and [`falses_like`](@ref).
+"""
+trues_like(x::AbstractArray, sz=size(x)) = fill_like(x, true, sz)
+
+"""
+    falses_like(x, [dims=size(x)])
+
+Equivalent to `fill_like(x, false, dims)`.
+
+See also [`fill_like`] and [`trues_like`](@ref).
+"""
+falses_like(x::AbstractArray, sz=size(x)) = fill_like(x, false, sz)
+
+
 @non_differentiable zeros_like(::Any...)
 @non_differentiable ones_like(::Any...)
 @non_differentiable rand_like(::Any...)
