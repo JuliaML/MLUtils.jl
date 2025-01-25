@@ -1,6 +1,7 @@
 module Datasets
 using Random
 using DelimitedFiles: readdlm
+using MLUtils: getobs, shuffleobs
 
 include("load_datasets.jl")
 export load_iris

@@ -78,17 +78,23 @@ end
 """
     make_moons(n; noise=0.0, f_rand=randn, shuffle=true) -> x, y
 
-Generate a dataset with two interleaving half circles. The number of samples
-is given by `n_samples` and the noise level can be controlled by the `noise` argument.
+Generate a dataset with two interleaving half circles. 
+
+If `n` is an integer, the number of samples is `n` and the number of samples
+for each half circle is `n ÷ 2`. If `n` is a tuple, the first element of the tuple
+denotes the number of samples for the first half circle and the second element
+denotes the number of samples for the second half circle.
+
+The noise level can be controlled by the `noise` argument.
+
+Set `shuffle=false` to keep the order of the samples.
 
 Returns a 2 x n matrix with the the samples. 
-Set `shuffle=false` to keep the order of the samples.
 """
 function make_moons(n_samples::Union{Int, Tuple{Int, Int}} = 100;
         noise::Number = 0.0, f_rand = randn, shuffle::Bool = true)
     
-    T = Float64
-    rng = Randon.default_rng()
+    rng = Random.default_rng()
     if n_samples isa Tuple
         @assert length(n_samples) == 2
         n_samples_1, n_samples_2 = n_samples
@@ -96,17 +102,17 @@ function make_moons(n_samples::Union{Int, Tuple{Int, Int}} = 100;
         n_samples_1 = n_samples ÷ 2
         n_samples_2 = n_samples - n_samples_1
     end
-    t_min, t_max = T(0), T(π)
-    t_inner = rand(rng, T, n_samples_1) * (t_max - t_min) .+ t_min
-    t_outer = rand(rng, T, n_samples_2) * (t_max - t_min) .+ t_min
+    t_min, t_max = 0.0, π
+    t_inner = rand(rng, n_samples_1) * (t_max - t_min) .+ t_min
+    t_outer = rand(rng, n_samples_2) * (t_max - t_min) .+ t_min
     outer_circ_x = cos.(t_outer)
-    outer_circ_y = sin.(t_outer) .+ T(1)
+    outer_circ_y = sin.(t_outer)
     inner_circ_x = 1 .- cos.(t_inner)
-    inner_circ_y = 1 .- sin.(t_inner) .- T(1)
+    inner_circ_y = 0.5 .- sin.(t_inner)
 
     x = [outer_circ_x outer_circ_y; inner_circ_x inner_circ_y]
     x = permutedims(x, (2, 1))
-    x .+= T(noise) * f_rand(rng, T, size(z))
+    x .+= noise .* f_rand(rng, size(x))
     y = [fill(1, n_samples_1); fill(2, n_samples_2)] 
     if shuffle
         x, y = getobs(shuffleobs((x, y)))
