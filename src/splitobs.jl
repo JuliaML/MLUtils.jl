@@ -53,13 +53,15 @@ The number of returned subsets is `length(at)+1`.
 If `shuffle=true`, randomly permute the observations before splitting.
 A random number generator `rng` can be optionally passed as the first argument.
 
-Supports any datatype implementing the [`numobs`](@ref) and
-[`getobs`](@ref) interfaces -- including arrays, tuples & NamedTuples of arrays.
+
+Supports any datatype implementing [`numobs`](@ref). 
+
+It relies on [`obsview`](@ref) to create views of the data.
 
 # Examples
 
 ```jldoctest
-julia> splitobs(permutedims(1:100); at=0.7)  # simple 70%-30% split, of a matrix
+julia> splitobs(reshape(1:100, 1, :); at=0.7)  # simple 70%-30% split, of a matrix
 ([1 2 … 69 70], [71 72 … 99 100])
 
 julia> data = (x=ones(2,10), n=1:10)  # a NamedTuple, consistent last dimension
@@ -68,7 +70,7 @@ julia> data = (x=ones(2,10), n=1:10)  # a NamedTuple, consistent last dimension
 julia> splitobs(data, at=(0.5, 0.3))  # a 50%-30%-20% split, e.g. train/test/validation
 ((x = [1.0 1.0 … 1.0 1.0; 1.0 1.0 … 1.0 1.0], n = 1:5), (x = [1.0 1.0 1.0; 1.0 1.0 1.0], n = 6:8), (x = [1.0 1.0; 1.0 1.0], n = 9:10))
 
-julia> train, test = splitobs((permutedims(1.0:100.0), 101:200), at=0.7, shuffle=true);  # split a Tuple
+julia> train, test = splitobs((reshape(1.0:100.0, 1, :), 101:200), at=0.7, shuffle=true);  # split a Tuple
 
 julia> vec(test[1]) .+ 100 == test[2]
 true
