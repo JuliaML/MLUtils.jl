@@ -1,31 +1,31 @@
-"""
-    eachobsparallel(data; buffer, executor, channelsize)
+# """
+#     eachobsparallel(data; buffer, executor, channelsize)
 
-Construct a data iterator over observations in container `data`.
-It uses available threads as workers to load observations in
-parallel, leading to large speedups when threads are available.
+# Construct a data iterator over observations in container `data`.
+# It uses available threads as workers to load observations in
+# parallel, leading to large speedups when threads are available.
 
-To ensure that the active Julia session has multiple threads
-available, check that `Threads.nthreads() > 1`. You can start
-Julia with multiple threads with the `-t n` option. If your data
-loading is bottlenecked by the CPU, it is recommended to set `n`
-to the number of physical CPU cores.
+# To ensure that the active Julia session has multiple threads
+# available, check that `Threads.nthreads() > 1`. You can start
+# Julia with multiple threads with the `-t n` option. If your data
+# loading is bottlenecked by the CPU, it is recommended to set `n`
+# to the number of physical CPU cores.
 
-## Arguments
+# ## Arguments
 
-- `data`: a data container that implements `getindex/getobs` and `length/numobs`
-- `buffer = false`: whether to use inplace data loading with `getobs!`. Only use
-    this if you need the additional performance and `getobs!` is implemented for
-    `data`. Setting `buffer = true` means that when using the iterator, an
-    observation is only valid for the current loop iteration.
-    You can also pass in a preallocated `buffer = getobs(data, 1)`.
-- `executor = Folds.ThreadedEx()`: task scheduler
-    You may specify a different task scheduler which can
-    be any `Folds.Executor`.
-- `channelsize = Threads.nthreads()`: the number of observations that are prefetched.
-    Increasing `channelsize` can lead to speedups when per-observation processing
-    time is irregular but will cause higher memory usage.
-"""
+# - `data`: a data container that implements `getindex/getobs` and `length/numobs`
+# - `buffer = false`: whether to use inplace data loading with `getobs!`. Only use
+#     this if you need the additional performance and `getobs!` is implemented for
+#     `data`. Setting `buffer = true` means that when using the iterator, an
+#     observation is only valid for the current loop iteration.
+#     You can also pass in a preallocated `buffer = getobs(data, 1)`.
+# - `executor = Folds.ThreadedEx()`: task scheduler
+#     You may specify a different task scheduler which can
+#     be any `Folds.Executor`.
+# - `channelsize = Threads.nthreads()`: the number of observations that are prefetched.
+#     Increasing `channelsize` can lead to speedups when per-observation processing
+#     time is irregular but will cause higher memory usage.
+# """
 function eachobsparallel(
         data;
         executor::Executor = _default_executor(),
@@ -82,15 +82,15 @@ _default_executor() = ThreadedEx()
 # a result channel.
 
 
-"""
-    Loader(f, args; executor, channelsize, setup_channel)
+# """
+#     Loader(f, args; executor, channelsize, setup_channel)
 
-Create a threaded iterator that iterates over `(f(arg) for arg in args)`
-using threads that prefill a channel of length `channelsize`.
+# Create a threaded iterator that iterates over `(f(arg) for arg in args)`
+# using threads that prefill a channel of length `channelsize`.
 
-Note: results may not be returned in the correct order, depending on
-`executor`.
-"""
+# Note: results may not be returned in the correct order, depending on
+# `executor`.
+# """
 struct Loader
     f
     argiter::AbstractVector
@@ -146,33 +146,33 @@ end
 # The `RingBuffer` ensures that the same buffers are reused
 # and the loading works asynchronously.
 
-"""
-    RingBuffer(size, buffer)
-    RingBuffer(buffers)
+# """
+#     RingBuffer(size, buffer)
+#     RingBuffer(buffers)
 
-A `Channel`-like data structure that rotates through
-`size` buffers. You can either pass in a vector of `buffers`, or
-a single `buffer` that is copied `size` times.
+# A `Channel`-like data structure that rotates through
+# `size` buffers. You can either pass in a vector of `buffers`, or
+# a single `buffer` that is copied `size` times.
 
-`put!`s work by mutating one of the buffers:
+# `put!`s work by mutating one of the buffers:
 
-```
-put!(ringbuffer) do buf
-    rand!(buf)
-end
-```
+# ```
+# put!(ringbuffer) do buf
+#     rand!(buf)
+# end
+# ```
 
-The result can then be `take!`n:
+# The result can then be `take!`n:
 
-```
-res = take!(ringbuffer)
-```
+# ```
+# res = take!(ringbuffer)
+# ```
 
-!!! warning "Invalidation"
+# !!! warning "Invalidation"
 
-    Only one result is valid at a time! On the next `take!`, the previous
-    result will be reused as a buffer and be mutated by a `put!`
-"""
+#     Only one result is valid at a time! On the next `take!`, the previous
+#     result will be reused as a buffer and be mutated by a `put!`
+# """
 mutable struct RingBuffer{T}
     buffers::Channel{T}
     results::Channel{T}
@@ -198,24 +198,24 @@ function Base.take!(ringbuffer::RingBuffer)
 end
 
 
-"""
-    put!(f!, ringbuffer::RingBuffer)
+# """
+#     put!(f!, ringbuffer::RingBuffer)
 
-Apply f! to a buffer in `ringbuffer` and put into the results
-channel.
+# Apply f! to a buffer in `ringbuffer` and put into the results
+# channel.
 
-```julia
-x = rand(10, 10)
-ringbuffer = RingBuffer(1, x)
-put!(ringbuffer) do buf
-    @test x == buf
-    copy!(buf, rand(10, 10))
-end
-x_ = take!(ringbuffer)
-@test !(x ≈ x_)
+# ```julia
+# x = rand(10, 10)
+# ringbuffer = RingBuffer(1, x)
+# put!(ringbuffer) do buf
+#     @test x == buf
+#     copy!(buf, rand(10, 10))
+# end
+# x_ = take!(ringbuffer)
+# @test !(x ≈ x_)
 
-```
-"""
+# ```
+# """
 function Base.put!(f!, ringbuffer::RingBuffer)
     buf = take!(ringbuffer.buffers)
     buf_ = f!(buf)

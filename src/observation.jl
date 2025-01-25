@@ -20,18 +20,19 @@ See also [`getobs`](@ref).
 
 # Examples
 ```jldoctest
+julia> x = (a = [1, 2, 3], b = ones(6, 3)); # named tuples
 
-# named tuples 
-x = (a = [1, 2, 3], b = rand(6, 3))
-numobs(x) == 3
+julia> numobs(x)
+3
 
-# dictionaries
-x = Dict(:a => [1, 2, 3], :b => rand(6, 3))
-numobs(x) == 3
+julia> x = Dict(:a => [1, 2, 3], :b => ones(6, 3)); # dictionaries
+
+julia> numobs(x) 
+3
 ```
 All internal containers must have the same number of observations:
-```juliarepl
-julia> x = (a = [1, 2, 3, 4], b = rand(6, 3));
+```julia
+julia> x = (a = [1, 2, 3, 4], b = ones(6, 3));
 
 julia> numobs(x)
 ERROR: DimensionMismatch: All data containers must have the same number of observations.
@@ -86,18 +87,21 @@ See also [`getobs!`](@ref) and [`numobs`](@ref).
 # Examples
 
 ```jldoctest
-# named tuples 
-x = (a = [1, 2, 3], b = rand(6, 3))
+julia> x = (a = [1, 2, 3], b = rand(6, 3));
 
-getobs(x, 2) == (a = 2, b = x.b[:, 2])
-getobs(x, [1, 3]) == (a = [1, 3], b = x.b[:, [1, 3]])
+julia> getobs(x, 2) == (a = 2, b = x.b[:, 2])
+true
 
+julia> getobs(x, [1, 3]) == (a = [1, 3], b = x.b[:, [1, 3]])
+true
 
-# dictionaries
-x = Dict(:a => [1, 2, 3], :b => rand(6, 3))
+julia> x = Dict(:a => [1, 2, 3], :b => rand(6, 3));
 
-getobs(x, 2) == Dict(:a => 2, :b => x[:b][:, 2])
-getobs(x, [1, 3]) == Dict(:a => [1, 3], :b => x[:b][:, [1, 3]])
+julia> getobs(x, 2) == Dict(:a => 2, :b => x[:b][:, 2])
+true
+
+julia> getobs(x, [1, 3]) == Dict(:a => [1, 3], :b => x[:b][:, [1, 3]])
+true
 ```
 """
 function getobs end

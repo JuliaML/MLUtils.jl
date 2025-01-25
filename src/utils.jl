@@ -7,7 +7,7 @@ Return `x` reshaped into an array one dimensionality higher than `x`,
 where `dims` indicates in which dimension `x` is extended.
 `dims` can be an integer between 1 and `ndims(x)+1`.
 
-See also [`flatten`](@ref), [`stack`](@ref).
+See also [`flatten`](@ref), `stack`.
 
 # Examples
 
@@ -62,8 +62,9 @@ Base.show_function(io::IO, u::Base.Fix2{typeof(_unsqueeze)}, ::Bool) = print(io,
 
 Unroll the given `xs` into an array of arrays along the given dimension `dims`.
 
-See also [`stack`](https://docs.julialang.org/en/v1/base/arrays/#Base.stack), [`unbatch`](@ref),
-and [`chunk`](@ref).
+It is the inverse operation of [stack](https://docs.julialang.org/en/v1/base/arrays/#Base.stack).
+
+See also [`unbatch`](@ref) and [`chunk`](@ref).
 
 # Examples
 
@@ -445,8 +446,8 @@ up to a maximum length in each direction specified by `n`.
 ```jldoctest
 julia> rpad_constant([1, 2], 4, -1) # passing with -1 up to size 4
 4-element Vector{Int64}:
- 1
- 2
+  1
+  2
  -1
  -1
 
@@ -461,7 +462,7 @@ julia> rpad_constant([1 2; 3 4], 4; dims=1) # padding along the first dimension
  1  2
  3  4
  0  0
- 0  0 
+ 0  0
 
 julia> rpad_constant([1 2; 3 4], 4) # padding along all dimensions by default
 4×4 Matrix{Int64}:
