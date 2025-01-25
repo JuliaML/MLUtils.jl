@@ -1,6 +1,6 @@
 """
-    oversample(data, classes; fraction=1, shuffle=true)
-    oversample(data::Tuple; fraction=1, shuffle=true)
+    oversample([rng], data, classes; fraction=1, shuffle=true)
+    oversample([rng], data::Tuple; fraction=1, shuffle=true)
 
 Generate a re-balanced version of `data` by repeatedly sampling
 existing observations in such a way that every class will have at
@@ -20,6 +20,9 @@ The convenience parameter `shuffle` determines if the
 resulting data will be shuffled after its creation; if it is not
 shuffled then all the repeated samples will be together at the
 end, sorted by class. Defaults to `true`.
+
+The random number generator `rng` can be optionally passed as the
+first argument. 
 
 The output will contain both the resampled data and classes.
 
@@ -44,7 +47,7 @@ X_bal, Y_bal = oversample(X, Y)
 For this function to work, the type of `data` must implement
 [`numobs`](@ref) and [`getobs`](@ref). 
 
-Note that if `data` is a tuple and `classes` is not given, 
+If `data` is a tuple and `classes` is not given, 
 then it will be assumed that the last element of the tuple contains the classes.
 
 ```julia
@@ -77,7 +80,10 @@ julia> getobs(oversample(data, data.Y))
 See [`ObsView`](@ref) for more information on data subsets.
 See also [`undersample`](@ref).
 """
-function oversample(data, classes; fraction=1, shuffle::Bool=true)
+oversample(data, classes; kws...) = oversample(Random.default_rng(), data, classes; kws...)
+oversample(data::Tuple; kws...) = oversample(Random.default_rng(), data; kws...)
+
+function oversample(rng::AbstractRNG, data, classes; fraction=1, shuffle::Bool=true)
     lm = group_indices(classes)
 
     maxcount = maximum(length, values(lm))
@@ -94,24 +100,25 @@ function oversample(data, classes; fraction=1, shuffle::Bool=true)
         end
         if num_extra_needed > 0
             if shuffle
-                append!(inds, sample(inds_for_lbl, num_extra_needed; replace=false))
+                append!(inds, sample(rng, inds_for_lbl, num_extra_needed; replace=false))
             else
                 append!(inds, inds_for_lbl[1:num_extra_needed])
             end
         end
     end
 
-    shuffle && shuffle!(inds)
+    shuffle && shuffle!(rng, inds)
     return obsview(data, inds), obsview(classes, inds)
 end
 
-function oversample(data::Tuple; kws...)
-    d, c = oversample(data[1:end-1], data[end]; kws...)
+function oversample(rng::AbstractRNG, data::Tuple; kws...)
+    d, c = oversample(rng, data[1:end-1], data[end]; kws...)
     return (d..., c)
 end
 
 """
-    undersample(data, classes; shuffle=true)
+    undersample([rng], data, classes; shuffle=true)
+    undersample([rng], data::Tuple; shuffle=true)
 
 Generate a class-balanced version of `data` by subsampling its
 observations in such a way that the resulting number of
@@ -123,6 +130,9 @@ The convenience parameter `shuffle` determines if the
 resulting data will be shuffled after its creation; if it is not
 shuffled then all the observations will be in their original
 order. Defaults to `false`.
+
+If `data` is a tuple and `classes` is not given, 
+then it will be assumed that the last element of the tuple contains the classes.
 
 The output will contain both the resampled data and classes.
 
@@ -176,7 +186,10 @@ julia> getobs(undersample(data, data.Y))
 See [`ObsView`](@ref) for more information on data subsets.
 See also [`oversample`](@ref).
 """
-function undersample(data, classes; shuffle::Bool=true)
+undersample(data, classes; kws...) = undersample(Random.default_rng(), data, classes; kws...)
+undersample(data::Tuple; kws...) = undersample(Random.default_rng(), data; kws...)
+
+function undersample(rng::AbstractRNG, data, classes; shuffle::Bool=true)
     lm = group_indices(classes)
     mincount = minimum(length, values(lm))
 
@@ -184,17 +197,17 @@ function undersample(data, classes; shuffle::Bool=true)
     
     for (lbl, inds_for_lbl) in lm
         if shuffle
-            append!(inds, sample(inds_for_lbl, mincount; replace=false))
+            append!(inds, sample(rng, inds_for_lbl, mincount; replace=false))
         else
             append!(inds, inds_for_lbl[1:mincount])
         end
     end
 
-    shuffle ? shuffle!(inds) : sort!(inds)
+    shuffle ? shuffle!(rng, inds) : sort!(inds)
     return obsview(data, inds), obsview(classes, inds)
 end
 
-function undersample(data::Tuple; kws...)
-    d, c = undersample(data[1:end-1], data[end]; kws...)
+function undersample(rng::AbstractRNG, data::Tuple; kws...)
+    d, c = undersample(rng, data[1:end-1], data[end]; kws...)
     return (d..., c)
 end
