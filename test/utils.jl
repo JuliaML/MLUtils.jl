@@ -193,10 +193,11 @@ end
     @test bs[2] == [2, 5]
     @test bs[3] == [3, -1]
 
-    batchseq([ones(2,4), zeros(2, 3), ones(2,2)]) ==[[1.0 0.0 1.0; 1.0 0.0 1.0]
-                                                    [1.0 0.0 1.0; 1.0 0.0 1.0]
-                                                    [1.0 0.0 0.0; 1.0 0.0 0.0]
-                                                    [1.0 0.0 0.0; 1.0 0.0 0.0]]
+    bs = batchseq([[ones(3), ones(3), ones(3)], [zeros(3), zeros(3)]], [-1,-1,-1])
+    @test bs isa Vector{Matrix{Float64}}
+    @test bs[1] == [1.0 0.0; 1.0 0.0; 1.0 0.0]
+    @test bs[2] == [1.0 0.0; 1.0 0.0; 1.0 0.0]
+    @test bs[3] ==  [1.0 -1.0; 1.0 -1.0; 1.0 -1.0]
 end
 
 @testset "ones_like" begin

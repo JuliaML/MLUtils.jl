@@ -429,10 +429,10 @@ julia> batchseq([[1, 2, 3], [4, 5]], 0)
  [3, 0]
 ```
 """
-function batchseq(xs, val = 0, n = nothing)
-    n = n === nothing ? maximum(x -> size(x, ndims(x)), xs) : n
+function batchseq(xs, val = 0)
+    n = maximum(numobs, xs)
     xs_ = [rpad_constant(x, n, val; dims=ndims(x)) for x in xs]
-    [batch([obsview(xs_[j], i) for j = 1:length(xs_)]) for i = 1:n]
+    return [batch([getobs(xs_[j], i) for j = 1:length(xs_)]) for i = 1:n]
 end
 
 """
@@ -464,11 +464,11 @@ julia> rpad_constant([1 2; 3 4], 4; dims=1) # padding along the first dimension
  0  0 
 
 julia> rpad_constant([1 2; 3 4], 4) # padding along all dimensions by default
-4×2 Matrix{Int64}:
- 1  2
- 3  4
- 0  0
- 0  0 
+4×4 Matrix{Int64}:
+ 1  2  0  0
+ 3  4  0  0
+ 0  0  0  0
+ 0  0  0  0
 ```
 """
 function rpad_constant(x::AbstractArray, n::Union{Integer, Tuple}, val=0; dims=:)
