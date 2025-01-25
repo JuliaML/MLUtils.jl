@@ -28,3 +28,20 @@ end
     # test_plot = scatterplot(xtmp[1, 1:97], xtmp[2, 1:97], title="Spiral Function", color=:blue, name="pos")
     # print(scatterplot!(test_plot, xtmp[1, 98:194], xtmp[2, 98:194], color=:yellow, name="neg" ))
 end
+
+
+@testset "make_moons" begin
+    x, y = Datasets.make_moons(100, noise=0, shuffle=false)
+    @test size(x) == (2, 100)
+    @test size(y) == (100,)
+    @test all(==(1), y[1:50])
+    @test all(==(2), y[51:100])
+    @test minimum(x[1,1:50]) >= -1
+    @test maximum(x[1,1:50]) <= 1
+    @test minimum(x[2,1:50]) >= -1
+    @test maximum(x[2,1:50]) <= 1
+    @test minimum(x[1,51:100]) >= 0
+    @test maximum(x[1,51:100]) <= 2
+    @test minimum(x[2,51:100]) >= -0.5
+    @test maximum(x[2,51:100]) <= 0.5
+end
