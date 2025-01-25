@@ -89,6 +89,11 @@ end
     data1, data2 = 1:10, 11:20
     jdata = joinobs(data1, data2)
     @test getobs(jdata, 15) == 15
+
+    data = joinobs(1:5, 6:10)
+    @test data[5:6] == [5, 6]
+    data = joinobs(ones(2, 3), zeros(2, 3))
+    @test data[3:4] == [[1.0, 1.0], [0.0, 0.0]]
 end
 
 @testset "shuffleobs" begin

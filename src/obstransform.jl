@@ -168,7 +168,8 @@ JoinedData(datas) = JoinedData(datas, numobs.(datas))
 
 Base.length(data::JoinedData) = sum(data.ns)
 
-function Base.getindex(data::JoinedData, idx)
+function Base.getindex(data::JoinedData, idx::Integer)
+    @assert 1 <= idx <= length(data)
     for (i, n) in enumerate(data.ns)
         if idx <= n
             return getobs(data.datas[i], idx)
@@ -176,6 +177,10 @@ function Base.getindex(data::JoinedData, idx)
             idx -= n
         end
     end
+end
+
+function Base.getindex(data::JoinedData, idx::AbstractVector{<:Integer})
+    return [data[i] for i in idx]
 end
 
 """

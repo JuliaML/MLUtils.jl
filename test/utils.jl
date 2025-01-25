@@ -242,6 +242,17 @@ end
     test_zygote(fill_like, rand(5), rand(), (2, 4, 2))
 end
 
+@testset "trues_like and falses_like" begin
+    x = rand(Float16, 2, 3)
+    y = trues_like(x, (2, 4, 2))
+    @test y isa Array{Bool,3}
+    @test y == trues(2, 4, 2)
+
+    y = falses_like(x, (2, 4, 2))
+    @test y isa Array{Bool,3}
+    @test y == falses(2, 4, 2)
+end
+
 @testset "rpad_constant" begin
     @test rpad_constant([1, 2], 4, -1) == [1, 2, -1, -1]
     @test rpad_constant([1, 2, 3], 2)  == [1, 2, 3]
