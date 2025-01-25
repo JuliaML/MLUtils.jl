@@ -95,7 +95,7 @@ struct BatchView{TElem,TData,TCollate} <: AbstractDataContainer
     batchsize::Int
     count::Int
     partial::Bool
-    collate::TCollate
+    collate::TCollate # either Val(nothing), Val(false), or a function
 end
 
 function BatchView(data::T; batchsize::Int=1, partial::Bool=true, collate=Val(nothing)) where {T}
