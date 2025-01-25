@@ -38,14 +38,16 @@ function _splitobs(n::Int, at::NTuple{N,<:AbstractFloat}) where N
 end
 
 """
-    splitobs(data; at, shuffle=false) -> Tuple
+    splitobs([rng], data; at, shuffle=false) -> Tuple
 
 Partition the `data` into two or more subsets.
+
 When `at` is a number (between 0 and 1) this specifies the proportion in the first subset.
 When `at` is a tuple, each entry specifies the proportion an a subset,
 with the last having `1-sum(at)`. In all there are `length(at)+1` subsets returned.
 
 If `shuffle=true`, randomly permute the observations before splitting.
+A random number generator `rng` can be optionally passed as the first argument.
 
 Supports any datatype implementing the [`numobs`](@ref) and
 [`getobs`](@ref) interfaces -- including arrays, tuples & NamedTuples of arrays.
@@ -68,9 +70,11 @@ julia> vec(test[1]) .+ 100 == test[2]
 true
 ```
 """
-function splitobs(data; at, shuffle::Bool=false)
+splitobs(data; kws...) = splitobs(Random.default_rng(), data; kws...)
+
+function splitobs(rng::AbstractRNG, data; at, shuffle::Bool=false)
     if shuffle
-        data = shuffleobs(data)
+        data = shuffleobs(rng, data)
     end
     n = numobs(data)
     return map(idx -> obsview(data, idx), splitobs(n; at))

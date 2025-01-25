@@ -82,4 +82,11 @@ end
     @test s != X[:,1:2]
     @test any(s[:,1] == x for x in eachcol(X))
     @test any(s[:,2] == x for x in eachcol(X))
+
+    data = 1:100
+    rng = MersenneTwister(1234)
+    p1, _ = splitobs(rng, data, at=3, shuffle=true)
+    rng = MersenneTwister(1234)
+    p2, _ = splitobs(rng, data, at=3, shuffle=true)
+    @test p1 == p2
 end
