@@ -19,4 +19,6 @@ makedocs(;
              "API" => "api.md"],
 )
 
+rm(joinpath(@__DIR__, "src/index.md"))
+
 deploydocs(repo="github.com/JuliaML/MLUtils.jl.git",  devbranch="main")
