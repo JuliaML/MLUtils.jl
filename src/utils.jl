@@ -737,20 +737,20 @@ fill_like(x::AbstractArray, val, sz=size(x)) = fill_like(x, val, eltype(x), sz)
 """
     trues_like(x, [dims=size(x)])
 
-Equivalent to `fill_like(x, true, dims)`.
+Equivalent to `fill_like(x, true, Bool, dims)`.
 
 See also [`fill_like`] and [`falses_like`](@ref).
 """
-trues_like(x::AbstractArray, sz=size(x)) = fill_like(x, true, sz)
+trues_like(x::AbstractArray, sz=size(x)) = fill_like(x, true, Bool, sz)
 
 """
     falses_like(x, [dims=size(x)])
 
-Equivalent to `fill_like(x, false, dims)`.
+Equivalent to `fill_like(x, false, Bool, dims)`.
 
 See also [`fill_like`] and [`trues_like`](@ref).
 """
-falses_like(x::AbstractArray, sz=size(x)) = fill_like(x, false, sz)
+falses_like(x::AbstractArray, sz=size(x)) = fill_like(x, false, Bool, sz)
 
 
 @non_differentiable zeros_like(::Any...)
