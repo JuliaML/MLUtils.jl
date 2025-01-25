@@ -1,6 +1,6 @@
 """
-    oversample(data, classes; fraction=1, shuffle=true)
-    oversample(data::Tuple; fraction=1, shuffle=true)
+    oversample([rng], data, classes; fraction=1, shuffle=true)
+    oversample([rng], data::Tuple; fraction=1, shuffle=true)
 
 Generate a re-balanced version of `data` by repeatedly sampling
 existing observations in such a way that every class will have at
@@ -20,6 +20,9 @@ The convenience parameter `shuffle` determines if the
 resulting data will be shuffled after its creation; if it is not
 shuffled then all the repeated samples will be together at the
 end, sorted by class. Defaults to `true`.
+
+The random number generator `rng` can be optionally passed as the
+first argument. 
 
 The output will contain both the resampled data and classes.
 
@@ -77,7 +80,9 @@ julia> getobs(oversample(data, data.Y))
 See [`ObsView`](@ref) for more information on data subsets.
 See also [`undersample`](@ref).
 """
-function oversample(data, classes; fraction=1, shuffle::Bool=true)
+oversample(data, classes; kws...) = oversample(Random.default_rng(), data, classes; kws...)
+
+function oversample(rng::AbstractRNG, data, classes; fraction=1, shuffle::Bool=true)
     lm = group_indices(classes)
 
     maxcount = maximum(length, values(lm))
@@ -94,14 +99,14 @@ function oversample(data, classes; fraction=1, shuffle::Bool=true)
         end
         if num_extra_needed > 0
             if shuffle
-                append!(inds, sample(inds_for_lbl, num_extra_needed; replace=false))
+                append!(inds, sample(rng, inds_for_lbl, num_extra_needed; replace=false))
             else
                 append!(inds, inds_for_lbl[1:num_extra_needed])
             end
         end
     end
 
-    shuffle && shuffle!(inds)
+    shuffle && shuffle!(rng, inds)
     return obsview(data, inds), obsview(classes, inds)
 end
 
@@ -111,7 +116,7 @@ function oversample(data::Tuple; kws...)
 end
 
 """
-    undersample(data, classes; shuffle=true)
+    undersample([rng], data, classes; shuffle=true)
 
 Generate a class-balanced version of `data` by subsampling its
 observations in such a way that the resulting number of
@@ -176,7 +181,9 @@ julia> getobs(undersample(data, data.Y))
 See [`ObsView`](@ref) for more information on data subsets.
 See also [`oversample`](@ref).
 """
-function undersample(data, classes; shuffle::Bool=true)
+undersample(data, classes; kws...) = undersample(Random.default_rng(), data, classes; kws...)
+
+function undersample(rng::AbstractRNG, data, classes; shuffle::Bool=true)
     lm = group_indices(classes)
     mincount = minimum(length, values(lm))
 
@@ -184,13 +191,13 @@ function undersample(data, classes; shuffle::Bool=true)
     
     for (lbl, inds_for_lbl) in lm
         if shuffle
-            append!(inds, sample(inds_for_lbl, mincount; replace=false))
+            append!(inds, sample(rng, inds_for_lbl, mincount; replace=false))
         else
             append!(inds, inds_for_lbl[1:mincount])
         end
     end
 
-    shuffle ? shuffle!(inds) : sort!(inds)
+    shuffle ? shuffle!(rng, inds) : sort!(inds)
     return obsview(data, inds), obsview(classes, inds)
 end
 
