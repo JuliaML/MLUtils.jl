@@ -51,6 +51,8 @@ splitobs
 falses_like
 fill_like
 ones_like
+rand_like
+randn_like
 trues_like
 zeros_like
 ```
@@ -71,7 +73,6 @@ group_counts
 group_indices
 normalise
 rpad_constant
-stack
 unbatch
 unsqueeze
 unstack

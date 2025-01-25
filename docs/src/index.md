@@ -5,7 +5,7 @@
 [![](https://github.com/JuliaML/MLUtils.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/JuliaML/MLUtils.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![](https://codecov.io/gh/JuliaML/MLUtils.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JuliaML/MLUtils.jl)
 
-`MLUtils.jl` defines interfaces and implements common utilities for Machine Learning pipelines.
+*MLUtils.jl* defines interfaces and implements common utilities for Machine Learning pipelines.
 
 ## Features
 
@@ -43,7 +43,11 @@ cv_data, test_data = splitobs((Xs, Ys); at=0.85)
 
 # Next we partition the data using a 10-fold scheme.
 for (train_data, val_data) in kfolds(cv_data; k=10)
-    for epoch = 1:100
+
+    # We apply a lazy transform for data augmentation
+    train_data = mapobs(xy -> (xy[1] .+ 0.1 .* randn.(), xy[2]),  train_data)
+
+    for epoch = 1:10
         # Iterate over the data using mini-batches of 5 observations each
         for (x, y) in eachobs(train_data, batchsize=5)
             # ... train supervised model on minibatches here
@@ -60,8 +64,8 @@ all the rest are data views.
 
 ## Related Packages
 
-`MLUtils.jl` brings together functionalities previously found in [LearnBase.jl](https://github.com/JuliaML/LearnBase.jl) , [MLDataPattern.jl](https://github.com/JuliaML/MLDataPattern.jl) and [MLLabelUtils.jl](https://github.com/JuliaML/MLLabelUtils.jl). These packages are now discontinued. 
+*MLUtils.jl* brings together functionalities previously found in [LearnBase.jl](https://github.com/JuliaML/LearnBase.jl) , [MLDataPattern.jl](https://github.com/JuliaML/MLDataPattern.jl) and [MLLabelUtils.jl](https://github.com/JuliaML/MLLabelUtils.jl). These packages are now discontinued. 
 
-Other features were ported from the deep learning library [`Flux.jl`](https://github.com/FluxML/Flux.jl), as they are of general use. 
+Other features were ported from the deep learning library [Flux.jl](https://github.com/FluxML/Flux.jl), as they are of general use. 
 
-[` MLJ.jl`](https://alan-turing-institute.github.io/MLJ.jl/dev/) is a more complete package for managing the whole machine learning pipeline if you are looking for a sklearn replacement.
+[MLJ.jl](https://alan-turing-institute.github.io/MLJ.jl/dev/) is a more complete package for managing the whole machine learning pipeline if you are looking for a sklearn replacement.
