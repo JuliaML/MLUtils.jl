@@ -128,6 +128,10 @@ because the type of `data` may not lend itself to the concept
 of `copy!`. Thus, supporting a custom `getobs!` is optional
 and not required.
 
+Custom implementations of `getobs!` should be consistent with
+[`getobs`](@ref) in terms of the output format,
+that is `getobs!(buffer, data, idx) == getobs(data, idx)`.
+
 See also [`getobs`](@ref) and [`numobs`](@ref). 
 """
 function getobs! end

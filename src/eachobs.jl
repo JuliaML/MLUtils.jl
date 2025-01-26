@@ -32,7 +32,7 @@ end
 ```
 """
 function eachobs(data; batchsize=-1, kws...)
-    DataLoader(data; batchsize, kws...)
+    return DataLoader(data; batchsize, kws...)
 end
 
 """
@@ -87,7 +87,7 @@ The original data is preserved in the `data` field of the DataLoader.
 ```jldoctest
 julia> Xtrain = rand(10, 100);
 
-julia> array_loader = DataLoader(Xtrain, batchsize=2);
+julia> array_loader = DataLoader(Xtrain, batchsize=2
 
 julia> for x in array_loader
          @assert size(x) == (10, 2)
@@ -155,28 +155,38 @@ function DataLoader(
         collate = Val(nothing),
         rng::AbstractRNG = Random.default_rng())
 
+    if !(buffer isa Bool) && parallel
+        throw(ArgumentError("If `parallel=true`, `buffer` must be a boolean."))
+    end
+
     if collate isa Bool || collate === nothing
         collate = Val(collate)
     end
     return DataLoader(data, batchsize, buffer, partial, shuffle, parallel, collate, rng)
 end
 
-function Base.iterate(e::DataLoader)
+function Base.iterate(d::DataLoader)
+    # TODO move ObsView and BatchWView wrapping to the constructor, so that 
+    # we can parametrize the DataLoader with ObsView and BatchView and define specialized methods.
+    
     # Wrapping with ObsView in order to work around
     # issue https://github.com/FluxML/Flux.jl/issues/1935
-    data = ObsView(e.data)
+    data = ObsView(d.data)
 
-    data = e.shuffle ? shuffleobs(e.rng, data) : data
-    data = e.batchsize > 0 ? BatchView(data; e.batchsize, e.partial, e.collate) : data
+    data = d.shuffle ? shuffleobs(d.rng, data) : data
+    data = d.batchsize > 0 ? BatchView(data; d.batchsize, d.partial, d.collate) : data
 
-    iter = if e.parallel
-        eachobsparallel(data; e.buffer)
+    if d.parallel
+        iter = eachobsparallel(data; d.buffer)
     else
-        if e.buffer
+        if d.buffer == false
+            iter = (getobs(data, i) for i in 1:numobs(data))
+        elseif d.buffer == true
             buf = getobs(data, 1)
-            (getobs!(buf, data, i) for i in 1:numobs(data))
-        else
-            (getobs(data, i) for i in 1:numobs(data))
+            iter = (getobs!(buf, data, i) for i in 1:numobs(data))
+        else # external buffer
+            buf = d.buffer
+            iter = (getobs!(buf, data, i) for i in 1:numobs(data))
         end
     end
     obs, state = iterate(iter)
@@ -192,16 +202,12 @@ function Base.iterate(::DataLoader, (iter, state))
 end
 
 
-function Base.length(e::DataLoader)
-    numobs(if e.batchsize > 0
-        # Wrapping with ObsView in order to work around
-        # issue https://github.com/FluxML/Flux.jl/issues/1935
-        data = ObsView(e.data)
-
-        BatchView(data; e.batchsize, e.partial)
+function Base.length(d::DataLoader)
+    if d.batchsize > 0
+        return numobs(BatchView(d.data; d.batchsize, d.partial))
     else
-        e.data
-    end)
+        return numobs(d.data)
+    end
 end
 
 Base.size(e::DataLoader) = (length(e),)

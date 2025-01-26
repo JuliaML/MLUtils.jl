@@ -29,7 +29,7 @@
 function eachobsparallel(
         data;
         executor::Executor = _default_executor(),
-        buffer = false,
+        buffer::Bool = false,
         channelsize = Threads.nthreads())
     if buffer
         return _eachobsparallel_buffered(data, executor; channelsize)
@@ -42,9 +42,8 @@ end
 function _eachobsparallel_buffered(
         data,
         executor;
-        buffer = getobs(data, 1),
         channelsize=Threads.nthreads())
-    buffers = [buffer]
+    buffers = [getobs(data, 1)]
     foreach(_ -> push!(buffers, deepcopy(buffer)), 1:channelsize)
 
     # This ensures the `Loader` will take from the `RingBuffer`s result
