@@ -43,7 +43,8 @@ function _eachobsparallel_buffered(
         data,
         executor;
         channelsize=Threads.nthreads())
-    buffers = [getobs(data, 1)]
+    buffer = getobs(data, 1)
+    buffers = [buffer]
     foreach(_ -> push!(buffers, deepcopy(buffer)), 1:channelsize)
 
     # This ensures the `Loader` will take from the `RingBuffer`s result
