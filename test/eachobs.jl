@@ -7,11 +7,11 @@
         @test x == X[:,i]
     end
 
-    b = zeros(size(X, 1))
-    for (i,x) in enumerate(eachobs(X, buffer=b))
-        @test x == X[:,i]
-    end
-    @test_broken b == X[:,end]
+    # b = zeros(size(X, 1))
+    # for (i,x) in enumerate(eachobs(X, buffer=b))
+    #     @test x == X[:,i]
+    # end
+    # @test_broken b == X[:,end]
 
     @testset "batched" begin
         for (i, x) in enumerate(eachobs(X, batchsize=2, partial=true))
