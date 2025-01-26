@@ -60,7 +60,9 @@ The original data is preserved in the `data` field of the DataLoader.
   containing `batchsize` observations. Default `1`.
 - **`buffer`**: If `buffer=true` and supported by the type of `data`,
   a buffer will be allocated and reused for memory efficiency.
-  May want to set `partial=false` to avoid size mismatch. Default `false`. 
+  May want to set `partial=false` to avoid size mismatch. 
+  Finally, can pass an external buffer to be used in `getobs!(buffer, data, idx)`.
+  Default `false`. 
 - **`collate`**: Defines the batching behavior. Default `nothing`. 
   - If `nothing` , a batch is `getobs(data, indices)`. 
   - If `false`, each batch is `[getobs(data, i) for i in indices]`. 
@@ -134,10 +136,10 @@ julia> first(DataLoader(["a", "b", "c", "d"], batchsize=2, collate=collate_fn)) 
 true
 ```
 """
-struct DataLoader{T, R<:AbstractRNG, C}
+struct DataLoader{T,B,C,R<:AbstractRNG}
     data::T
     batchsize::Int
-    buffer::Bool
+    buffer::B
     partial::Bool
     shuffle::Bool
     parallel::Bool
@@ -147,7 +149,7 @@ end
 
 function DataLoader(
         data;
-        buffer::Bool = false,
+        buffer = false,
         parallel::Bool = false,
         shuffle::Bool = false,
         batchsize::Int = 1,
@@ -168,7 +170,7 @@ end
 function Base.iterate(d::DataLoader)
     # TODO move ObsView and BatchWView wrapping to the constructor, so that 
     # we can parametrize the DataLoader with ObsView and BatchView and define specialized methods.
-    
+
     # Wrapping with ObsView in order to work around
     # issue https://github.com/FluxML/Flux.jl/issues/1935
     data = ObsView(d.data)
