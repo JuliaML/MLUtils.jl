@@ -131,8 +131,8 @@ julia> foreach(println∘summary, DataLoader(rand(Int8, 10, 64), batchsize=30)) 
 
 julia> collate_fn(batch) = join(batch);
 
-julia> first(DataLoader(["a", "b", "c", "d"], batchsize=2, collate=collate_fn)) == "ab"
-true
+julia> first(DataLoader(["a", "b", "c", "d"], batchsize=2, collate=collate_fn))
+"ab"
 ```
 """
 struct DataLoader{T,B,C,R<:AbstractRNG}
