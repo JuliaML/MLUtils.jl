@@ -29,21 +29,21 @@
 function eachobsparallel(
         data;
         executor::Executor = _default_executor(),
-        buffer::Bool = false,
+        buffer = false,
         channelsize = Threads.nthreads())
-    if buffer
-        return _eachobsparallel_buffered(data, executor; channelsize)
-    else
+    if buffer == false
         return _eachobsparallel_unbuffered(data, executor; channelsize)
+    else
+        return _eachobsparallel_buffered(buffer, data, executor; channelsize)
     end
 end
 
 
 function _eachobsparallel_buffered(
+        buffer,
         data,
         executor;
         channelsize=Threads.nthreads())
-    buffer = getobs(data, 1)
     buffers = [buffer]
     foreach(_ -> push!(buffers, deepcopy(buffer)), 1:channelsize)
 

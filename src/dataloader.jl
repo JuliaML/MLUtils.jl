@@ -136,7 +136,7 @@ julia> first(DataLoader(["a", "b", "c", "d"], batchsize=2, collate=collate_fn))
 "ab"
 ```
 """
-struct DataLoader{T,B,C,R<:AbstractRNG}
+struct DataLoader{T<:Union{ObsView,BatchView},B,C,R<:AbstractRNG}
     data::T
     batchsize::Int
     buffer::B    # boolean, or external buffer
@@ -157,52 +157,38 @@ function DataLoader(
         collate = Val(nothing),
         rng::AbstractRNG = Random.default_rng())
 
-    if !(buffer isa Bool) && parallel
-        throw(ArgumentError("If `parallel=true`, `buffer` must be a boolean."))
-    end
-
     if collate isa Bool || collate === nothing
         collate = Val(collate)
     end
+
+    # Wrapping with ObsView in order to work around
+    # issue https://github.com/FluxML/Flux.jl/issues/1935    
+    data = ObsView(data)
+    if batchsize > 0
+        data = BatchView(data; batchsize, partial, collate)
+    end
+
+    if buffer == true  
+        buffer = _create_buffer(data)
+    end 
+    # for buffer == false and external buffer, we keep as is
+
     return DataLoader(data, batchsize, buffer, partial, shuffle, parallel, collate, rng)
 end
 
 function Base.iterate(d::DataLoader)
-    # TODO move ObsView and BatchWView wrapping to the constructor, so that 
-    # we can parametrize the DataLoader with ObsView and BatchView and define specialized methods.
-
-    # Wrapping with ObsView in order to work around
-    # issue https://github.com/FluxML/Flux.jl/issues/1935
-    data = ObsView(d.data)
-
-    data = d.shuffle ? shuffleobs(d.rng, data) : data
-    data = d.batchsize > 0 ? BatchView(data; d.batchsize, d.partial, d.collate) : data
-
+    data = d.shuffle ? _shuffledata(d.rng, d.data) : d.data
     if d.parallel
         iter = eachobsparallel(data; d.buffer)
     else
         if d.buffer == false
             iter = (getobs(data, i) for i in 1:numobs(data))
-        elseif d.buffer == true
-            buf = create_buffer(data)
-            iter = (getobs!(buf, data, i) for i in 1:numobs(data))
-        else # external buffer
-            buf = d.buffer
-            iter = (getobs!(buf, data, i) for i in 1:numobs(data))
+        else
+            iter = (getobs!(d.buffer, data, i) for i in 1:numobs(data))
         end
     end
     obs, state = iterate(iter)
     return obs, (iter, state)
-end
-
-create_buffer(x) = getobs(x, 1)
-function create_buffer(x::BatchView)
-    obsindices = _batchrange(x, 1)
-    return [getobs(A.data, idx) for idx in enumerate(obsindices)]
-end
-function create_buffer(x::BatchView{TElem,TData,Val{nothing}}) where {TElem,TData}
-    obsindices = _batchrange(x, 1)
-    return getobs(x.data, obsindices)
 end
 
 function Base.iterate(::DataLoader, (iter, state))
@@ -212,19 +198,31 @@ function Base.iterate(::DataLoader, (iter, state))
     return obs, (iter, state)
 end
 
+# recursively unwraps ObsView and BatchView
+_unwrapdata(data::BatchView) = _unwrapdata(data.data)
+_unwrapdata(data::ObsView) = _unwrapdata(data.data)
+_unwrapdata(data) = data
 
-function Base.length(d::DataLoader)
-    if d.batchsize > 0
-        return numobs(BatchView(d.data; d.batchsize, d.partial))
-    else
-        return numobs(d.data)
-    end
+_shuffledata(rng, data::ObsView) = shuffleobs(rng, data)
+
+_shuffledata(rng, data::BatchView) = 
+    BatchView(shuffleobs(rng, data.data); data.batchsize, data.partial, data.collate)
+
+_create_buffer(x) = getobs(x, 1)
+
+function _create_buffer(x::BatchView)
+    obsindices = _batchrange(x, 1)
+    return [getobs(A.data, idx) for idx in enumerate(obsindices)]
 end
 
-Base.size(e::DataLoader) = (length(e),)
+function _create_buffer(x::BatchView{TElem,TData,Val{nothing}}) where {TElem,TData}
+    obsindices = _batchrange(x, 1)
+    return getobs(x.data, obsindices)
+end
 
-
-Base.IteratorEltype(::DataLoader) = Base.EltypeUnknown()
+Base.length(d::DataLoader) = numobs(d.data)
+Base.size(d::DataLoader) = (length(d),)
+Base.IteratorEltype(d::DataLoader) = Base.EltypeUnknown()
 
 ## This causes error in some cases of `collect(loader)`
 # function Base.eltype(e::DataLoader)
@@ -288,91 +286,38 @@ function mapobs(f, d::DataLoader)
         collate = f ∘ d.collate
     end
 
-    DataLoader(d.data,
-               batchsize=d.batchsize,
-               buffer=d.buffer,
-               partial=d.partial,
-               shuffle=d.shuffle,
-               parallel=d.parallel,
-               collate=collate,
-               rng=d.rng)
+    return DataLoader(_unwrapdata(d.data);
+                    batchsize=d.batchsize,
+                    buffer=d.buffer,
+                    partial=d.partial,
+                    shuffle=d.shuffle,
+                    parallel=d.parallel,
+                    collate=collate,
+                    rng=d.rng)
 end
 
-
-@inline function _dataloader_foldl1(rf, val, e::DataLoader, data)
-    if e.shuffle
-        _dataloader_foldl2(rf, val, e, shuffleobs(e.rng, data))
-    else
-        _dataloader_foldl2(rf, val, e, data)
-    end
-end
-
-@inline function _dataloader_foldl2(rf, val, e::DataLoader, data)
-    if e.batchsize > 0
-        _dataloader_foldl3(rf, val, e, BatchView(data; e.batchsize, e.partial))
-    else
-        _dataloader_foldl3(rf, val, e, data)
-    end
-end
-
-@inline function _dataloader_foldl3(rf, val, e::DataLoader, data)
-    if e.buffer > 0
-        _dataloader_foldl4_buffered(rf, val, data)
-    else
-        _dataloader_foldl4(rf, val, data)
-    end
-end
-
-@inline function _dataloader_foldl4(rf, val, data)
-    for i in 1:numobs(data)
-        @inbounds x = getobs(data, i)
-        # TODO: in 1.8 we could @inline this at the callsite,
-        #       optimizer seems to be very sensitive to inlining and
-        #       quite brittle in its capacity to keep this type stable
-        val = Transducers.@next(rf, val, x)
-    end
-    Transducers.complete(rf, val)
-end
-
-@inline function _dataloader_foldl4_buffered(rf, val, data)
-    buf = getobs(data, 1)
-    for i in 1:numobs(data)
-        @inbounds x = getobs!(buf, data, i)
-        val = Transducers.@next(rf, val, x)
-    end
-    Transducers.complete(rf, val)
-end
-
-@inline function Transducers.__foldl__(rf, val, e::DataLoader)
-    e.parallel && throw(ArgumentError("Transducer fold protocol not supported on parallel data loads"))
-    _dataloader_foldl1(rf, val, e, ObsView(e.data))
-end
 
 # Base uses this function for composable array printing, e.g. adjoint(view(::Matrix)))
-function Base.showarg(io::IO, e::DataLoader, toplevel)
+function Base.showarg(io::IO, d::DataLoader, toplevel)
     print(io, "DataLoader(")
-    Base.showarg(io, e.data, false)
-    e.buffer == false || print(io, ", buffer=", e.buffer)
-    e.parallel == false || print(io, ", parallel=", e.parallel)
-    e.shuffle == false || print(io, ", shuffle=", e.shuffle)
-    e.batchsize == 1 || print(io, ", batchsize=", e.batchsize)
-    e.partial == true || print(io, ", partial=", e.partial)
-    e.collate === Val(nothing) || print(io, ", collate=", e.collate)
-    e.rng == Random.default_rng() || print(io, ", rng=", e.rng)
+    Base.showarg(io, _unwrapdata(d.data), false)
+    d.buffer == false || print(io, ", buffer=", d.buffer)
+    d.parallel == false || print(io, ", parallel=", d.parallel)
+    d.shuffle == false || print(io, ", shuffle=", d.shuffle)
+    d.batchsize == 1 || print(io, ", batchsize=", d.batchsize)
+    d.partial == true || print(io, ", partial=", d.partial)
+    d.collate === Val(nothing) || print(io, ", collate=", d.collate)
+    d.rng == Random.default_rng() || print(io, ", rng=", d.rng)
     print(io, ")")
 end
 
 Base.show(io::IO, e::DataLoader) = Base.showarg(io, e, false)
 
-function Base.show(io::IO, m::MIME"text/plain", e::DataLoader)
-    if Base.haslength(e)
-        print(io, length(e), "-element ")
-    else
-        print(io, "Unknown-length ")
-    end
-    Base.showarg(io, e, false)
+function Base.show(io::IO, m::MIME"text/plain", d::DataLoader)
+    print(io, length(d), "-element ")
+    Base.showarg(io, d, false)
     print(io, "\n  with first element:")
-    print(io, "\n  ", _expanded_summary(first(e)))
+    print(io, "\n  ", _expanded_summary(first(d)))
 end
 
 _expanded_summary(x) = summary(x)
@@ -385,3 +330,46 @@ function _expanded_summary(xs::NamedTuple)
   "(; " * join(parts, ", ") * ")"
 end
 
+
+### TRANSDUCERS IMPLEMENTATION #############################
+
+
+@inline function _dataloader_foldl1(rf, val, d::DataLoader, data)
+    if d.shuffle
+        return _dataloader_foldl2(rf, val, d, _shuffledata(d.rng, data))
+    else
+        return _dataloader_foldl2(rf, val, d, data)
+    end
+end
+
+@inline function _dataloader_foldl2(rf, val, d::DataLoader, data)
+    if d.buffer == false
+        return _dataloader_foldl3(rf, val, data)
+    else
+        return _dataloader_foldl3_buffered(rf, val, data, d.buffer)
+    end
+end
+
+@inline function _dataloader_foldl3(rf, val, data)
+    for i in 1:numobs(data)
+        @inbounds x = getobs(data, i)
+        # TODO: in 1.8 we could @inline this at the callsite,
+        #       optimizer seems to be very sensitive to inlining and
+        #       quite brittle in its capacity to keep this type stable
+        val = Transducers.@next(rf, val, x)
+    end
+    return Transducers.complete(rf, val)
+end
+
+@inline function _dataloader_foldl3_buffered(rf, val, data, buf)
+    for i in 1:numobs(data)
+        @inbounds x = getobs!(buf, data, i)
+        val = Transducers.@next(rf, val, x)
+    end
+    return Transducers.complete(rf, val)
+end
+
+@inline function Transducers.__foldl__(rf, val, d::DataLoader)
+    d.parallel && throw(ArgumentError("Transducer fold protocol not supported on parallel data loads"))
+    return _dataloader_foldl1(rf, val, d, d.data)
+end
