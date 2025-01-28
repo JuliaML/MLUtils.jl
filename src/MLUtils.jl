@@ -39,7 +39,7 @@ include("batchview.jl")
 export batchsize,
        BatchView
 
-include("eachobs.jl")
+include("dataloader.jl")
 export eachobs, DataLoader
 
 include("parallel.jl")

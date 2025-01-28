@@ -162,14 +162,30 @@ Base.@propagate_inbounds function Base.getindex(A::BatchView, is::AbstractVector
     return _getbatch(A, obsindices)
 end
 
-function _getbatch(A::BatchView{TElem, TData, TCollate}, obsindices) where {TElem, TData, TCollate}
-    return A.collate([getobs(A.data, i) for i in obsindices])
+function getobs!(buffer, A::BatchView, i::Int)
+    obsindices = _batchrange(A, i)
+    return _getbatch!(buffer, A, obsindices)
 end
-function _getbatch(A::BatchView{TElem, TData, Val{false}}, obsindices) where {TElem, TData}
-    return [getobs(A.data, i) for i in obsindices]
+
+function _getbatch(A::BatchView{TElem,TData,TCollate}, obsindices) where {TElem,TData,TCollate}
+    return A.collate([getobs(A.data, idx) for idx in obsindices])
 end
-function _getbatch(A::BatchView{TElem, TData, Val{nothing}}, obsindices) where {TElem, TData}
+function _getbatch!(buffer, A::BatchView{TElem,TData,TCollate}, obsindices) where {TElem,TData,TCollate}
+    return A.collate([getobs!(buffer[i], A.data, idx) for (i,idx) in enumerate(obsindices)])
+end
+
+function _getbatch(A::BatchView{TElem,TData,Val{false}}, obsindices) where {TElem,TData}
+    return [getobs(A.data, idx) for idx in obsindices]
+end
+function _getbatch!(buffer, A::BatchView{TElem,TData,Val{false}}, obsindices) where {TElem,TData}
+    return [getobs!(buffer[i], A.data, idx) for (i,idx) in enumerate(obsindices)]
+end
+
+function _getbatch(A::BatchView{TElem,TData,Val{nothing}}, obsindices) where {TElem,TData}
     return getobs(A.data, obsindices)
+end
+function _getbatch!(buffer, A::BatchView{TElem,TData,Val{nothing}}, obsindices) where {TElem,TData}
+    return getobs!(buffer, A.data, obsindices)
 end
 
 Base.parent(A::BatchView) = A.data
@@ -196,5 +212,3 @@ function Base.showarg(io::IO, A::BatchView, toplevel)
     print(io, ')')
     toplevel && print(io, " with eltype ", nameof(eltype(A))) # simplify
 end
-
-# --------------------------------------------------------------------

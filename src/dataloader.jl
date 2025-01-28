@@ -61,12 +61,13 @@ The original data is preserved in the `data` field of the DataLoader.
 - **`buffer`**: If `buffer=true` and supported by the type of `data`,
   a buffer will be allocated and reused for memory efficiency.
   May want to set `partial=false` to avoid size mismatch. 
-  Finally, can pass an external buffer to be used in `getobs!(buffer, data, idx)`.
+  Finally, can pass an external buffer to be used in `getobs!`
+  (depending on the `collate` and `batchsize` options, could be `getobs!(buffer, data, idxs)` or `getobs!(buffer[i], data, idx)`).
   Default `false`. 
 - **`collate`**: Defines the batching behavior. Default `nothing`. 
   - If `nothing` , a batch is `getobs(data, indices)`. 
   - If `false`, each batch is `[getobs(data, i) for i in indices]`. 
-  - If `true`, applies MLUtils to the vector of observations in a batch, 
+  - If `true`, applies `MLUtils.batch` to the vector of observations in a batch, 
     recursively collating arrays in the last dimensions. See [`MLUtils.batch`](@ref) for more information
     and examples.
   - If a custom function, it will be used in place of `MLUtils.batch`. It should take a vector of observations as input.
@@ -138,7 +139,7 @@ julia> first(DataLoader(["a", "b", "c", "d"], batchsize=2, collate=collate_fn))
 struct DataLoader{T,B,C,R<:AbstractRNG}
     data::T
     batchsize::Int
-    buffer::B
+    buffer::B    # boolean, or external buffer
     partial::Bool
     shuffle::Bool
     parallel::Bool
@@ -183,7 +184,7 @@ function Base.iterate(d::DataLoader)
         if d.buffer == false
             iter = (getobs(data, i) for i in 1:numobs(data))
         elseif d.buffer == true
-            buf = getobs(data, 1)
+            buf = create_buffer(data)
             iter = (getobs!(buf, data, i) for i in 1:numobs(data))
         else # external buffer
             buf = d.buffer
@@ -194,6 +195,15 @@ function Base.iterate(d::DataLoader)
     return obs, (iter, state)
 end
 
+create_buffer(x) = getobs(x, 1)
+function create_buffer(x::BatchView)
+    obsindices = _batchrange(x, 1)
+    return [getobs(A.data, idx) for idx in enumerate(obsindices)]
+end
+function create_buffer(x::BatchView{TElem,TData,Val{nothing}}) where {TElem,TData}
+    obsindices = _batchrange(x, 1)
+    return getobs(x.data, obsindices)
+end
 
 function Base.iterate(::DataLoader, (iter, state))
     ret = iterate(iter, state)

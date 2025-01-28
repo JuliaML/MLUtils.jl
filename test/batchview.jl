@@ -128,4 +128,34 @@ using MLUtils: obsview
             @test y isa String
         end
     end
+
+
+    @testset "getobs!" begin
+        X = rand(4, 15)
+        buf1 = rand(4, 3)
+        bv = BatchView(X, batchsize=3) 
+        @test @inferred(getobs!(buf1, bv, 2)) === buf1
+        @test buf1 == getobs(bv, 2)
+
+        buf12 = [rand(4) for _=1:3]
+        bv12 = BatchView(X, batchsize=3, collate=false)
+        res = @inferred(getobs!(buf12, bv12, 2))
+        @test all(res .=== buf12)
+        @test buf12 == getobs(bv12, 2)
+
+        @testset "custom type" begin # issue #156
+            struct DummyData{X} 
+                x::X
+            end
+            MLUtils.numobs(data::DummyData) = numobs(data.x)
+            MLUtils.getobs(data::DummyData, idx) = getobs(data.x, idx)
+            MLUtils.getobs!(buffer, data::DummyData, idx) = getobs!(buffer, data.x, idx)
+
+            data = DummyData(X)
+            buf = rand(4, 3)
+            bv = BatchView(data, batchsize=3)
+            @test @inferred(getobs!(buf, bv, 2)) === buf
+            @test buf == getobs(bv, 2)
+        end
+    end
 end
