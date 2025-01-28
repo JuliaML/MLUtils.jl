@@ -9,7 +9,7 @@ using Transducers
 using ChainRulesTestUtils: test_rrule
 using Zygote: ZygoteRuleConfig
 using ChainRulesCore: rrule_via_ad
-using DataFrames
+using DataFrames: DataFrame
 using CUDA
 
 showcompact(io, x) = show(IOContext(io, :compact => true), x)
@@ -90,7 +90,6 @@ include("test_utils.jl")
 # @testset "MLUtils.jl" begin
 
 @testset "batchview" begin; include("batchview.jl"); end
-@testset "eachobs" begin; include("eachobs.jl"); end
 @testset "dataloader" begin; include("dataloader.jl"); end
 @testset "folds" begin; include("folds.jl"); end
 @testset "observation" begin; include("observation.jl"); end

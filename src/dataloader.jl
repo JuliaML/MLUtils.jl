@@ -61,7 +61,8 @@ The original data is preserved in the `data` field of the DataLoader.
 - **`buffer`**: If `buffer=true` and supported by the type of `data`,
   a buffer will be allocated and reused for memory efficiency.
   May want to set `partial=false` to avoid size mismatch. 
-  Finally, can pass an external buffer to be used in `getobs!(buffer, data, idx)`.
+  Finally, can pass an external buffer to be used in `getobs!`
+  (depending on the `collate` and `batchsize` options, could be `getobs!(buffer, data, idxs)` or `getobs!(buffer[i], data, idx)`).
   Default `false`. 
 - **`collate`**: Defines the batching behavior. Default `nothing`. 
   - If `nothing` , a batch is `getobs(data, indices)`. 
@@ -138,7 +139,7 @@ julia> first(DataLoader(["a", "b", "c", "d"], batchsize=2, collate=collate_fn))
 struct DataLoader{T,B,C,R<:AbstractRNG}
     data::T
     batchsize::Int
-    buffer::B
+    buffer::B    # boolean or external buffer
     partial::Bool
     shuffle::Bool
     parallel::Bool
@@ -183,7 +184,13 @@ function Base.iterate(d::DataLoader)
         if d.buffer == false
             iter = (getobs(data, i) for i in 1:numobs(data))
         elseif d.buffer == true
-            buf = getobs(data, 1)
+            # TODO move buffer creation to the constructor
+            if data isa ObsView
+                obsindices = _batchrange(data, 1)
+                buf = [getobs(data.data, i) for i in obsindices]
+            else
+                buf = getobs(data, 1)
+            end
             iter = (getobs!(buf, data, i) for i in 1:numobs(data))
         else # external buffer
             buf = d.buffer
