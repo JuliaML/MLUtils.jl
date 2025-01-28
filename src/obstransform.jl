@@ -226,7 +226,7 @@ For this function to work, the type of `data` must implement
 [`numobs`](@ref) and [`getobs`](@ref). See [`ObsView`](@ref)
 for more information.
 """
-shuffleobs(data) = shuffleobs(Random.GLOBAL_RNG, data)
+shuffleobs(data) = shuffleobs(Random.default_rng(), data)
 
 function shuffleobs(rng::AbstractRNG, data)
     obsview(data, randperm(rng, numobs(data)))

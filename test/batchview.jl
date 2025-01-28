@@ -116,4 +116,16 @@ using MLUtils: obsview
         @test bv[2] == 6:10
         @test_throws BoundsError bv[3]
     end
+
+    @testset "collate function" begin
+        function collate_fn(batch)
+            # collate observations into a custom batch
+            return hcat([x[1] for x in batch]...), join([x[2] for x in batch])
+        end
+
+        for (x, y) in BatchView((rand(10, 4), ["a", "b", "c", "d"]), batchsize=2, collate=collate_fn)
+            @test size(x) == (10, 2)
+            @test y isa String
+        end
+    end
 end
