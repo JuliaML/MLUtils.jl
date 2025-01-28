@@ -319,6 +319,7 @@ end
             @test size(x) == (4,2)
             @test x == X[:,2i-1:2i]
         end
+        @test b == X[:,end-2:end-1]
     end
 
     @testset "shuffled" begin
