@@ -89,7 +89,7 @@ The original data is preserved in the `data` field of the DataLoader.
 ```jldoctest
 julia> Xtrain = rand(10, 100);
 
-julia> array_loader = DataLoader(Xtrain, batchsize=2
+julia> array_loader = DataLoader(Xtrain, batchsize=2);
 
 julia> for x in array_loader
          @assert size(x) == (10, 2)
@@ -129,8 +129,7 @@ julia> foreach(println∘summary, DataLoader(rand(Int8, 10, 64), batchsize=30)) 
 10×30 Matrix{Int8}
 10×4 Matrix{Int8}
 
-
-julia> collate_fn(batch) = join(batch)
+julia> collate_fn(batch) = join(batch);
 
 julia> first(DataLoader(["a", "b", "c", "d"], batchsize=2, collate=collate_fn)) == "ab"
 true

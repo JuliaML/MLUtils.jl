@@ -15,7 +15,7 @@ If used as an iterator, the object will iterate over the dataset
 once, effectively denoting an epoch. 
 
 Any data access is delayed until iteration or indexing is perfomed. 
-The [`Flux.getobs`](@ref) function is called on the data object to retrieve the
+The [`getobs`](@ref MLUtils.getobs) function is called on the data object to retrieve the
 observations.
 
 For `BatchView` to work on some data structure, the type of the
