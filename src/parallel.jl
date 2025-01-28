@@ -29,7 +29,7 @@
 function eachobsparallel(
         data;
         executor::Executor = _default_executor(),
-        buffer = false,
+        buffer::Bool = false,
         channelsize = Threads.nthreads())
     if buffer == false
         return _eachobsparallel_unbuffered(data, executor; channelsize)
@@ -38,11 +38,10 @@ function eachobsparallel(
     end
 end
 
-
 function _eachobsparallel_buffered(
         buffer,
         data,
-        executor;
+        executor = _default_executor();
         channelsize=Threads.nthreads())
     buffers = [buffer]
     foreach(_ -> push!(buffers, deepcopy(buffer)), 1:channelsize)
@@ -61,7 +60,11 @@ function _eachobsparallel_buffered(
     end
 end
 
-function _eachobsparallel_unbuffered(data, executor; channelsize=Threads.nthreads())
+function _eachobsparallel_unbuffered(data, 
+        executor = _default_executor(); 
+        channelsize=Threads.nthreads()
+    )
+
     return Loader(1:numobs(data); executor, channelsize) do ch, i
         obs = getobs(data, i)
         put!(ch, obs)

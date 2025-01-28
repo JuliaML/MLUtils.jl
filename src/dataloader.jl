@@ -136,7 +136,7 @@ julia> first(DataLoader(["a", "b", "c", "d"], batchsize=2, collate=collate_fn))
 "ab"
 ```
 """
-struct DataLoader{T<:Union{ObsView,BatchView},B,C,R<:AbstractRNG}
+struct DataLoader{T<:Union{ObsView,BatchView},B,P,C,R<:AbstractRNG}
     data::T
     batchsize::Int
     buffer::B    # boolean, or external buffer
@@ -170,27 +170,54 @@ function DataLoader(
 
     if buffer == true  
         buffer = _create_buffer(data)
-    end 
+    end
+    P = parallel ? :parallel : :serial
     # for buffer == false and external buffer, we keep as is
 
-    return DataLoader(data, batchsize, buffer, partial, shuffle, parallel, collate, rng)
+    T, B, C, R = typeof(data), typeof(buffer), typeof(collate), typeof(rng)
+    return DataLoader{T,B,P,C,R}(data, batchsize, buffer, 
+                                partial, shuffle, parallel, collate, rng) 
 end
 
-function Base.iterate(d::DataLoader)
+
+
+# buffered - serial case
+function Base.iterate(d::DataLoader{T,B,:serial}) where {T,B}
+    @assert d.buffer != false 
     data = d.shuffle ? _shuffledata(d.rng, d.data) : d.data
-    if d.parallel
-        iter = eachobsparallel(data; d.buffer)
-    else
-        if d.buffer == false
-            iter = (getobs(data, i) for i in 1:numobs(data))
-        else
-            iter = (getobs!(d.buffer, data, i) for i in 1:numobs(data))
-        end
-    end
+    iter = (getobs!(d.buffer, data, i) for i in 1:numobs(data))
     obs, state = iterate(iter)
     return obs, (iter, state)
 end
 
+# buffered - parallel case
+function Base.iterate(d::DataLoader{T,B,:parallel}) where {T,B}
+    @assert d.buffer != false
+    data = d.shuffle ? _shuffledata(d.rng, d.data) : d.data
+    iter = _eachobsparallel_buffered(d.buffer, data)
+    obs, state = iterate(iter)
+    return obs, (iter, state)
+end
+
+# unbuffered - serial case
+function Base.iterate(d::DataLoader{T,Bool,:serial}) where {T}
+    @assert d.buffer == false 
+    data = d.shuffle ? _shuffledata(d.rng, d.data) : d.data
+    iter = (getobs(data, i) for i in 1:numobs(data))
+    obs, state = iterate(iter)
+    return obs, (iter, state)
+end
+
+# unbuffered - parallel case
+function Base.iterate(d::DataLoader{T,Bool,:parallel}) where {T}
+    @assert d.buffer == false
+    data = d.shuffle ? _shuffledata(d.rng, d.data) : d.data
+    iter = _eachobsparallel_unbuffered(data)
+    obs, state = iterate(iter)
+    return obs, (iter, state)
+end
+
+## next iterations
 function Base.iterate(::DataLoader, (iter, state))
     ret = iterate(iter, state)
     isnothing(ret) && return
