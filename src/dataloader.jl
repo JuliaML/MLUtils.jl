@@ -136,8 +136,9 @@ julia> first(DataLoader(["a", "b", "c", "d"], batchsize=2, collate=collate_fn))
 "ab"
 ```
 """
-struct DataLoader{T<:Union{ObsView,BatchView},B,P,C,R<:AbstractRNG}
-    data::T
+struct DataLoader{T<:Union{ObsView,BatchView},B,P,C,O,R<:AbstractRNG}
+    data::O  # original data
+    _data::T # data wrapped in ObsView / BatchView
     batchsize::Int
     buffer::B    # boolean, or external buffer
     partial::Bool
@@ -184,7 +185,7 @@ end
 # buffered - serial case
 function Base.iterate(d::DataLoader{T,B,:serial}) where {T,B}
     @assert d.buffer != false 
-    data = d.shuffle ? _shuffledata(d.rng, d.data) : d.data
+    data = d.shuffle ? _shuffledata(d.rng, d._data) : d._data
     iter = (getobs!(d.buffer, data, i) for i in 1:numobs(data))
     obs, state = iterate(iter)
     return obs, (iter, state)
@@ -193,7 +194,7 @@ end
 # buffered - parallel case
 function Base.iterate(d::DataLoader{T,B,:parallel}) where {T,B}
     @assert d.buffer != false
-    data = d.shuffle ? _shuffledata(d.rng, d.data) : d.data
+    data = d.shuffle ? _shuffledata(d.rng, d._data) : d._data
     iter = _eachobsparallel_buffered(d.buffer, data)
     obs, state = iterate(iter)
     return obs, (iter, state)
@@ -202,7 +203,7 @@ end
 # unbuffered - serial case
 function Base.iterate(d::DataLoader{T,Bool,:serial}) where {T}
     @assert d.buffer == false 
-    data = d.shuffle ? _shuffledata(d.rng, d.data) : d.data
+    data = d.shuffle ? _shuffledata(d.rng, d._data) : d._data
     iter = (getobs(data, i) for i in 1:numobs(data))
     obs, state = iterate(iter)
     return obs, (iter, state)
@@ -211,7 +212,7 @@ end
 # unbuffered - parallel case
 function Base.iterate(d::DataLoader{T,Bool,:parallel}) where {T}
     @assert d.buffer == false
-    data = d.shuffle ? _shuffledata(d.rng, d.data) : d.data
+    data = d.shuffle ? _shuffledata(d.rng, d._data) : d._data
     iter = _eachobsparallel_unbuffered(data)
     obs, state = iterate(iter)
     return obs, (iter, state)
@@ -224,11 +225,6 @@ function Base.iterate(::DataLoader, (iter, state))
     obs, state = ret
     return obs, (iter, state)
 end
-
-# recursively unwraps ObsView and BatchView
-_unwrapdata(data::BatchView) = _unwrapdata(data.data)
-_unwrapdata(data::ObsView) = _unwrapdata(data.data)
-_unwrapdata(data) = data
 
 _shuffledata(rng, data::ObsView) = shuffleobs(rng, data)
 
@@ -247,7 +243,7 @@ function _create_buffer(x::BatchView{TElem,TData,Val{nothing}}) where {TElem,TDa
     return getobs(x.data, obsindices)
 end
 
-Base.length(d::DataLoader) = numobs(d.data)
+Base.length(d::DataLoader) = numobs(d._data)
 Base.size(d::DataLoader) = (length(d),)
 Base.IteratorEltype(d::DataLoader) = Base.EltypeUnknown()
 
@@ -313,7 +309,7 @@ function mapobs(f, d::DataLoader)
         collate = f ∘ d.collate
     end
 
-    return DataLoader(_unwrapdata(d.data);
+    return DataLoader(d.data;
                     batchsize=d.batchsize,
                     buffer=d.buffer,
                     partial=d.partial,
@@ -327,7 +323,7 @@ end
 # Base uses this function for composable array printing, e.g. adjoint(view(::Matrix)))
 function Base.showarg(io::IO, d::DataLoader, toplevel)
     print(io, "DataLoader(")
-    Base.showarg(io, _unwrapdata(d.data), false)
+    Base.showarg(io, d.data, false)
     d.buffer == false || print(io, ", buffer=", d.buffer)
     d.parallel == false || print(io, ", parallel=", d.parallel)
     d.shuffle == false || print(io, ", shuffle=", d.shuffle)
@@ -398,5 +394,5 @@ end
 
 @inline function Transducers.__foldl__(rf, val, d::DataLoader)
     d.parallel && throw(ArgumentError("Transducer fold protocol not supported on parallel data loads"))
-    return _dataloader_foldl1(rf, val, d, d.data)
+    return _dataloader_foldl1(rf, val, d, d._data)
 end
