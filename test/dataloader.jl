@@ -4,7 +4,7 @@
     Y2 = [1:5;]
 
     d = DataLoader(X2, batchsize=2)
-    @test_broken @inferred(first(d)) isa Array
+    @test @inferred(first(d)) isa Array
     batches = collect(d)
     @test_broken  eltype(d) == typeof(X2)
     @test eltype(batches) == typeof(X2)
@@ -15,7 +15,7 @@
     @test batches[3] == X2[:,5:5]
 
     d = DataLoader(X2, batchsize=2, partial=false)
-    # @inferred first(d)
+    @inferred first(d)
     batches = collect(d)
     @test_broken eltype(d) == typeof(X2)
     @test length(batches) == 2
@@ -23,7 +23,7 @@
     @test batches[2] == X2[:,3:4]
 
     d = DataLoader((X2,), batchsize=2, partial=false)
-    # @inferred first(d)
+    @inferred first(d)
     batches = collect(d)
     @test_broken eltype(d) == Tuple{typeof(X2)}
     @test eltype(batches) == Tuple{typeof(X2)}
@@ -32,7 +32,7 @@
     @test batches[2] == (X2[:,3:4],)
 
     d = DataLoader((X2, Y2), batchsize=2)
-    # @inferred first(d)
+    @inferred first(d)
     batches = collect(d)
     @test_broken eltype(d) == Tuple{typeof(X2), typeof(Y2)}
     @test eltype(batches) == Tuple{typeof(X2), typeof(Y2)}
@@ -49,7 +49,7 @@
 
     # test with NamedTuple
     d = DataLoader((x=X2, y=Y2), batchsize=2)
-    # @inferred first(d)
+    @inferred first(d)
     batches = collect(d)
     @test_broken eltype(d) == NamedTuple{(:x, :y), Tuple{typeof(X2), typeof(Y2)}}
     @test eltype(batches) == NamedTuple{(:x, :y), Tuple{typeof(X2), typeof(Y2)}}
@@ -133,7 +133,7 @@
 
         dloader = DataLoader(data, batchsize=2)
         c = collect(dloader)
-        @test eltype(c) == UnitRange{Int64}
+        @test eltype(c) == Vector{Int64}
         @test c[1] == 1:2
 
         dloader = DataLoader(data, batchsize=2, shuffle=true)
@@ -160,34 +160,39 @@
         X_ = rand(10, 20)
 
         d = DataLoader(X_, collate=false, batchsize = 2)
+        @inferred first(d)
         for (i, x) in enumerate(d)
             @test x == [getobs(X_, 2i-1), getobs(X_, 2i)]
         end
 
         d = DataLoader(X_, collate=nothing, batchsize = 2)
+        @inferred first(d)
         for (i, x) in enumerate(d)
             @test x == hcat(getobs(X_, 2i-1), getobs(X_, 2i))
         end
 
         d = DataLoader(X_, collate=true, batchsize = 2)
+        @inferred first(d)
         for (i, x) in enumerate(d)
             @test x == hcat(getobs(X_, 2i-1), getobs(X_, 2i))
         end
 
         d = DataLoader((X_, X_), collate=false, batchsize = 2)
+        @inferred first(d)
         for (i, x) in enumerate(d)
             @test x isa Vector
             all((isa).(x, Tuple))
         end
 
         d = DataLoader((X_, X_), collate=true, batchsize = 2)
+        @inferred first(d)
         for (i, x) in enumerate(d)
             @test all(==(hcat(getobs(X_, 2i-1), getobs(X_, 2i))), x)
         end
 
         @testset "nothing vs. true" begin
             d = CustomRangeIndex(10)
-            @test first(DataLoader(d, batchsize = 2, collate=nothing)) isa UnitRange
+            @test first(DataLoader(d, batchsize = 2, collate=nothing)) isa Vector
             @test first(DataLoader(d, batchsize = 2, collate=true)) isa Vector
         end
     end
