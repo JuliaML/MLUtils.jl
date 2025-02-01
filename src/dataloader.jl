@@ -164,7 +164,7 @@ function DataLoader(
 
     # Wrapping with ObsView in order to work around
     # issue https://github.com/FluxML/Flux.jl/issues/1935    
-    _data = ObsView(data)
+    _data = ObsView(data, collect(1:numobs(data)))
     if batchsize > 0
         _data = BatchView(_data; batchsize, partial, collate)
     end

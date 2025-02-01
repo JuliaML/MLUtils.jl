@@ -81,7 +81,7 @@ struct CustomRangeIndex
 end
 Base.length(r::CustomRangeIndex) = r.n
 Base.getindex(r::CustomRangeIndex, idx::Int) = idx
-Base.getindex(r::CustomRangeIndex, idxs::UnitRange) = idxs
+Base.getindex(r::CustomRangeIndex, idxs::AbstractVector{Int}) = idxs
 
 # --------------------------------------------------------------------
 
