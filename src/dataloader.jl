@@ -164,19 +164,19 @@ function DataLoader(
 
     # Wrapping with ObsView in order to work around
     # issue https://github.com/FluxML/Flux.jl/issues/1935    
-    data = ObsView(data)
+    _data = ObsView(data)
     if batchsize > 0
-        data = BatchView(data; batchsize, partial, collate)
+        _data = BatchView(_data; batchsize, partial, collate)
     end
 
     if buffer == true  
-        buffer = _create_buffer(data)
+        buffer = _create_buffer(_data)
     end
     P = parallel ? :parallel : :serial
     # for buffer == false and external buffer, we keep as is
 
-    T, B, C, R = typeof(data), typeof(buffer), typeof(collate), typeof(rng)
-    return DataLoader{T,B,P,C,R}(data, batchsize, buffer, 
+    T, O, B, C, R = typeof(_data), typeof(data), typeof(buffer), typeof(collate), typeof(rng)
+    return DataLoader{T,B,P,C,O,R}(data, _data, batchsize, buffer, 
                                 partial, shuffle, parallel, collate, rng) 
 end
 
