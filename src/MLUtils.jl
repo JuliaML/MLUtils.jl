@@ -36,8 +36,10 @@ export mapobs,
        shuffleobs
 
 include("batchview.jl")
-export batchsize,
-       BatchView
+export batchsize, BatchView
+
+include("obsview.jl")
+export obsview, ObsView
 
 include("dataloader.jl")
 export eachobs, DataLoader
@@ -47,10 +49,6 @@ include("parallel.jl")
 include("folds.jl")
 export kfolds,
        leavepout
-
-include("obsview.jl")
-export obsview,
-       ObsView
 
 include("randobs.jl")
 export randobs

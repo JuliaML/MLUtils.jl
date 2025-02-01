@@ -47,8 +47,8 @@ end
     end
 end
 
-@testset "`eachobsparallel(buffer = true)`" begin
-    iter = eachobsparallel(collect(1:10), buffer=true)
+@testset "`DataLoader(buffer = true, parallel=true)`" begin
+    iter = DataLoader(collect(1:10), buffer=true, batchsize=-1, parallel=true)
     @test_nowarn for i in iter end
     X_ = collect(iter)
     @test all(x ∈ 1:10 for x in X_)
