@@ -94,6 +94,27 @@ end
     @test data[5:6] == [5, 6]
     data = joinobs(ones(2, 3), zeros(2, 3))
     @test data[3:4] == [[1.0, 1.0], [0.0, 0.0]]
+
+    @testset "joins of joins" begin
+        data1, data2 = 1:10, 11:20
+        data12 = joinobs(data1, data2)
+        data3 = 21:30
+        data123 = joinobs(data12, data3)
+        @test getobs(data123, 15) == 15
+        @test getobs(data123, 25) == 25
+        @test length(data123) == 30
+        @test data123.datas[1] == data1
+        @test data123.datas[2] == data2
+        @test data123.datas[3] == data3
+    end
+
+    @testset "join different types" begin
+        data1 = 1:5
+        data2 = ones(2, 3)
+        data12 = joinobs(data1, data2)
+        @test data12[3] == 3
+        @test data12[6] == [1.0, 1.0]
+    end
 end
 
 @testset "shuffleobs" begin

@@ -159,12 +159,12 @@ end
 
 # joinumobs
 
-struct JoinedData{T,N} <: AbstractDataContainer
-    datas::NTuple{N,T}
+struct JoinedData{T<:Tuple,N} <: AbstractDataContainer
+    datas::T
     ns::NTuple{N,Int}
 end
 
-JoinedData(datas) = JoinedData(datas, numobs.(datas))
+JoinedData(datas::Tuple) = JoinedData(datas, numobs.(datas))
 
 Base.length(data::JoinedData) = sum(data.ns)
 
@@ -194,7 +194,12 @@ jdata = joinumobs(data1, data2)
 getobs(jdata, 15) == 15
 ```
 """
-joinobs(datas...) = JoinedData(datas)
+joinobs(datas...) = JoinedData(cleanjoin(datas...))
+
+cleanjoin(x::JoinedData, ys...) = (x.datas..., cleanjoin(ys...)...)
+cleanjoin(x, ys...) = (x, cleanjoin(ys...)...)
+cleanjoin() = ()
+
 
 """
     shuffleobs([rng], data)
