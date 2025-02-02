@@ -380,7 +380,7 @@ function batch(xs::Vector{<:NamedTuple})
     all_keys = [sort(collect(keys(x))) for x in xs]
     ks = all_keys[1]
     @assert all(==(ks), all_keys) "Cannot batch named tuples with different keys"
-    NamedTuple(k => batch([x[k] for x in xs]) for k in ks)
+    return NamedTuple(k => batch([x[k] for x in xs]) for k in ks)
 end
 
 function batch(xs::Vector{<:Dict})
@@ -388,7 +388,7 @@ function batch(xs::Vector{<:Dict})
     all_keys = [sort(collect(keys(x))) for x in xs]
     ks = all_keys[1]
     @assert all(==(ks), all_keys) "cannot batch dicts with different keys"
-    Dict(k => batch([x[k] for x in xs]) for k in ks)
+    return Dict(k => batch([x[k] for x in xs]) for k in ks)
 end
 
 """

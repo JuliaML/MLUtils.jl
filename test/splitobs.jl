@@ -90,3 +90,20 @@ end
     p2, _ = splitobs(rng, data, at=3, shuffle=true)
     @test p1 == p2
 end
+
+@testset "stratified" begin
+    data = (a=zeros(Float32, 2, 10), b=[0,0,0,0,1,1,1,1,1,1])
+    d1, d2 = splitobs(data, at=0.5, stratified=data.b)
+    @test d1.b == [0,0,1,1,1]
+    @test d2.b == [0,0,1,1,1]
+    d1, d2 = splitobs(data, at=0.25, stratified=data.b)
+    @test d1.b == [0,1,1]
+    @test d2.b == [0,0,0,1,1,1,1]
+
+    d1, d2 = splitobs(data, at=0., stratified=data.b)
+    @test d1.b == []
+    @test d2.b == [0,0,0,0,1,1,1,1,1,1]
+    d1, d2 = splitobs(data, at=1., stratified=data.b)
+    @test d1.b == [0,0,0,0,1,1,1,1,1,1]
+    @test d2.b == []
+end

@@ -213,11 +213,7 @@ accomplish that, which means that the return value is likely of a
 different type than `data`.
 
 Optionally, a random number generator `rng` can be passed as the
-first argument.
-
-The optional parameter `rng` allows one to specify the
-random number generator used for shuffling. This is useful when
-reproducible results are desired.
+first argument. 
 
 For this function to work, the type of `data` must implement
 [`numobs`](@ref) and [`getobs`](@ref). 
