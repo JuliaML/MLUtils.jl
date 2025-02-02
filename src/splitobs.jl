@@ -21,9 +21,12 @@ _splitobs(n::Int, at::NTuple{N, <:Integer}) where {N} = _splitobs(n::Int, at ./ 
 
 _splitobs(n::Int, at::Tuple{}) = (1:n,)
 
+
 function _splitobs(n::Int, at::AbstractFloat)
     0 <= at <= 1 || throw(ArgumentError("the parameter \"at\" must be in interval (0, 1)"))
-    n1 = clamp(round(Int, at*n), 0, n)
+    n1 = floor(Int, n * at)
+    delta = n*at - n1
+    # TODO add random rounding
     (1:n1, n1+1:n)
 end
 
@@ -38,21 +41,22 @@ function _splitobs(n::Int, at::NTuple{N,<:AbstractFloat}) where N
 end
 
 """
-    splitobs([rng], data; at, shuffle=false) -> Tuple
+    splitobs([rng], data; at, shuffle=false, stratified=nothing) -> Tuple
 
 Partition the `data` into two or more subsets.
 
-When `at` is a number between 0 and 1, this specifies the proportion in the first subset.
-
-When `at` is an integer, it specifies the number of observations in the first subset.
-
-When `at` is a tuple, entries specifies the number or proportion in each subset, except
+The argument `at` specifies how to split the data:
+- When `at` is a number between 0 and 1, this specifies the proportion in the first subset.
+- When `at` is an integer, it specifies the number of observations in the first subset.
+- When `at` is a tuple, entries specifies the number or proportion in each subset, except
 for the last which will contain the remaning observations. 
 The number of returned subsets is `length(at)+1`.
 
 If `shuffle=true`, randomly permute the observations before splitting.
 A random number generator `rng` can be optionally passed as the first argument.
 
+If `stratified` is not `nothing`, it should be an array of labels with the same length as the data.
+The observations will be split in a way that the proportion of each label is preserved in each subset.
 
 Supports any datatype implementing [`numobs`](@ref). 
 
@@ -78,10 +82,34 @@ true
 """
 splitobs(data; kws...) = splitobs(Random.default_rng(), data; kws...)
 
-function splitobs(rng::AbstractRNG, data; at, shuffle::Bool=false)
-    if shuffle
-        data = shuffleobs(rng, data)
-    end
+function splitobs(rng::AbstractRNG, data; at, 
+        shuffle::Bool=false, 
+        stratified::Union{Nothing,AbstractVector}=nothing)
     n = numobs(data)
-    return map(idx -> obsview(data, idx), splitobs(n; at))
+    at = _normalize_at(n, at)
+    if shuffle
+        perm = randperm(rng, n)
+        data = obsview(data, perm) # same as shuffleobs(rng, data), but make it explicit to keep perm
+    end
+    if stratified !== nothing
+        @assert length(stratified) == n
+        if shuffle
+            stratified = stratified[perm]
+        end
+        idxs_groups = group_indices(stratified)
+        idxs_splits = ntuple(i -> Int[], length(at)+1)
+        for (lbl, idxs) in idxs_groups
+            new_idxs_splits = splitobs(idxs; at, shuffle=false)
+            for i in 1:length(idxs_splits)
+                append!(idxs_splits[i], new_idxs_splits[i])
+            end
+        end
+    else
+        idxs_splits = splitobs(n; at)
+    end
+    return map(idxs -> obsview(data, idxs), idxs_splits)
 end
+
+_normalize_at(n, at::Integer) = at / n
+_normalize_at(n, at::NTuple{N, <:Integer}) where N = at ./ n
+_normalize_at(n, at) = at
