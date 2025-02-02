@@ -79,7 +79,7 @@ distributed among the parts.
 ```julia
 for (x_train, x_val) in kfolds(X, k=10)
     # code called 10 times
-    # nobs(x_val) may differ up to ±1 over iterations
+    # numobs(x_val) may differ up to ±1 over iterations
 end
 ```
 
@@ -172,7 +172,7 @@ data is copied until [`getobs`](@ref) is invoked.
 
 ```julia
 for (train, val) in leavepout(X, p=2)
-    # if nobs(X) is dividable by 2,
+    # if numobs(X) is dividable by 2,
     # then numobs(val) will be 2 for each iteraton,
     # otherwise it may be 3 for the first few iterations.
 end

@@ -57,6 +57,9 @@ include("resample.jl")
 export oversample,
        undersample
 
+include("slidingwindow.jl")
+export slidingwindow
+
 include("splitobs.jl")
 export splitobs
 
