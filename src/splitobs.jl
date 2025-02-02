@@ -2,7 +2,7 @@
     splitobs(n::Int; at) -> Tuple
 
 Compute the indices for two or more disjoint subsets of
-the range `1:n` with splits given by `at`.
+the range `1:n` with split sizes determined by `at`.
 
 # Examples
 
@@ -18,16 +18,12 @@ splitobs(n::Int; at) = _splitobs(n, at)
 
 _splitobs(n::Int, at::Integer) = _splitobs(n::Int, at / n) 
 _splitobs(n::Int, at::NTuple{N, <:Integer}) where {N} = _splitobs(n::Int, at ./ n) 
-
 _splitobs(n::Int, at::Tuple{}) = (1:n,)
-
 
 function _splitobs(n::Int, at::AbstractFloat)
     0 <= at <= 1 || throw(ArgumentError("the parameter \"at\" must be in interval (0, 1)"))
-    n1 = floor(Int, n * at)
-    delta = n*at - n1
-    # TODO add random rounding
-    (1:n1, n1+1:n)
+    n1 = round(Int, n * at)
+    return (1:n1, n1+1:n)
 end
 
 function _splitobs(n::Int, at::NTuple{N,<:AbstractFloat}) where N
@@ -40,8 +36,9 @@ function _splitobs(n::Int, at::NTuple{N,<:AbstractFloat}) where N
     return (a, rest...)
 end
 
+
 """
-    splitobs([rng], data; at, shuffle=false, stratified=nothing) -> Tuple
+    splitobs([rng,] data; at, shuffle=false, stratified=nothing) -> Tuple
 
 Partition the `data` into two or more subsets.
 
