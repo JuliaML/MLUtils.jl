@@ -53,7 +53,7 @@ If `shuffle=true`, randomly permute the observations before splitting.
 A random number generator `rng` can be optionally passed as the first argument.
 
 If `stratified` is not `nothing`, it should be an array of labels with the same length as the data.
-The observations will be split in a way that the proportion of each label is preserved in each subset.
+The observations will be split in such a way that the proportion of each label is preserved in each subset.
 
 Supports any datatype implementing [`numobs`](@ref). 
 
@@ -75,6 +75,9 @@ julia> train, test = splitobs((reshape(1.0:100.0, 1, :), 101:200), at=0.7, shuff
 
 julia> vec(test[1]) .+ 100 == test[2]
 true
+
+julia> splitobs(1:10, at=0.5, stratified=[0,0,0,0,1,1,1,1,1,1]) # 2 zeros and 3 ones in each subset
+([1, 2, 5, 6, 7], [3, 4, 8, 9, 10])
 ```
 """
 splitobs(data; kws...) = splitobs(Random.default_rng(), data; kws...)
