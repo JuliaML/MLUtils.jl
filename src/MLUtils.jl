@@ -63,10 +63,14 @@ export slidingwindow
 include("splitobs.jl")
 export splitobs
 
-include("utils.jl")
+include("batch.jl")
 export batch,
        batchseq,
-       chunk,
+       batch_sequence,
+       unbatch
+
+include("utils.jl")
+export chunk,
        falses_like,
        fill_like,
        flatten,
@@ -79,7 +83,6 @@ export batch,
        rpad_constant,
        stack, # in Base since julia v1.9
        trues_like,
-       unbatch,
        unsqueeze,
        unstack,
        zeros_like

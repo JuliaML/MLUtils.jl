@@ -7,12 +7,7 @@ Compute the train/validation assignments for `k` repartitions of
 first vector contains the index-vectors for the training subsets,
 and the second vector the index-vectors for the validation subsets
 respectively. A general rule of thumb is to use either `k = 5` or
-`k = 10`. The following code snippet generates the indices
-assignments for `k = 5`
-
-```julia
-julia> train_idx, val_idx = kfolds(10, 5);
-```
+`k = 10`. 
 
 Each observation is assigned to the validation subset once (and
 only once). Thus, a union over all validation index-vectors
@@ -20,17 +15,21 @@ reproduces the full range `1:n`. Note that there is no random
 assignment of observations to subsets, which means that adjacent
 observations are likely to be part of the same validation subset.
 
-```julia
+# Examples
+
+```jldoctest
+julia> train_idx, val_idx = kfolds(10, 5);
+
 julia> train_idx
-5-element Array{Array{Int64,1},1}:
- [3,4,5,6,7,8,9,10]
- [1,2,5,6,7,8,9,10]
- [1,2,3,4,7,8,9,10]
- [1,2,3,4,5,6,9,10]
- [1,2,3,4,5,6,7,8]
+5-element Vector{Vector{Int64}}:
+ [3, 4, 5, 6, 7, 8, 9, 10]
+ [1, 2, 5, 6, 7, 8, 9, 10]
+ [1, 2, 3, 4, 7, 8, 9, 10]
+ [1, 2, 3, 4, 5, 6, 9, 10]
+ [1, 2, 3, 4, 5, 6, 7, 8]
 
 julia> val_idx
-5-element Array{UnitRange{Int64},1}:
+5-element Vector{UnitRange{Int64}}:
  1:2
  3:4
  5:6
@@ -42,7 +41,7 @@ function kfolds(n::Integer, k::Integer = 5)
     2 <= k <= n || throw(ArgumentError("n must be positive and k must to be within 2:$(max(2,n))"))
     # Compute the size of each fold. This is important because
     # in general the number of total observations might not be
-    # divideable by k. In such cases it is custom that the remaining
+    # divisible by k. In such cases it is custom that the remaining
     # observations are divided among the folds. Thus some folds
     # have one more observation than others.
     sizes = fill(floor(Int, n/k), k)
@@ -52,15 +51,15 @@ function kfolds(n::Integer, k::Integer = 5)
     # Compute start offset for each fold
     offsets = cumsum(sizes) .- sizes .+ 1
     # Compute the validation indices using the offsets and sizes
-    val_indices = map((o,s)->(o:o+s-1), offsets, sizes)
+    val_indices = map((o,s) -> (o:o+s-1), offsets, sizes)
     # The train indices are then the indicies not in validation
-    train_indices = map(idx->setdiff(1:n,idx), val_indices)
+    train_indices = map(idx -> setdiff(1:n, idx), val_indices)
     # We return a tuple of arrays
-    train_indices, val_indices
+    return train_indices, val_indices
 end
 
 """
-    kfolds(data, [k = 5])
+    kfolds(data, k = 5)
 
 Repartition a `data` container `k` times using a `k` folds
 strategy and return the sequence of folds as a lazy iterator. 
@@ -96,7 +95,7 @@ By default the folds are created using static splits. Use
 folds.
 
 ```julia
-for (x_train, x_val) in kfolds(shuffleobs(X), k = 10)
+for (x_train, x_val) in kfolds(shuffleobs(X), k=10)
     # ...
 end
 ```
