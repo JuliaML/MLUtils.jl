@@ -8,7 +8,7 @@ an extra dimension.
 If the elements of `xs` are tuples, named tuples, or dicts, 
 the output will be of the same type. 
 
-See also [`unbatch`](@ref).
+See also [`unbatch`](@ref) and [`batch_sequence`](@ref).
 
 # Examples
 
