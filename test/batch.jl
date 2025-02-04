@@ -78,13 +78,13 @@ end
     @test bs[4] == [1.0 0.0 0.0; 1.0 0.0 0.0]
 end
 
-@test "batch_sequences" begin
-    y = batchseqs([[1, 2, 3], [10, 20]])
+@testset "batch_sequences" begin
+    y = batch_sequence([[1, 2, 3], [10, 20]])
     @test y isa Matrix{Int}
     @test y == [1 10; 2 20; 3 0]
 
     data = (ones(2, 1), fill(2.0, (2, 3)))
-    y = batchseqs(data, pad=-1)
+    y = batch_sequence(data, pad=-1)
     @test y[:,:,1] == [1 -1 -1; 1 -1 -1]
     @test y[:,:,2] == [2 2 2; 2 2 2]
 end

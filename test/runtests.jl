@@ -89,6 +89,8 @@ include("test_utils.jl")
 
 # @testset "MLUtils.jl" begin
 
+
+@testset "batch" begin; include("batch.jl"); end
 @testset "batchview" begin; include("batchview.jl"); end
 @testset "dataloader" begin; include("dataloader.jl"); end
 @testset "folds" begin; include("folds.jl"); end
