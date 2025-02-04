@@ -134,7 +134,7 @@ julia> batch_sequence([[1, 2, 3], [10, 20]])
 julia> seqs = (ones(2, 3), fill(2.0, (2, 5)))
 ([1.0 1.0 1.0; 1.0 1.0 1.0], [2.0 2.0 … 2.0 2.0; 2.0 2.0 … 2.0 2.0])
 
-julia> batch_sequence(xs, pad=-1)
+julia> batch_sequence(seqs, pad=-1)
 2×5×2 Array{Float64, 3}:
 [:, :, 1] =
  1.0  1.0  1.0  -1.0  -1.0
