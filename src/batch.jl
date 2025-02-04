@@ -145,7 +145,7 @@ julia> batch_sequence(seqs, pad=-1)
  2.0  2.0  2.0  2.0  2.0
 ```
 """
-function batch_sequence(xs, pad = 0)
+function batch_sequence(xs; pad = 0)
     sz = size(xs[1])[1:end-1]
     @assert all(x -> size(x)[1:end-1] == sz, xs) "Array dimensions do not match."
     n = ndims(xs[1])

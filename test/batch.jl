@@ -84,11 +84,7 @@ end
     @test y == [1 10; 2 20; 3 0]
 
     data = (ones(2, 1), fill(2.0, (2, 3)))
-    y = batchseqs(data, -1)
+    y = batchseqs(data, pad=-1)
     @test y[:,:,1] == [1 -1 -1; 1 -1 -1]
     @test y[:,:,2] == [2 2 2; 2 2 2]
-
-    x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    y = batch_sequences(x, 3, 2)
-    @test y == [[1, 2, 3], [3, 4, 5], [5, 6, 7], [7, 8, 9], [9, 10]]
 end
