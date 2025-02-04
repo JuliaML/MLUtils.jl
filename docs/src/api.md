@@ -27,6 +27,7 @@ shuffleobs
 
 ```@docs
 batch
+batch_sequence
 batchsize
 batchseq
 BatchView
