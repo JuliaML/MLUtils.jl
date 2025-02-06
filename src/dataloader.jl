@@ -80,7 +80,7 @@ The original data is preserved in the `data` field of the DataLoader.
   If `partial=false` and the number of observations is not divisible by the batchsize,
   then the last mini-batch is dropped. Default `true`.
 - **`rng`**: A random number generator. Default `Random.default_rng()`.
-- **`shuffle**: Whether to shuffle the observations before iterating. Unlike
+- **`shuffle`**: Whether to shuffle the observations before iterating. Unlike
     wrapping the data container with `shuffleobs(data)`, `shuffle=true` ensures
     that the observations are shuffled anew every time you start iterating over
     `eachobs`. Default `false`.
