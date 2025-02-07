@@ -35,15 +35,16 @@ possible for excess observations to be omitted from the view.
 Note that the windows are not materialized at construction time. 
 To actually get a copy of the data at some window use indexing or [`getobs`](@ref).
 
+When indexing the data is accessed as `getobs(data, idxs)`, with `idxs` an appropriate range of indexes.
 ```jldoctest
-julia> s = slidingwindow(1:20, size=6)
-slidingwindow(1:20, size=6, stride=1)
+julia> s = slidingwindow(11:30, size=6)
+slidingwindow(10:30, size=6, stride=1)
 
-julia> s[1]
-1:6
+julia> s[1]  # == getobs(data, 1:6)
+11:16
 
-julia> s[2]
-2:7
+julia> s[2]  # == getobs(data, 2:7)
+12:17
 ```
 
 The optional parameter `stride` can be used to specify the
@@ -51,15 +52,15 @@ distance between the start elements of each adjacent window.
 By default the stride is equal to 1.
 
 ```jldoctest
-julia> s = slidingwindow(1:20, size=6, stride=3)
+julia> s = slidingwindow(11:30, size=6, stride=3)
 slidingwindow(1:20, size=6, stride=3)
 
 julia> for w in s; println(w); end
-1:6
-4:9
-7:12
-10:15
-13:18
+11:16
+14:19
+17:22
+20:25
+23:28
 ```
 """
 function slidingwindow(data; size::Int, stride::Int=1)
