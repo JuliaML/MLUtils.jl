@@ -138,8 +138,7 @@ julia> data = reshape([1:24;], 3, 4, 2)
  14  17  20  23
  15  18  21  24
 
-julia> ov = obsview(data, ObsDim(2))
-ArrayObsView(3×4×2 Array{Int64, 3}, obsdim=2, numobs=4)
+julia> ov = obsview(data, ObsDim(2));
 
 julia> getobs(ov, 1)
 3×2 Matrix{Int64}:
