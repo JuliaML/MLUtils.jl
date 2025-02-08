@@ -258,13 +258,11 @@ end
 
 Base.length(x::ArrayObsView) = length(x.indices)
 
-function Base.getindex(x::ArrayObsView{ObsDim,A}, idx) where {ObsDim, T, N, A<:AbstractArray{T,N}}
-    Ipre = ntuple(_ -> :, ObsDim-1)
-    Ipost = ntuple(_ -> :, N-ObsDim)
-    return @view x.data[Ipre..., x.indices[idx], Ipost...]
+function Base.getindex(x::ArrayObsView{ObsDim}, idx) where {ObsDim}
+    return selectdim(x.data, ObsDim, x.indices[idx])
 end
 
-function getobs(x::ArrayObsView{ObsDim,A}, idx) where {ObsDim, T, N, A<:AbstractArray{T,N}}
+function getobs(x::ArrayObsView, idx) where {ObsDim, T, N, A<:AbstractArray{T,N}}
     Ipre = ntuple(_ -> :, ObsDim-1)
     Ipost = ntuple(_ -> :, N-ObsDim)
     return x.data[Ipre..., x.indices[idx], Ipost...]
