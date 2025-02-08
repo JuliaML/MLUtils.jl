@@ -120,7 +120,7 @@ julia> obsview([1 2 3; 4 5 6], 1:2)
  4  5
 ```
 
-When working with arrays, it is also possible to use an [`ObsDim`](@ref) object as input to `obsvie` to specify the dimension along which the observations are stored. This is useful when the last dimension is not the observation dimension. 
+When working with arrays, it is also possible to use an [`ObsDim`](@ref) object as input to [`obsview`](@ref) to specify the dimension along which the observations are stored. This is useful when the last dimension is not the observation dimension. 
 
 An example of this are 3D arrays used as inputs to recurrent neural networks and transformers,
 usually having size `(n_features, n_timesteps, n_samples)`. In the case in which we want to treat the timesteps as observations, we can proceed as follows:
