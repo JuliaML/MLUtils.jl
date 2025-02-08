@@ -18,5 +18,5 @@ function load_iris()
     X = convert(Matrix{Float64}, raw_csv[:, 1:4]')
     y = convert(Vector{String}, raw_csv[:, 5])
     vars = ["Sepal length", "Sepal width", "Petal length", "Petal width"]
-    X, y, vars
+    return X, y, vars
 end

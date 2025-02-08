@@ -16,6 +16,7 @@ makedocs(;
     modules=[MLUtils],
     sitename = "MLUtils.jl",
     pages = ["Home" => "index.md",
+             "Guides" => "guides.md",
              "API" => "api.md"],
 )
 
