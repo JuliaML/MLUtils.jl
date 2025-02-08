@@ -1,3 +1,9 @@
+```@meta
+DocTestSetup = quote
+    using MLUtils
+end
+```
+
 # Guides
 
 ## Datasets 
@@ -35,7 +41,7 @@ Now let's see an example with named tuples. Notice that the number of observatio
 as to be the same for all fields:
 
 ```jldoctest
-julia> data = (x = ones(2, 3), y = [1, 2, 3])
+julia> data = (x = ones(2, 3), y = [1, 2, 3]);
 
 julia> numobs(data)
 3
@@ -83,6 +89,7 @@ julia> function Base.getindex(d::DummyDataset, i::Int)
        end
 
 julia> data = DummyDataset(10)
+DummyDataset(10)
 
 julia> numobs(data)
 10

@@ -238,5 +238,5 @@ getobs(a::SubArray) = getobs(a.parent, last(a.indices))
 
 ##### Tuples / NamedTuples
 function obsview(tup::Union{Tuple, NamedTuple}, indices)
-    map(data -> obsview(data, indices), tup)
+    return map(data -> obsview(data, indices), tup)
 end
