@@ -52,7 +52,7 @@ When indexing the data is accessed as `getobs(data, idxs)`, with `idxs` an appro
 # Examples
 ```jldoctest
 julia> s = slidingwindow(11:30, size=6)
-slidingwindow(11:30, size=6, stride=1)
+slidingwindow(20-element UnitRange{Int64}, size=6, stride=1)
 
 julia> s[1]  # == getobs(data, 1:6)
 11:16
@@ -67,7 +67,7 @@ By default the stride is equal to 1.
 
 ```jldoctest
 julia> s = slidingwindow(11:30, size=6, stride=3)
-slidingwindow(11:30, size=6, stride=3)
+slidingwindow(20-element UnitRange{Int64}, size=6, stride=3)
 
 julia> for w in s; println(w); end
 11:16
