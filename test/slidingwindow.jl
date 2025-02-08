@@ -28,4 +28,15 @@
         c += 1
     end
     @test c == 5
+
+    @testset "obsdim" begin
+        x = rand(2, 6, 4)
+        v = slidingwindow(x, size=2, obsdim=2)
+        @test length(v) == 5
+        @test v[1] isa Array{Float64,3}
+        @test v[1] == x[:, 1:2, :]
+        @test v[2] == x[:, 2:3, :]
+        @test v[3] == x[:, 3:4, :]
+        @test v[4] == x[:, 4:5, :]
+    end
 end

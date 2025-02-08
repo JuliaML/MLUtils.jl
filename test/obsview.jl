@@ -235,7 +235,7 @@ end
     end
 end
 
-@testset "obsview(array; obsdim)" begin
+@testset "obsview(array, obsdim)" begin
     x = rand(2, 3, 4)
     
     v0 = @inferred(obsview(x))
@@ -244,13 +244,13 @@ end
     @test getobs(v0, 1) isa Matrix{Float64}
     @test numobs(v0) == 4
 
-    v2 = obsview(x, ObsDim(2))
+    v2 = @inferred(obsview(x, ObsDim(2)))
     @test @inferred(getobs(v2, 1)) == x[:,1,:]
     @test @inferred(getobs(v2, 2)) == x[:,2,:]
     @test getobs(v2, 1) isa Matrix{Float64}
     @test numobs(v2) == 3
 
-    v1 = obsview(x, ObsDim(1))
+    v1 = @inferred(obsview(x, ObsDim(1)))
     @test @inferred(getobs(v1, 1)) == x[1,:,:]
     @test @inferred(getobs(v1, 2)) == x[2,:,:]
     @test getobs(v1, 1) isa Matrix{Float64}

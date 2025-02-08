@@ -27,8 +27,6 @@ function Base.show(io::IO, A::SlidingWindow)
     print(io, ")")
 end
 
-Base.iterate(A::SlidingWindow, i::Int=1) = i > length(A) ? nothing : (A[i], i+1)
-
 """
     slidingwindow(data; size, stride=1, obsdim=nothing) -> SlidingWindow
 

@@ -18,7 +18,7 @@ makedocs(;
     modules=[MLUtils, MLCore],
     sitename = "MLUtils.jl",
     pages = ["Home" => "index.md",
-             "Guides" => "guides.md",
+             "Guide" => "guide.md",
              "API" => "api.md"],
 )
 
