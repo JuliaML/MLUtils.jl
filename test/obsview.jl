@@ -176,6 +176,7 @@ end
             @test @inferred(size(A)) == (15,)
             @test @inferred(A[2:3]) == obsview(var, 2:3)
             @test @inferred(A[[1,3]]) == obsview(var, [1,3])
+            
             @test @inferred(A[1]) == obsview(var, 1)
             @test @inferred(A[11]) == obsview(var, 11)
             @test @inferred(A[15]) == obsview(var, 15)
@@ -232,4 +233,26 @@ end
         end
         @test count == 15
     end
+end
+
+@testset "obsview(array, obsdim)" begin
+    x = rand(2, 3, 4)
+    
+    v0 = @inferred(obsview(x))
+    @test @inferred(getobs(v0, 1)) == x[:,:,1]
+    @test @inferred(getobs(v0, 2)) == x[:,:,2]
+    @test getobs(v0, 1) isa Matrix{Float64}
+    @test numobs(v0) == 4
+
+    v2 = @inferred(obsview(x, ObsDim(2)))
+    @test @inferred(getobs(v2, 1)) == x[:,1,:]
+    @test @inferred(getobs(v2, 2)) == x[:,2,:]
+    @test getobs(v2, 1) isa Matrix{Float64}
+    @test numobs(v2) == 3
+
+    v1 = @inferred(obsview(x, ObsDim(1)))
+    @test @inferred(getobs(v1, 1)) == x[1,:,:]
+    @test @inferred(getobs(v1, 2)) == x[2,:,:]
+    @test getobs(v1, 1) isa Matrix{Float64}
+    @test numobs(v1) == 2
 end

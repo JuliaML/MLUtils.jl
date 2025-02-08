@@ -229,6 +229,36 @@ obsview(data) = obsview(data, 1:numobs(data))
 
 obsview(A::SubArray) = A
 
+"""
+    obsview(data::AbstractArray, [obsdim])
+    obsview(data::AbstractArray, idxs, [obsdim])
+
+Return a view of the array `data` that correspond to the given
+indices `idxs`. If `obsdim` of type [`ObsDim`] is provided, the observation 
+dimension of the array is assumed to be along that dimension, otherwise
+it is assumed to be the last dimension.
+
+If `idxs` is not provided, it will be assumed to be `1:numobs(data)`.
+
+# Examples
+
+```jldoctest
+julia> x = rand(4, 5, 2);
+
+julia> v = obsview(x, 2:3, ObsDim(2));
+
+julia> numobs(v)
+2
+
+julia> getobs(v, 1) == x[:, 2, :]
+true
+
+julia> getobs(v, 1:2) == x[:, 2:3, :]
+true
+```
+"""
+obsview(data::AbstractArray) = obsview(data, 1:numobs(data))
+
 function obsview(A::AbstractArray{T,N}, idx) where {T,N}
     I = ntuple(_ -> :, N-1)
     return view(A, I..., idx)
@@ -236,7 +266,56 @@ end
 
 getobs(a::SubArray) = getobs(a.parent, last(a.indices))
 
+### Arrays + ObsDim
+
+"""
+    ObsDim(d::Int)
+
+Type to specify the observation dimension of an array.
+
+It can be used in combination with [`obsview`](@ref).
+"""
+struct ObsDim{D} end
+
+ObsDim(d::Int) = ObsDim{d}()
+ObsDim(obsdim::ObsDim) = obsdim
+
+function obsview(data::A, ::ObsDim{D}) where {A<:AbstractArray,D}
+    idx = 1:size(data, D)
+    return ArrayObsView{D,A,typeof(idx)}(data, idx)
+end
+
+function obsview(data::A, idx, ::ObsDim{D}) where {A<:AbstractArray,D}
+    return ArrayObsView{D,A,typeof(idx)}(data, idx)
+end
+
+struct ArrayObsView{ObsDim,A<:AbstractArray,I<:AbstractVector} <: AbstractDataContainer
+    data::A
+    indices::I
+end
+
+Base.length(x::ArrayObsView) = length(x.indices)
+
+function Base.getindex(x::ArrayObsView{ObsDim}, idx) where {ObsDim}
+    # return a view, consistently with ObsView behaviour
+    return selectdim(x.data, ObsDim, x.indices[idx])
+end
+
+function getobs(x::ArrayObsView{ObsDim,A}, idx) where {ObsDim, T, N, A<:AbstractArray{T,N}}
+    Ipre = ntuple(_ -> :, ObsDim-1)
+    Ipost = ntuple(_ -> :, N-ObsDim)
+    return x.data[Ipre..., x.indices[idx], Ipost...]
+end
+
+getobs(x::ArrayObsView) = getobs(x, 1:length(x))
+
+function Base.show(io::IO, x::ArrayObsView{ObsDim}) where {ObsDim}
+    print(io, "ArrayObsView($(summary(x.data)), obsdim=$(ObsDim), numobs=$(length(x)))")
+end
+
 ##### Tuples / NamedTuples
 function obsview(tup::Union{Tuple, NamedTuple}, indices)
     return map(data -> obsview(data, indices), tup)
 end
+
+

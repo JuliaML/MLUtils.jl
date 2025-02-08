@@ -4,7 +4,7 @@ DocTestSetup = quote
 end
 ```
 
-# Guides
+# Guide
 
 ## Datasets 
 
@@ -109,10 +109,43 @@ In order to avoid unnecessary memory allocations, MLUtils.jl provides the [`obsv
 it returns a wrapper type [`ObsView`](@ref), which behaves like a dataset and can be used with any function that accepts datasets. Users can also specify the behavior of `obsview` on their custom types by implementing the `obsview` method for their type. As an example, for array data, `obsview(data, indices)` will return a subarray:
 
 ```jldoctest
+julia> data = [1 2 3; 4 5 6]
+2×3 Matrix{Int64}:
+ 1  2  3
+ 4  5  6
+
 julia> obsview([1 2 3; 4 5 6], 1:2)
 2×2 view(::Matrix{Int64}, :, 1:2) with eltype Int64:
  1  2
  4  5
 ```
+
+When working with arrays, it is also possible to use an [`ObsDim`](@ref) object as input to [`obsview`](@ref) to specify the dimension along which the observations are stored. This is useful when the last dimension is not the observation dimension. 
+
+An example of this are 3D arrays used as inputs to recurrent neural networks and transformers,
+usually having size `(n_features, n_timesteps, n_samples)`. In the case in which we want to treat the timesteps as observations, we can proceed as follows:
+
+```jldoctest
+julia> data = reshape([1:24;], 3, 4, 2)
+3×4×2 Array{Int64, 3}:
+[:, :, 1] =
+ 1  4  7  10
+ 2  5  8  11
+ 3  6  9  12
+
+[:, :, 2] =
+ 13  16  19  22
+ 14  17  20  23
+ 15  18  21  24
+
+julia> ov = obsview(data, ObsDim(2));
+
+julia> getobs(ov, 1)
+3×2 Matrix{Int64}:
+ 1  13
+ 2  14
+ 3  15
+```
+
 
 
