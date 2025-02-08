@@ -229,14 +229,56 @@ obsview(data) = obsview(data, 1:numobs(data))
 
 obsview(A::SubArray) = A
 
-function obsview(A::AbstractArray{T,N}, idx) where {T,N}
-    I = ntuple(_ -> :, N-1)
-    return view(A, I..., idx)
+"""
+    obsview(A::AbstractArray; obsdim=ndims(A))
+    obsview(A::AbstractArray, idxs; obsdim=ndims(A))
+"""
+obsview(A::AbstractArray; obsdim::Int=ndims(A)) = obsview(A, 1:size(A, obsdim); obsdim)
+
+function obsview(A::AbstractArray{T,N}, idx; obsdim::Int=N) where {T,N}
+    if obsdim != N
+        return ArrayObsView(A, idx, obsdim)
+    else
+        I = ntuple(_ -> :, N-1)
+        return view(A, I..., idx)
+    end
 end
 
 getobs(a::SubArray) = getobs(a.parent, last(a.indices))
+
+struct ArrayObsView{ObsDim,A<:AbstractArray,I<:AbstractVector} <: AbstractDataContainer
+    data::A
+    indices::I
+end
+
+function ArrayObsView(data, indices, obsdim::Int)
+    @assert 1 <= obsdim <= ndims(data)
+    return ArrayObsView{obsdim, typeof(data), typeof(indices)}(data, indices)
+end
+
+Base.length(x::ArrayObsView) = length(x.indices)
+
+function Base.getindex(x::ArrayObsView{ObsDim,A}, idx) where {ObsDim, T, N, A<:AbstractArray{T,N}}
+    Ipre = ntuple(_ -> :, ObsDim-1)
+    Ipost = ntuple(_ -> :, N-ObsDim)
+    return @view x.data[Ipre..., x.indices[idx], Ipost...]
+end
+
+function getobs(x::ArrayObsView{ObsDim,A}, idx) where {ObsDim, T, N, A<:AbstractArray{T,N}}
+    Ipre = ntuple(_ -> :, ObsDim-1)
+    Ipost = ntuple(_ -> :, N-ObsDim)
+    return x.data[Ipre..., x.indices[idx], Ipost...]
+end
+
+getobs(x::ArrayObsView) = getobs(x, 1:length(x))
+
+function Base.show(io::IO, x::ArrayObsView{ObsDim}) where {ObsDim}
+    print(io, "ArrayObsView($(summary(x.data)), obsdim=$(ObsDim), numobs=$(length(x)))")
+end
 
 ##### Tuples / NamedTuples
 function obsview(tup::Union{Tuple, NamedTuple}, indices)
     return map(data -> obsview(data, indices), tup)
 end
+
+

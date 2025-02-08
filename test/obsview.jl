@@ -233,3 +233,24 @@ end
         @test count == 15
     end
 end
+
+@testset "obsview(array; obsdim)" begin
+    x = rand(2, 3, 4)
+    v = obsview(x)
+    @test getobs(v, 1) == x[:,:,1]
+    @test getobs(v, 2) == x[:,:,2]
+    @test getobs(v, 1) isa Matrix{Float64}
+    @test numobs(v) == 4
+
+    v = obsview(x, obsdim=2)
+    @test getobs(v, 1) == x[:,1,:]
+    @test getobs(v, 2) == x[:,2,:]
+    @test getobs(v, 1) isa Matrix{Float64}
+    @test numobs(v) == 3
+
+    v = obsview(x, obsdim=1)
+    @test getobs(v, 1) == x[1,:,:]
+    @test getobs(v, 2) == x[2,:,:]
+    @test getobs(v, 1) isa Matrix{Float64}
+    @test numobs(v) == 2
+end
