@@ -43,7 +43,7 @@ include("batchview.jl")
 export batchsize, BatchView
 
 include("obsview.jl")
-export obsview, ObsView
+export obsview, ObsView, ObsDim
 
 include("dataloader.jl")
 export eachobs, DataLoader

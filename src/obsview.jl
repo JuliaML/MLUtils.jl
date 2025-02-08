@@ -230,39 +230,54 @@ obsview(data) = obsview(data, 1:numobs(data))
 obsview(A::SubArray) = A
 
 """
-    obsview(A::AbstractArray; obsdim=ndims(A))
-    obsview(A::AbstractArray, idxs; obsdim=ndims(A))
+    obsview(data::AbstractArray, [obsdim])
+    obsview(data::AbstractArray, idxs, [obsdim])
 """
-obsview(A::AbstractArray; obsdim::Int=ndims(A)) = obsview(A, 1:size(A, obsdim); obsdim)
+obsview(data::AbstractArray) = obsview(data, 1:numobs(data))
 
-function obsview(A::AbstractArray{T,N}, idx; obsdim::Int=N) where {T,N}
-    if obsdim != N
-        return ArrayObsView(A, idx, obsdim)
-    else
-        I = ntuple(_ -> :, N-1)
-        return view(A, I..., idx)
-    end
+function obsview(A::AbstractArray{T,N}, idx) where {T,N}
+    I = ntuple(_ -> :, N-1)
+    return view(A, I..., idx)
 end
 
 getobs(a::SubArray) = getobs(a.parent, last(a.indices))
+
+### Arrays + ObsDim
+
+"""
+    ObsDim(d::Int)
+
+Type to specify the observation dimension of an array.
+
+It can be used in combination with [`obsview`](@ref).
+"""
+struct ObsDim{D} end
+
+ObsDim(d::Int) = ObsDim{d}()
+ObsDim(obsdim::ObsDim) = obsdim
+
+function obsview(data::A, ::ObsDim{D}) where {A<:AbstractArray,D}
+    idx = 1:size(data, D)
+    return ArrayObsView{D,A,typeof(idx)}(data, idx)
+end
+
+function obsview(data::A, idx, ::ObsDim{D}) where {A<:AbstractArray,D}
+    return ArrayObsView{D,A,typeof(idx)}(data, idx)
+end
 
 struct ArrayObsView{ObsDim,A<:AbstractArray,I<:AbstractVector} <: AbstractDataContainer
     data::A
     indices::I
 end
 
-function ArrayObsView(data, indices, obsdim::Int)
-    @assert 1 <= obsdim <= ndims(data)
-    return ArrayObsView{obsdim, typeof(data), typeof(indices)}(data, indices)
-end
-
 Base.length(x::ArrayObsView) = length(x.indices)
 
 function Base.getindex(x::ArrayObsView{ObsDim}, idx) where {ObsDim}
+    # return a view, consistently with ObsView behaviour
     return selectdim(x.data, ObsDim, x.indices[idx])
 end
 
-function getobs(x::ArrayObsView, idx) where {ObsDim, T, N, A<:AbstractArray{T,N}}
+function getobs(x::ArrayObsView{ObsDim,A}, idx) where {ObsDim, T, N, A<:AbstractArray{T,N}}
     Ipre = ntuple(_ -> :, ObsDim-1)
     Ipost = ntuple(_ -> :, N-ObsDim)
     return x.data[Ipre..., x.indices[idx], Ipost...]

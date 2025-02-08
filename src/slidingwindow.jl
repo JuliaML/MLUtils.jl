@@ -79,10 +79,10 @@ julia> for w in s; println(w); end
 23:28
 ```
 """
-function slidingwindow(data; size::Int, stride::Int=1, obsdim::Union{Nothing,Int}=nothing)
+function slidingwindow(data; size::Int, stride::Int=1, obsdim=nothing)
     size > 0 || throw(ArgumentError("Specified window size must be strictly greater than 0. Actual: $size"))
     if obsdim !== nothing
-        data = obsview(data; obsdim)
+        data = obsview(data, ObsDim(obsdim))
     end
     size <= numobs(data) || throw(ArgumentError("Specified window size is too large for the given number of observations"))
     stride > 0 || throw(ArgumentError("Specified stride must be strictly greater than 0. Actual: $stride"))

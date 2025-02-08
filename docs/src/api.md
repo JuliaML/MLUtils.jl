@@ -36,6 +36,7 @@ BatchView
 eachobs
 DataLoader
 obsview
+ObsDim
 ObsView
 randobs
 slidingwindow
