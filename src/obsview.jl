@@ -211,7 +211,6 @@ The observation in the returned view `ov` can be materialized by calling
 `getobs(ov, i)` on the view, where `i` is an index in `1:length(ov)`.
 
 If `indices` is not provided, it will be assumed to be `1:numobs(data)`.
-```
 
 # Examples
 
@@ -234,7 +233,7 @@ obsview(A::SubArray) = A
     obsview(data::AbstractArray, idxs, [obsdim])
 
 Return a view of the array `data` that correspond to the given
-indices `idxs`. If `obsdim` of type [`ObsDim`] is provided, the observation 
+indices `idxs`. If `obsdim` of type [`ObsDim`](@ref) is provided, the observation 
 dimension of the array is assumed to be along that dimension, otherwise
 it is assumed to be the last dimension.
 
