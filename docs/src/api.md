@@ -7,10 +7,12 @@ CollapsedDocStrings = true
 
 ## Core API
 
+These functions are defined in [MLCore.jl](https://github.com/JuliaML/MLCore.jl).
+
 ```@docs
-getobs
-getobs!
-numobs
+MLCore.getobs
+MLCore.getobs!
+MLCore.numobs
 ```
 
 ## Lazy Transforms
