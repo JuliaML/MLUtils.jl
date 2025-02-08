@@ -227,7 +227,7 @@ obsview(data) = obsview(data, 1:numobs(data))
 
 ##### Arrays / SubArrays
 
-obsview(A::AbstractArray) = A
+obsview(A::SubArray) = A
 
 function obsview(A::AbstractArray{T,N}, idx) where {T,N}
     I = ntuple(_ -> :, N-1)
