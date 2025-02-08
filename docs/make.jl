@@ -1,4 +1,5 @@
 using MLUtils
+using MLCore
 using Documenter
 
 # Copy the README to the home page in docs, to avoid duplication.
@@ -11,9 +12,10 @@ open(joinpath(@__DIR__, "src/index.md"), "w") do f
 end
 
 DocMeta.setdocmeta!(MLUtils, :DocTestSetup, :(using MLUtils); recursive=true)
+DocMeta.setdocmeta!(MLCore, :DocTestSetup, :(using MLCore); recursive=true)
 
 makedocs(;
-    modules=[MLUtils],
+    modules=[MLUtils, MLCore],
     sitename = "MLUtils.jl",
     pages = ["Home" => "index.md",
              "API" => "api.md"],

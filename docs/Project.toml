@@ -1,3 +1,4 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+MLCore = "c2834f40-e789-41da-a90e-33b280584a8c"
 MLUtils = "f1d291b0-491e-4a28-83b9-f70985020b54"
