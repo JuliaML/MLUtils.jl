@@ -15,18 +15,22 @@ import ChainRulesCore: rrule
 using ChainRulesCore: @non_differentiable, unthunk, AbstractZero,
                       NoTangent, ZeroTangent, ProjectTo
 
+import MLCore: numobs, getobs, getobs!
 using SimpleTraits
 import NNlib
 
 @traitdef IsTable{X}
 @traitimpl IsTable{X} <- Tables.istable(X)
-    
+
 using Compat: stack
 
-include("observation.jl")
+# reexport from MLCore
 export numobs,
        getobs,
        getobs!
+
+include("datacontainer.jl")
+# export AbstractDataContainer # not documented, but could be part of the API in the future
 
 include("obstransform.jl")
 export mapobs,
