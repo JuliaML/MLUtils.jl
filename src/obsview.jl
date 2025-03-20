@@ -136,8 +136,10 @@ struct ObsView{Tdata, I<:Union{Int,AbstractVector}} <: AbstractDataContainer
     indices::I
 
     function ObsView(data::T, indices::I) where {T,I}
-        1 <= minimum(indices) || throw(BoundsError(data, indices))
-        maximum(indices) <= numobs(data) || throw(BoundsError(data, indices))
+        if !isempty(indices)
+            1 <= minimum(indices) || throw(BoundsError(data, indices))
+            maximum(indices) <= numobs(data) || throw(BoundsError(data, indices))
+        end
         return new{T,I}(data, indices)
     end
 end
