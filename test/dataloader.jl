@@ -356,3 +356,8 @@ end
         end
     end
 end
+
+@testset "Empty handling" begin
+    xtrain = Matrix{Float64}(undef, 3, 0)
+    data = DataLoader(xtrain, batchsize = 0, partial = true);
+end
