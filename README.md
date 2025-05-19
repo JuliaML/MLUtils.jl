@@ -9,7 +9,7 @@
 
 ## Features
 
-- An extensible dataset interface  (`numobs` and `getobs`).
+- An extensible dataset interface  (`numobs`, `getobs`, `getobs!`). Just [MLCore.jl](import https://github.com/JuliaML/MLCore.jl) to extend.
 - Data iteration and dataloaders (`eachobs` and `DataLoader`).
 - Lazy data views (`obsview`). 
 - Resampling procedures (`undersample` and `oversample`).
