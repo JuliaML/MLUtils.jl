@@ -271,7 +271,7 @@
 
             d = DataLoader((X2, Y2), batchsize=3)
             
-            @test contains(repr(d), "DataLoader(::Tuple{Matrix")
+            @test contains(repr(d), "DataLoader(data::Tuple{Matrix")
             @test contains(repr(d), "batchsize=3")
 
             @test contains(repr(MIME"text/plain"(), d), "2-element DataLoader")
@@ -279,10 +279,10 @@
             
             d2 = DataLoader((x = X2, y = Y2), batchsize=2, partial=false)
 
-            @test contains(repr(d2), "DataLoader(::@NamedTuple")
+            @test contains(repr(d2), "DataLoader(data::@NamedTuple")
             @test contains(repr(d2), "partial=false")
 
-            @test contains(repr(MIME"text/plain"(), d2), "2-element DataLoader(::@NamedTuple")
+            @test contains(repr(MIME"text/plain"(), d2), "2-element DataLoader(data::@NamedTuple")
             @test contains(repr(MIME"text/plain"(), d2), "x = 2×2 Matrix{Float32}, y = 2-element Vector")
         end
     end
