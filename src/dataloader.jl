@@ -65,7 +65,7 @@ The original data is preserved in the `data` field of the DataLoader.
   (depending on the `collate` and `batchsize` options, could be `getobs!(buffer, data, idxs)` or `getobs!(buffer[i], data, idx)`).
   Default `false`. 
 - **`collate`**: Defines the batching behavior. Default `nothing`. 
-  - If `nothing` , a batch is `getobs(data, indices)`. 
+  - If `nothing`, a batch is `getobs(data, indices)`. 
   - If `false`, each batch is `[getobs(data, i) for i in indices]`. 
   - If `true`, applies `MLUtils.batch` to the vector of observations in a batch, 
     recursively collating arrays in the last dimensions. See [`MLUtils.batch`](@ref) for more information
@@ -235,7 +235,7 @@ _create_buffer(x) = getobs(x, 1)
 
 function _create_buffer(x::BatchView)
     obsindices = _batchrange(x, 1)
-    return [getobs(A.data, idx) for idx in enumerate(obsindices)]
+    return [getobs(x.data, i) for i in obsindices]
 end
 
 function _create_buffer(x::BatchView{TElem,TData,Val{nothing}}) where {TElem,TData}
@@ -322,17 +322,23 @@ end
 
 # Base uses this function for composable array printing, e.g. adjoint(view(::Matrix)))
 function Base.showarg(io::IO, d::DataLoader, toplevel)
-    print(io, "DataLoader(")
+    print(io, "DataLoader(data")
     Base.showarg(io, d.data, false)
-    d.buffer == false || print(io, ", buffer=", d.buffer)
+    if d.buffer != false
+        print(io, ", buffer")
+        Base.showarg(io, d.buffer, false)
+    end
     d.parallel == false || print(io, ", parallel=", d.parallel)
     d.shuffle == false || print(io, ", shuffle=", d.shuffle)
     d.batchsize == 1 || print(io, ", batchsize=", d.batchsize)
     d.partial == true || print(io, ", partial=", d.partial)
-    d.collate === Val(nothing) || print(io, ", collate=", d.collate)
+    d.collate === Val(nothing) || print(io, ", collate=", _valstr(d.collate))
     d.rng == Random.default_rng() || print(io, ", rng=", d.rng)
     print(io, ")")
 end
+
+_valstr(::Val{T}) where T = string(T)
+_valstr(x) = string(x) 
 
 Base.show(io::IO, e::DataLoader) = Base.showarg(io, e, false)
 
