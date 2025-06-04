@@ -271,7 +271,7 @@
 
             d = DataLoader((X2, Y2), batchsize=3)
             
-            @test contains(repr(d), "DataLoader(::Tuple{Matrix")
+            @test contains(repr(d), "DataLoader(data::Tuple{Matrix")
             @test contains(repr(d), "batchsize=3")
 
             @test contains(repr(MIME"text/plain"(), d), "2-element DataLoader")
@@ -279,12 +279,41 @@
             
             d2 = DataLoader((x = X2, y = Y2), batchsize=2, partial=false)
 
-            @test contains(repr(d2), "DataLoader(::@NamedTuple")
+            @test contains(repr(d2), "DataLoader(data::@NamedTuple")
             @test contains(repr(d2), "partial=false")
 
-            @test contains(repr(MIME"text/plain"(), d2), "2-element DataLoader(::@NamedTuple")
+            @test contains(repr(MIME"text/plain"(), d2), "2-element DataLoader(data::@NamedTuple")
             @test contains(repr(MIME"text/plain"(), d2), "x = 2×2 Matrix{Float32}, y = 2-element Vector")
         end
+    end
+
+    @testset "buffer issue 205" begin
+
+        function shift_pair(X)
+            inputs = map(X) do x
+                T = size(x, 4)
+                return selectdim(x, 4, 1:(T-1))
+            end 
+            targets = map(X) do x
+                T = size(x, 4)
+                return selectdim(x, 4, 2:T)
+            end 
+            return (stack(inputs), stack(targets))
+        end
+
+        trajectory = randn(Float32, 32, 32, 4, 3, 5); 
+
+        loader = DataLoader(
+            trajectory;
+            batchsize=2,
+            partial=false,
+            buffer=true,
+            collate = shift_pair,
+            shuffle = false,
+        )
+
+        @test first(loader)[1] == trajectory[:, :, :, 1:2, 1:2]
+        @test first(loader)[2] == trajectory[:, :, :, 2:3, 1:2]
     end
 end
 
