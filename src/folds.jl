@@ -37,23 +37,23 @@ julia> val_idx
  9:10
 ```
 """
-function kfolds(n::Integer, k::Integer = 5)
+function kfolds(n::Integer, k::Integer=5)
     2 <= k <= n || throw(ArgumentError("n must be positive and k must to be within 2:$(max(2,n))"))
     # Compute the size of each fold. This is important because
     # in general the number of total observations might not be
     # divisible by k. In such cases it is custom that the remaining
     # observations are divided among the folds. Thus some folds
     # have one more observation than others.
-    sizes = fill(floor(Int, n/k), k)
-    for i = 1:(n % k)
+    sizes = fill(floor(Int, n / k), k)
+    for i = 1:(n%k)
         sizes[i] = sizes[i] + 1
     end
     # Compute start offset for each fold
     offsets = cumsum(sizes) .- sizes .+ 1
     # Compute the validation indices using the offsets and sizes
-    val_indices = map((o,s) -> (o:o+s-1), offsets, sizes)
+    val_indices = map((o, s) -> (o:o+s-1), offsets, sizes)
     # The train indices are then the indicies not in validation
-    train_indices = map(idx -> setdiff(1:n, idx), val_indices)
+    train_indices = map((o, s) -> vcat(1:o-1, o+s:n), offsets, sizes)
     # We return a tuple of arrays
     return train_indices, val_indices
 end
@@ -106,8 +106,8 @@ function kfolds(data, k::Integer)
     n = numobs(data)
     train_indices, val_indices = kfolds(n, k)
 
-    ((obsview(data, itrain), obsview(data, ival)) 
-        for (itrain, ival) in zip(train_indices, val_indices))
+    ((obsview(data, itrain), obsview(data, ival))
+     for (itrain, ival) in zip(train_indices, val_indices))
 end
 
 kfolds(data; k) = kfolds(data, k)
@@ -151,8 +151,8 @@ julia> val_idx
  9:10
 ```
 """
-function leavepout(n::Integer, p::Integer = 1)
-    1 <= p <= floor(n/2) || throw(ArgumentError("p must to be within 1:$(floor(Int,n/2))"))
+function leavepout(n::Integer, p::Integer=1)
+    1 <= p <= floor(n / 2) || throw(ArgumentError("p must to be within 1:$(floor(Int,n/2))"))
     k = floor(Int, n / p)
     kfolds(n, k)
 end
@@ -181,7 +181,7 @@ See[`kfolds`](@ref) for a related function.
 """
 function leavepout(data, p::Integer)
     n = numobs(data)
-    1 <= p <= floor(n/2) || throw(ArgumentError("p must to be within 1:$(floor(Int,n/2))"))
+    1 <= p <= floor(n / 2) || throw(ArgumentError("p must to be within 1:$(floor(Int,n/2))"))
     k = floor(Int, n / p)
     kfolds(data, k)
 end

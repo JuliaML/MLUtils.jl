@@ -46,8 +46,8 @@ The argument `at` specifies how to split the data:
 - When `at` is a number between 0 and 1, this specifies the proportion in the first subset.
 - When `at` is an integer, it specifies the number of observations in the first subset.
 - When `at` is a tuple, entries specifies the number or proportion in each subset, except
-for the last which will contain the remaning observations. 
-The number of returned subsets is `length(at)+1`.
+  for the last which will contain the remaning observations. 
+  The number of returned subsets is `length(at)+1`.
 
 If `shuffle=true`, randomly permute the observations before splitting.
 A random number generator `rng` can be optionally passed as the first argument.
