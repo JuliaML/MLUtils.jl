@@ -3,10 +3,7 @@ module MLUtils
 using Random
 using Statistics
 using ShowCases: ShowLimit
-using FLoops: @floop
-using FLoops.Transducers: Executor, ThreadedEx
 import StatsBase: sample
-using Transducers
 using Tables
 using DataAPI
 using Base: @propagate_inbounds

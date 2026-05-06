@@ -1,5 +1,5 @@
 # """
-#     eachobsparallel(data; buffer, executor, channelsize)
+#     eachobsparallel(data; buffer, channelsize, basesize)
 
 # Construct a data iterator over observations in container `data`.
 # It uses available threads as workers to load observations in
@@ -19,30 +19,25 @@
 #     `data`. Setting `buffer = true` means that when using the iterator, an
 #     observation is only valid for the current loop iteration.
 #     You can also pass in a preallocated `buffer = getobs(data, 1)`.
-# - `executor = Folds.ThreadedEx()`: task scheduler
-#     You may specify a different task scheduler which can
-#     be any `Folds.Executor`.
 # - `channelsize = Threads.nthreads()`: the number of observations that are prefetched.
 #     Increasing `channelsize` can lead to speedups when per-observation processing
 #     time is irregular but will cause higher memory usage.
 # """
 function eachobsparallel(
         data;
-        executor::Executor = _default_executor(),
         buffer::Bool = false,
-        channelsize = Threads.nthreads())
-    if buffer == false
-        return _eachobsparallel_unbuffered(data, executor; channelsize)
+        channelsize::Int = Threads.nthreads())
+    if buffer
+        return _eachobsparallel_buffered(buffer, data; channelsize)
     else
-        return _eachobsparallel_buffered(buffer, data, executor; channelsize)
+        return _eachobsparallel_unbuffered(data; channelsize)
     end
 end
 
 function _eachobsparallel_buffered(
         buffer,
-        data,
-        executor = _default_executor();
-        channelsize=Threads.nthreads())
+        data;
+        channelsize::Int)
     buffers = [buffer]
     foreach(_ -> push!(buffers, deepcopy(buffer)), 1:channelsize)
 
@@ -52,7 +47,7 @@ function _eachobsparallel_buffered(
     # each iteration.
     setup_channel(sz) = RingBuffer(buffers)
 
-    return Loader(1:numobs(data); executor, channelsize, setup_channel) do ringbuffer, i
+    return Loader(1:numobs(data); channelsize, setup_channel) do ringbuffer, i
         # Internally, `RingBuffer` will `put!` the result in the results channel
         put!(ringbuffer) do buf
             getobs!(buf, data, i)
@@ -60,23 +55,14 @@ function _eachobsparallel_buffered(
     end
 end
 
-function _eachobsparallel_unbuffered(data, 
-        executor = _default_executor(); 
-        channelsize=Threads.nthreads()
+function _eachobsparallel_unbuffered(data;
+        channelsize::Int
     )
-
-    return Loader(1:numobs(data); executor, channelsize) do ch, i
+    return Loader(1:numobs(data); channelsize) do ch, i
         obs = getobs(data, i)
         put!(ch, obs)
     end
 end
-
-
-# Unlike DataLoaders.jl, this currently does not use task pools
-# since  `ThreadedEx` has shown to be more performant. This may
-# change in the future.
-# See PR 33 https://github.com/JuliaML/MLUtils.jl/pull/33
-_default_executor() = ThreadedEx()
 
 
 # ## Internals
@@ -86,18 +72,16 @@ _default_executor() = ThreadedEx()
 
 
 # """
-#     Loader(f, args; executor, channelsize, setup_channel)
+#     Loader(f, args; channelsize, setup_channel)
 
 # Create a threaded iterator that iterates over `(f(arg) for arg in args)`
 # using threads that prefill a channel of length `channelsize`.
 
-# Note: results may not be returned in the correct order, depending on
-# `executor`.
+# Note: results may not be returned in the correct order.
 # """
 struct Loader
     f
     argiter::AbstractVector
-    executor::Executor
     channelsize::Int
     setup_channel
 end
@@ -105,10 +89,9 @@ end
 function Loader(
         f,
         argiter;
-        executor=_default_executor(),
-        channelsize=Threads.nthreads(),
+        channelsize::Int = Threads.nthreads(),
         setup_channel = sz -> Channel(sz))
-    Loader(f, argiter, executor, channelsize, setup_channel)
+    Loader(f, argiter, channelsize, setup_channel)
 end
 
 Base.length(loader::Loader) = length(loader.argiter)
@@ -121,18 +104,37 @@ end
 
 function Base.iterate(loader::Loader)
     ch = loader.setup_channel(loader.channelsize)
-    task = @async begin
-        @floop loader.executor for arg in loader.argiter
-            try
-                loader.f(ch, arg)
-            catch e
-                close(ch, e)
-                rethrow()
-            end
+    basesize = length(loader.argiter) ÷ Threads.nthreads()
+    task = Threads.@spawn begin
+        try
+            _spawn_foreach(loader.f, ch, loader.argiter,
+                           firstindex(loader.argiter),
+                           lastindex(loader.argiter),
+                           basesize)
+        catch e
+            close(ch, e)
+            rethrow()
         end
     end
 
     return Base.iterate(loader, LoaderState(task, ch, length(loader.argiter)))
+end
+
+# Recursive divide-and-conquer over `argiter[lo:hi]`:
+# At each level we `@spawn` the right half and recurse on the left half on the current task, then `wait` on the right.
+# Leaves of size `<= basesize` are processed sequentially.
+function _spawn_foreach(f::F, ch, argiter, lo, hi, basesize::Int) where {F}
+    if hi - lo < max(basesize, 1)
+        for i in lo:hi
+            f(ch, argiter[i])
+        end
+    else
+        mid = (lo + hi) >> 1
+        task = Threads.@spawn _spawn_foreach($f, $ch, $argiter, $(mid + 1), $hi, $basesize)
+        _spawn_foreach(f, ch, argiter, lo, mid, basesize)
+        wait(task)
+    end
+    return nothing
 end
 
 function Base.iterate(::Loader, state::LoaderState)
