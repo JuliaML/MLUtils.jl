@@ -77,6 +77,7 @@ flatten
 group_counts
 group_indices
 normalise
+rescale
 rpad_constant
 unbatch
 unsqueeze

@@ -400,15 +400,36 @@ end
     normalise(x; dims=ndims(x), ϵ=1e-5)
 
 Normalise the array `x` to mean 0 and standard deviation 1 across the dimension(s) given by `dims`.
-Per default, `dims` is the last dimension. 
+Per default, `dims` is the last dimension.
 
 `ϵ` is a small additive factor added to the denominator for numerical stability.
+
+This operation is also known as *standardization* or *z-score normalization*.
+See also [`rescale`](@ref) for min-max scaling to the `[0, 1]` range.
 """
 function normalise(x::AbstractArray; dims=ndims(x), ϵ=ofeltype(x, 1e-5))
     μ = mean(x, dims=dims)
     #   σ = std(x, dims=dims, mean=μ, corrected=false) # use this when Zygote#478 gets merged
     σ = std(x, dims=dims, corrected=false)
     return (x .- μ) ./ (σ .+ ϵ)
+end
+
+"""
+    rescale(x; dims=ndims(x), ϵ=1e-5)
+
+Rescale the array `x` to the `[0, 1]` range across the dimension(s) given by `dims`,
+by subtracting the minimum and dividing by the range (maximum minus minimum).
+Per default, `dims` is the last dimension.
+
+This operation is also known as *min-max scaling* or *min-max normalization*.
+
+`ϵ` is a small additive factor added to the denominator for numerical stability.
+See also [`normalise`](@ref) for standardization to mean 0 and standard deviation 1.
+"""
+function rescale(x::AbstractArray; dims=ndims(x), ϵ=ofeltype(x, 1e-5))
+    lo = minimum(x, dims=dims)
+    hi = maximum(x, dims=dims)
+    return (x .- lo) ./ (hi .- lo .+ ϵ)
 end
 
 ofeltype(x, y) = convert(float(eltype(x)), y)
