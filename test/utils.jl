@@ -8,6 +8,11 @@
     @test unsqueeze(dims=2)(x) == unsqueeze(x, dims=2)
 
     @test_throws AssertionError unsqueeze(rand(2,2), dims=4)
+
+    # test gradient
+    for d in (1, 2, 3, 4)
+        test_zygote(unsqueeze, x, fkwargs=(; dims=d), check_inferred=false)
+    end
 end
 
 @testset "stack and unstack" begin
@@ -25,6 +30,11 @@ end
 
     for d in (1,2,3)
         test_zygote(stack, [x,2x], fkwargs=(; dims=d), check_inferred=false)
+    end
+
+    # test gradient of unstack
+    for d in (1,2)
+        test_zygote(unstack, x, fkwargs=(; dims=d), check_inferred=false)
     end
 
     # Issue #121
