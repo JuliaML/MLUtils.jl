@@ -52,7 +52,8 @@ include("parallel.jl")
 
 include("folds.jl")
 export kfolds,
-       leavepout
+       leavepout,
+       timeseries_kfolds
 
 include("randobs.jl")
 export randobs

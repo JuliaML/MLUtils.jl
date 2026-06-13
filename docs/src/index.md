@@ -15,7 +15,7 @@
 - Resampling procedures (`undersample` and `oversample`).
 - Train/test splits (`splitobs`, stratified split) 
 - Data partitioning and aggregation tools (`batch`, `batch_sequence`, `unbatch`, `chunk`, `group_counts`, `group_indices`).
-- Folds for cross-validation (`kfolds`, `leavepout`).
+- Folds for cross-validation (`kfolds`, `leavepout`, `timeseries_kfolds`).
 - Datasets lazy tranformations (`mapobs`, `filterobs`, `groupobs`, `joinobs`, `shuffleobs`).
 - Toy datasets for demonstration purpose. 
 - Other data handling utilities (`flatten`, `normalise`, `unsqueeze`, `stack`, `unstack`, `slidingwindow`).
