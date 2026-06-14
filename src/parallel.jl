@@ -41,11 +41,18 @@ function _eachobsparallel_buffered(
     buffers = [buffer]
     foreach(_ -> push!(buffers, deepcopy(buffer)), 1:channelsize)
 
+    # `getobs!(buffer, data, i)` may return a value of a different type than
+    # `buffer` itself: with `collate=true` it mutates the per-observation
+    # buffers but returns a freshly batched array. Determine that result type
+    # up front so the `RingBuffer`'s results channel stays concretely typed
+    # (see JuliaML/MLUtils.jl#216).
+    R = _buffered_result_type(data, buffer)
+
     # This ensures the `Loader` will take from the `RingBuffer`s result
     # channel, and that a new results channel is created on repeated
     # iteration. (Since `Loader`) closes the previous at the end of
     # each iteration.
-    setup_channel(sz) = RingBuffer(buffers)
+    setup_channel(sz) = RingBuffer(buffers, R)
 
     return Loader(1:numobs(data); channelsize, setup_channel) do ringbuffer, i
         # Internally, `RingBuffer` will `put!` the result in the results channel
@@ -54,6 +61,11 @@ function _eachobsparallel_buffered(
         end
     end
 end
+
+# Type of a collated batch (which `getobs!` returns) is recorded in `BatchView`'s
+# first type parameter; for any other container the result keeps the buffer's type.
+_buffered_result_type(data::BatchView, buffer) = eltype(data)
+_buffered_result_type(data, buffer) = typeof(buffer)
 
 function _eachobsparallel_unbuffered(data;
         channelsize::Int
@@ -178,28 +190,42 @@ end
 #     Only one result is valid at a time! On the next `take!`, the previous
 #     result will be reused as a buffer and be mutated by a `put!`
 # """
-mutable struct RingBuffer{T}
-    buffers::Channel{T}
-    results::Channel{T}
-    current::T
+# The results channel carries `(buffer, result)` pairs rather than bare results.
+# This way the buffer that produced a result is recycled back into the pool, while
+# the result handed to the consumer may have a different type `R` than the buffer
+# type `B`. That happens with `collate=true`, where `f!` mutates per-observation
+# buffers but returns a freshly batched array (see JuliaML/MLUtils.jl#216). Both
+# types are tracked so the channels stay concretely typed.
+mutable struct RingBuffer{B,R}
+    buffers::Channel{B}
+    results::Channel{Tuple{B,R}}
+    current::B
 end
 
-function RingBuffer(bufs::Vector{T}) where T
+# Single-argument form: the result of `f!` has the same type as the buffer
+# (e.g. in-place `getobs!` without collation).
+RingBuffer(bufs::Vector{B}) where {B} = RingBuffer(bufs, B)
+
+function RingBuffer(bufs::Vector{B}, ::Type{R}) where {B,R}
     size = length(bufs) - 1
-    ch_buffers = Channel{T}(size + 1)
-    ch_results = Channel{T}(size)
+    ch_buffers = Channel{B}(size + 1)
+    ch_results = Channel{Tuple{B,R}}(size)
     foreach(bufs[begin+1:end]) do buf
         put!(ch_buffers, buf)
     end
 
-    return RingBuffer{T}(ch_buffers, ch_results, bufs[begin])
+    return RingBuffer{B,R}(ch_buffers, ch_results, bufs[begin])
 end
 
 
 function Base.take!(ringbuffer::RingBuffer)
+    # Recycle the buffer that produced the previously returned result. This is
+    # deferred until now so a result aliasing its buffer (e.g. `collate=false`)
+    # stays valid until the consumer asks for the next one.
     put!(ringbuffer.buffers, ringbuffer.current)
-    ringbuffer.current = take!(ringbuffer.results)
-    return ringbuffer.current
+    buf, result = take!(ringbuffer.results)
+    ringbuffer.current = buf
+    return result
 end
 
 
@@ -224,7 +250,7 @@ end
 function Base.put!(f!, ringbuffer::RingBuffer)
     buf = take!(ringbuffer.buffers)
     buf_ = f!(buf)
-    put!(ringbuffer.results, buf_)
+    put!(ringbuffer.results, (buf, buf_))
     return buf_
 end
 
