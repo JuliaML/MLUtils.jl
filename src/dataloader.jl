@@ -71,11 +71,16 @@ The original data is preserved in the `data` field of the DataLoader.
     recursively collating arrays in the last dimensions. See [`MLUtils.batch`](@ref) for more information
     and examples.
   - If a custom function, it will be used in place of `MLUtils.batch`. It should take a vector of observations as input.
-- **`parallel`**: Whether to use load data in parallel using worker threads. Greatly
-    speeds up data loading by factor of available threads. Requires starting
-    Julia with multiple threads. Check `Threads.nthreads()` to see the number of
-    available threads. **Passing `parallel = true` breaks ordering guarantees**.
-    Default `false`.
+- **`parallel`**: Controls parallel data loading with worker tasks spread over the
+    available threads, which greatly speeds up loading when `getobs` is expensive.
+    Requires starting Julia with multiple threads (check `Threads.nthreads()`).
+    **Breaks ordering guarantees.** Accepts:
+    - `false` (default) or `0`: load serially in the iterating task.
+    - `true`: use `Threads.nthreads()` worker tasks.
+    - `n::Integer`: use exactly `n` worker tasks. Since each in-flight worker holds
+      one (possibly batched) observation, a small `n` caps the number of batches
+      built concurrently and hence peak memory; `n = 1` runs a single background
+      worker that overlaps loading with the iterating task.
 - **`partial`**: This argument is used only when `batchsize > 0`.
   If `partial=false` and the number of observations is not divisible by the batchsize,
   then the last mini-batch is dropped. Default `true`.
@@ -143,15 +148,22 @@ struct DataLoader{T<:Union{ObsView,BatchView},B,P,C,O,R<:AbstractRNG}
     buffer::B    # boolean, or external buffer
     partial::Bool
     shuffle::Bool
-    parallel::Bool
+    parallel::Union{Bool,Int}
     collate::C
     rng::R
 end
 
+# Resolve the `parallel` kwarg to a number of loading worker tasks.
+# `false`/`0` (or negative) → serial (0 workers); `true` → all available
+# threads; `n::Integer` → exactly `n`. Defined via dispatch (rather than `==`)
+# so that `Bool <: Integer` does not conflate `true` with `1`.
+_nworkers(parallel::Bool) = parallel ? Threads.nthreads() : 0
+_nworkers(parallel::Integer) = max(Int(parallel), 0)
+
 function DataLoader(
         data;
         buffer = false,
-        parallel::Bool = false,
+        parallel::Union{Bool,Integer} = false,
         shuffle::Bool = false,
         batchsize::Int = 1,
         partial::Bool = true,
@@ -169,10 +181,13 @@ function DataLoader(
         _data = BatchView(_data; batchsize, partial, collate)
     end
 
-    if buffer == true  
+    if buffer == true
         buffer = _create_buffer(_data)
     end
-    P = parallel ? :parallel : :serial
+    # Normalize the stored value (keep `Bool` as-is for faithful printing /
+    # round-tripping, narrow any other `Integer` to `Int` to match the field).
+    parallel = parallel isa Bool ? parallel : Int(parallel)
+    P = _nworkers(parallel) > 0 ? :parallel : :serial
     # for buffer == false and external buffer, we keep as is
 
     T, O, B, C, R = typeof(_data), typeof(data), typeof(buffer), typeof(collate), typeof(rng)
@@ -195,7 +210,7 @@ end
 function Base.iterate(d::DataLoader{T,B,:parallel}) where {T,B}
     @assert d.buffer != false
     data = d.shuffle ? _shuffledata(d.rng, d._data) : d._data
-    iter = _eachobsparallel_buffered(d.buffer, data; channelsize=Threads.nthreads())
+    iter = _eachobsparallel_buffered(d.buffer, data; nworkers=_nworkers(d.parallel))
     obs, state = iterate(iter)
     return obs, (iter, state)
 end
@@ -213,7 +228,7 @@ end
 function Base.iterate(d::DataLoader{T,Bool,:parallel}) where {T}
     @assert d.buffer == false
     data = d.shuffle ? _shuffledata(d.rng, d._data) : d._data
-    iter = _eachobsparallel_unbuffered(data; channelsize=Threads.nthreads())
+    iter = _eachobsparallel_unbuffered(data; nworkers=_nworkers(d.parallel))
     obs, state = iterate(iter)
     return obs, (iter, state)
 end

@@ -380,6 +380,40 @@ end
             @test_nowarn for _ in iter end
         end
     end
+
+    @testset "parallel worker count" begin
+        # `parallel` accepts a worker count, with `true` = nthreads and `0`/`false` = serial
+        @test MLUtils._nworkers(false) == 0
+        @test MLUtils._nworkers(0) == 0
+        @test MLUtils._nworkers(-3) == 0
+        @test MLUtils._nworkers(true) == Threads.nthreads()
+        @test MLUtils._nworkers(3) == 3
+        # `Bool <: Integer`, so `true` must not be conflated with `1`
+        @test MLUtils._nworkers(1) == 1
+
+        # codepath dispatch: 0/false serial, positive ints / true parallel
+        mode(d) = typeof(d).parameters[3]
+        @test mode(DataLoader(1:50; parallel=false)) === :serial
+        @test mode(DataLoader(1:50; parallel=0)) === :serial
+        @test mode(DataLoader(1:50; parallel=true)) === :parallel
+        @test mode(DataLoader(1:50; parallel=1)) === :parallel
+        @test mode(DataLoader(1:50; parallel=4)) === :parallel
+
+        # the raw value round-trips (faithful printing / reconstruction)
+        @test DataLoader(1:50; parallel=3).parallel === 3
+        @test DataLoader(1:50; parallel=true).parallel === true
+        @test DataLoader(1:50; parallel=false).parallel === false
+
+        # every observation is loaded exactly once regardless of worker count
+        ref = collect(1:50)
+        for p in (false, 0, 1, 2, true)
+            @test sort(collect(eachobs(1:50; parallel=p))) == ref
+            @test sort(collect(eachobs(1:50; parallel=p, buffer=true))) == ref
+            batches = collect(eachobs(1:50; parallel=p, batchsize=5))
+            @test length(batches) == 10
+            @test sort(reduce(vcat, batches)) == ref
+        end
+    end
 end
 
 @testset "Empty handling" begin
