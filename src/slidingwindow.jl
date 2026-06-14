@@ -14,6 +14,10 @@ function Base.getindex(A::SlidingWindow, i::Int)
     return getobs(A.data, windowrange)
 end
 
+# Each window is a single observation, so indexing with a vector of
+# integers returns the corresponding windows as a vector.
+Base.getindex(A::SlidingWindow, is::AbstractVector) = [A[i] for i in is]
+
 function getrange(A::SlidingWindow, i::Int)
     offset = 1 + (i-1) * A.stride
     return offset:offset+A.size-1
@@ -47,18 +51,25 @@ passed to `obsview` to get a view of the data along that dimension.
 Note that the windows are not materialized at construction time. 
 To actually get a copy of the data at some window use indexing or [`getobs`](@ref).
 
-When indexing the data is accessed as `getobs(data, idxs)`, with `idxs` an appropriate range of indexes.
+Each window is itself an observation. Indexing with a single integer
+`i` returns the `i`-th window, while indexing with a vector of integers
+(via `s[is]` or `getobs(s, is)`) returns the corresponding windows as a vector.
 
 # Examples
 ```jldoctest
 julia> s = slidingwindow(11:30, size=6)
 slidingwindow(20-element UnitRange{Int64}, size=6, stride=1)
 
-julia> s[1]  # == getobs(data, 1:6)
+julia> s[1]  # == getobs(11:30, 1:6)
 11:16
 
-julia> s[2]  # == getobs(data, 2:7)
+julia> s[2]  # == getobs(11:30, 2:7)
 12:17
+
+julia> getobs(s, [1, 2])  # a vector with the first two windows
+2-element Vector{UnitRange{Int64}}:
+ 11:16
+ 12:17
 ```
 
 The optional parameter `stride` can be used to specify the
