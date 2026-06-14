@@ -187,6 +187,122 @@ Related helpers include [`batchseq`](@ref) and [`batch_sequence`](@ref) for
 padding and batching variable-length sequences. See the
 [API Reference](@ref) for the full list.
 
+## A worked example: lazy image augmentation
+
+A common task when training convolutional neural networks is to apply random
+augmentations — flips, rotations, crops — to the training images. The
+augmentations should be applied *lazily*, at the moment a batch is loaded, so
+that each epoch sees freshly perturbed data and nothing is materialized ahead of
+time. This is exactly what a custom data container plus [`DataLoader`](@ref)
+gives you.
+
+In this example we use [`DataAugmentation.jl`](https://github.com/FluxML/DataAugmentation.jl)
+to define the augmentation pipeline and [`ImageCore`](https://juliaimages.org/stable/)
+to convert between numerical arrays and images. For more on working with images
+in Julia, see the [JuliaImages documentation](https://juliaimages.org/stable/tutorials/quickstart/).
+
+```julia
+using MLUtils
+using DataAugmentation
+using ImageCore
+```
+
+We start by defining a type that holds the data and the transformation pipeline.
+The data is a 4-dimensional array of color images, following the convention that
+the last dimension is the observation dimension; the four axes are width, height,
+channels, and number of observations. Both fields are type parameters so the
+struct stays concretely typed and fast:
+
+```julia
+struct ImageDataset{T,F}
+    data::T          # width × height × channels × observations
+    transform::F     # a DataAugmentation.jl pipeline
+end
+```
+
+For this example we generate a random batch of 100 RGB images of size 28×28:
+
+```julia
+num_samples = 100
+num_channels = 3
+width = height = 28
+data = rand(Float32, width, height, num_channels, num_samples)
+```
+
+Next we compose the augmentation pipeline with the `|>` operator. Here we maybe
+flip the image horizontally and/or vertically, rotate it by a random angle, take
+a random resized crop back to 28×28, and finally convert the augmented image to a
+numerical tensor. `Maybe(tfm)` applies `tfm` with probability `0.5`, and
+`Rotate(15)` draws an angle uniformly from `[-15°, 15°]`; the trailing crop keeps
+every observation the same size so they can be stacked into a batch. The full
+list of operations is in the
+[DataAugmentation.jl documentation](https://fluxml.ai/DataAugmentation.jl/dev/).
+
+```julia
+pipeline = Maybe(FlipX{2}()) |>
+           Maybe(FlipY{2}()) |>
+           Rotate(15) |>
+           RandomResizeCrop((width, height)) |>
+           ImageToTensor()
+
+dataset = ImageDataset(data, pipeline)
+```
+
+To turn `ImageDataset` into a data container we implement [`numobs`](@ref) and
+[`getobs`](@ref). `numobs` simply reports the size of the observation dimension.
+`getobs` fetches a single observation, wraps it as an `Image` item so the
+pipeline can be applied, and extracts the resulting tensor with `itemdata`
+(`ImageToTensor` already returns a `width × height × channels` `Float32` array):
+
+```julia
+MLUtils.numobs(d::ImageDataset) = size(d.data, 4)
+
+function MLUtils.getobs(d::ImageDataset, i::Int)
+    obs = d.data[:, :, :, i]                            # width × height × channels
+    img = colorview(RGB, permutedims(obs, (3, 2, 1)))  # to an RGB image
+    item = Image(img)
+    return itemdata(apply(d.transform, item))          # augment, back to a numerical tensor
+end
+```
+
+That is enough to iterate over single, augmented observations:
+
+```julia
+loader = DataLoader(dataset; batchsize=-1)
+
+for (i, obs) in enumerate(loader)
+    @show i, size(obs)
+end
+```
+
+In practice we want to train on mini-batches. Since we only defined `getobs` for
+a single integer index, we ask the `DataLoader` to assemble batches with
+`collate=true`, which calls `getobs` per observation and stacks the results with
+[`batch`](@ref) (see [Collation](@ref) above). Each batch is then augmented
+freshly and the observations reshuffled every epoch:
+
+```julia
+loader = DataLoader(dataset; batchsize=27, shuffle=true, collate=true)
+
+for (i, x) in enumerate(loader)
+    @show i, size(x)        # (28, 28, 3, 27) for the full batches
+end
+```
+
+Augmentation is CPU-bound, so it pays to overlap it with training. Pass
+`parallel=true` to load (and thus augment) batches on worker threads — start
+Julia with `julia -t auto` to benefit:
+
+```julia
+loader = DataLoader(dataset; batchsize=27, shuffle=true, collate=true, parallel=true)
+```
+
+The same `ImageDataset` works directly with [`BatchView`](@ref) and the other
+data-container tools, since they are all written against `numobs` and `getobs`.
+For allocation-free loading, DataAugmentation's [`Buffered`](https://fluxml.ai/DataAugmentation.jl/dev/)
+pipelines pair naturally with a [`getobs!`](@ref) method and the `DataLoader`'s
+`buffer=true` option; see [Data Containers](@ref) for details.
+
 ## Where to go next
 
 - [Data Containers](@ref) — the interface all of this is built on.
