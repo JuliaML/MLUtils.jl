@@ -39,4 +39,21 @@
         @test v[3] == x[:, 3:4, :]
         @test v[4] == x[:, 4:5, :]
     end
+
+    @testset "vector indexing (#213)" begin
+        v = slidingwindow(1:20, size=5)
+        # getobs falls back to getindex for AbstractDataContainer
+        @test getobs(v, 1:2) == [v[1], v[2]]
+        @test getobs(v, [1, 3]) == [v[1], v[3]]
+        @test v[1:2] == [v[1], v[2]]
+        @test v[[2, 4]] == [v[2], v[4]]
+        # output is consistent between scalar and vector indexing
+        @test getobs(v, [1])[1] == getobs(v, 1)
+        @test getobs(v, 1:length(v)) == [v[i] for i in 1:length(v)]
+
+        x = [1 2 3 4 5; 6 7 8 9 10]
+        w = slidingwindow(x, size=2)
+        @test getobs(w, 1:2) == [getobs(w, 1), getobs(w, 2)]
+        @test getobs(w, 1:2)[1] == [1 2; 6 7]
+    end
 end
