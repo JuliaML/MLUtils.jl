@@ -315,6 +315,26 @@
         @test first(loader)[1] == trajectory[:, :, :, 1:2, 1:2]
         @test first(loader)[2] == trajectory[:, :, :, 2:3, 1:2]
     end
+
+    @testset "buffer + collate + parallel issue 216" begin
+        # `buffer=true` together with `collate=true` and `parallel=true` used to
+        # error because the collated batch has a different type than the per-obs
+        # buffer it was built from.
+        X_ = rand(Float32, 4, 15)
+        serial = collect(DataLoader(X_; batchsize=2, buffer=true, collate=true, parallel=false))
+        par    = DataLoader(X_; batchsize=2, buffer=true, collate=true, parallel=true)
+        @test_nowarn for _ in par end
+        batches = collect(par)
+        @test all(b -> b isa Matrix{Float32} && size(b, 1) == 4, batches)
+        # parallel order is not guaranteed, so compare as a set of columns
+        cols(bs) = sort(collect(eachcol(reduce(hcat, bs))), by=first)
+        @test cols(batches) == cols(serial)
+
+        # custom collate function over a non-array container
+        loader = DataLoader(["a", "b", "c", "d"]; batchsize=2, buffer=true,
+                            collate=join, parallel=true)
+        @test sort(collect(loader)) == ["ab", "cd"]
+    end
 end
 
 @testset "eachobs" begin
