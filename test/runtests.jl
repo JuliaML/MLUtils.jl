@@ -5,7 +5,6 @@ using MLUtils: flatten, stack, unstack # also exported by DataFrames.jl
 using SparseArrays
 using Random, Statistics
 using Test
-using Transducers
 using ChainRulesTestUtils: test_rrule
 using Zygote: ZygoteRuleConfig
 using ChainRulesCore: rrule_via_ad

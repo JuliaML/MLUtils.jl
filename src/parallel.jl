@@ -143,8 +143,15 @@ function _spawn_foreach(f::F, ch, argiter, lo, hi, basesize::Int) where {F}
     else
         mid = (lo + hi) >> 1
         task = Threads.@spawn _spawn_foreach($f, $ch, $argiter, $(mid + 1), $hi, $basesize)
-        _spawn_foreach(f, ch, argiter, lo, mid, basesize)
-        wait(task)
+        # Always `wait` on the right half, even if the left half throws, so the spawned
+        # task never outlives this call. On the happy path `wait` also propagates a
+        # right-half failure; on the error path the caller closes `ch`, which unblocks any
+        # `put!` the right half is parked on so it can terminate.
+        try
+            _spawn_foreach(f, ch, argiter, lo, mid, basesize)
+        finally
+            wait(task)
+        end
     end
     return nothing
 end
