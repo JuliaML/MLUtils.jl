@@ -73,6 +73,8 @@ undersample
 ## Operations
 
 ```@docs
+batched_searchsortedfirst
+batched_searchsortedlast
 chunk
 flatten
 group_counts

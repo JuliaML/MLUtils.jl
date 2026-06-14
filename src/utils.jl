@@ -677,3 +677,98 @@ function rrule(::typeof(fill_like), x::AbstractArray, val, T::Type, sz)
     return fill_like(x, val, T, sz), fill_like_pullback
 end
 
+"""
+    batched_searchsortedfirst(xp, x; dims=1, rev=false)
+
+Batched, GPU-friendly version of `Base.searchsortedfirst`.
+
+For each query in `x`, return the index of the first element of the sorted
+collection `xp` that is greater than or equal to it (the leftmost position at
+which the query could be inserted while keeping `xp` sorted). Pass `rev=true`
+when `xp` is sorted in descending order.
+
+The search runs along dimension `dims` of `xp`. `x` and `xp` must have the same
+size along all other dimensions (or `xp` may be a vector, in which case it is
+searched for every query in `x`). The result has the same size as `x`, so that
+for `dims=1`, `xp[result[i, j], j] >= x[i, j]`.
+
+See also [`batched_searchsortedlast`](@ref).
+
+# Examples
+
+```jldoctest
+julia> v = [1, 3, 5, 7, 9];
+
+julia> batched_searchsortedfirst(v, [4, 5, 8])
+3-element Vector{Int64}:
+ 3
+ 3
+ 5
+
+julia> xp = [1 2; 3 4; 5 6];   # two sorted columns: [1,3,5] and [2,4,6]
+
+julia> batched_searchsortedfirst(xp, [2 5; 4 1])
+2×2 Matrix{Int64}:
+ 2  3
+ 3  1
+```
+"""
+function batched_searchsortedfirst(xp::AbstractArray, x::AbstractArray; dims::Integer=1, rev::Bool=false)
+    cmp = _searchsorted_count(xp, x, dims, rev ? (>) : (<))
+    return cmp .+ 1
+end
+
+"""
+    batched_searchsortedlast(xp, x; dims=1, rev=false)
+
+Batched, GPU-friendly version of `Base.searchsortedlast`.
+
+For each query in `x`, return the index of the last element of the sorted
+collection `xp` that is less than or equal to it (the rightmost position at
+which the query could be inserted while keeping `xp` sorted). Pass `rev=true`
+when `xp` is sorted in descending order.
+
+The search runs along dimension `dims` of `xp`. `x` and `xp` must have the same
+size along all other dimensions (or `xp` may be a vector, in which case it is
+searched for every query in `x`). The result has the same size as `x`, so that
+for `dims=1`, `xp[result[i, j], j] <= x[i, j]`.
+
+See also [`batched_searchsortedfirst`](@ref).
+
+# Examples
+
+```jldoctest
+julia> v = [1, 3, 5, 7, 9];
+
+julia> batched_searchsortedlast(v, [4, 5, 8])
+3-element Vector{Int64}:
+ 2
+ 3
+ 4
+
+julia> xp = [1 2; 3 4; 5 6];   # two sorted columns: [1,3,5] and [2,4,6]
+
+julia> batched_searchsortedlast(xp, [2 5; 4 1])
+2×2 Matrix{Int64}:
+ 1  2
+ 2  0
+```
+"""
+function batched_searchsortedlast(xp::AbstractArray, x::AbstractArray; dims::Integer=1, rev::Bool=false)
+    return _searchsorted_count(xp, x, dims, rev ? (>=) : (<=))
+end
+
+# Count, for each query in `x`, how many elements of `xp` satisfy `cmp(xp, x)`
+# along dimension `dims`. The comparison is broadcast over an extra axis, so the
+# whole computation is vectorized and stays on the GPU. `xp` may be a vector, in
+# which case it is broadcast against every batch of `x`.
+function _searchsorted_count(xp::AbstractArray, x::AbstractArray, dims::Integer, cmp)
+    xpe = unsqueeze(xp; dims = dims + 1)   # search dim stays at `dims`
+    xe = unsqueeze(x; dims = dims)         # query dim moves to `dims + 1`
+    counts = sum(cmp.(xpe, xe); dims)
+    return dropdims(counts; dims)
+end
+
+@non_differentiable batched_searchsortedfirst(::Any...)
+@non_differentiable batched_searchsortedlast(::Any...)
+
