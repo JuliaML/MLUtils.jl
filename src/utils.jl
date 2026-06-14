@@ -784,8 +784,7 @@ they have size `k`. The returned `indices` are the positions of the selected
 elements along `dims`, so that for `dims=1`, `x[indices[i, j], j] == values[i, j]`.
 
 This is a differentiable, multidimensional and GPU-friendly generalization of
-`Base.partialsort`. It is the analogue of
-[`torch.topk`](https://pytorch.org/docs/stable/generated/torch.topk.html).
+`Base.partialsort`.
 
 # Examples
 
