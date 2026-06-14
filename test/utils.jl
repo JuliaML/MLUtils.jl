@@ -215,3 +215,57 @@ end
     @test rpad_constant([1 2; 3 4], 4) == [1 2 0 0; 3 4 0 0; 0 0 0 0; 0 0 0 0]
     @test rpad_constant([1 2; 3 4], (3, 4)) == [1 2 0 0; 3 4 0 0; 0 0 0 0]
 end
+
+@testset "batched_searchsorted" begin
+    # vector haystack matches Base.searchsorted{first,last} elementwise
+    v = sort(randn(20))
+    q = randn(8)
+    @test batched_searchsortedfirst(v, q) == searchsortedfirst.(Ref(v), q)
+    @test batched_searchsortedlast(v, q) == searchsortedlast.(Ref(v), q)
+
+    # descending haystack
+    vr = sort(randn(20); rev=true)
+    @test batched_searchsortedfirst(vr, q; rev=true) == searchsortedfirst.(Ref(vr), q; rev=true)
+    @test batched_searchsortedlast(vr, q; rev=true) == searchsortedlast.(Ref(vr), q; rev=true)
+
+    # documented examples
+    @test batched_searchsortedfirst([1, 3, 5, 7, 9], [4, 5, 8]) == [3, 3, 5]
+    @test batched_searchsortedlast([1, 3, 5, 7, 9], [4, 5, 8]) == [2, 3, 4]
+
+    # batched along dim 1 (last dim is the batch): each column searched independently
+    xp = sort(randn(10, 5); dims=1)
+    x = randn(4, 5)
+    rf = batched_searchsortedfirst(xp, x)
+    rl = batched_searchsortedlast(xp, x)
+    @test size(rf) == size(x) == size(rl)
+    for j in 1:5
+        @test rf[:, j] == searchsortedfirst.(Ref(xp[:, j]), x[:, j])
+        @test rl[:, j] == searchsortedlast.(Ref(xp[:, j]), x[:, j])
+    end
+
+    # batched along a non-default dim
+    xp2 = sort(randn(5, 10); dims=2)
+    x2 = randn(5, 4)
+    r2 = batched_searchsortedlast(xp2, x2; dims=2)
+    @test size(r2) == size(x2)
+    for i in 1:5
+        @test r2[i, :] == searchsortedlast.(Ref(xp2[i, :]), x2[i, :])
+    end
+
+    # a vector haystack broadcasts against a batched query
+    @test batched_searchsortedfirst(v, x) == searchsortedfirst.(Ref(v), x)
+
+    if CUDA.functional()
+        CUDA.allowscalar(false)
+        try
+            xpg, xg = cu(xp), cu(x)
+            for f in (batched_searchsortedfirst, batched_searchsortedlast)
+                rg = f(xpg, xg)
+                @test rg isa CuArray
+                @test Array(rg) == f(xp, x)
+            end
+        finally
+            CUDA.allowscalar(true)
+        end
+    end
+end

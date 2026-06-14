@@ -72,7 +72,9 @@ export batch,
        unbatch
 
 include("utils.jl")
-export chunk,
+export batched_searchsortedfirst,
+       batched_searchsortedlast,
+       chunk,
        falses_like,
        fill_like,
        flatten,
