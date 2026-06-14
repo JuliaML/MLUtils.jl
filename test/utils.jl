@@ -269,3 +269,63 @@ end
         end
     end
 end
+
+@testset "topk" begin
+    # vector
+    @test topk([5, 1, 4, 2, 3], 3) == ([5, 4, 3], [1, 3, 5])
+    @test topk([5, 1, 4, 2, 3], 2; rev=false) == ([1, 2], [2, 4])
+
+    # the returned indices index back into the selected dimension
+    x = randn(6, 8)
+    for dims in (1, 2), rev in (true, false)
+        n = size(x, dims)
+        vals, inds = topk(x, 3; dims, rev)
+        @test size(vals) == size(inds)
+        sorted = sort(x; dims, rev)
+        @test vals == selectdim(sorted, dims, 1:3)
+        for I in CartesianIndices(inds)
+            J = Base.setindex(Tuple(I), inds[I], dims)
+            @test x[J...] == vals[I]
+        end
+    end
+
+    # argument checking
+    @test_throws ArgumentError topk([1, 2, 3], 0)
+    @test_throws ArgumentError topk([1, 2, 3], 4)
+
+    # gradient flows through the values only, scattered back to the selected entries
+    for dims in (1, 2)
+        x = randn(Float32, 5, 4)
+        g = Zygote.gradient(z -> sum(abs2, first(topk(z, 2; dims))), x)[1]
+        vals, inds = topk(x, 2; dims)
+        expected = zero(x)
+        for I in CartesianIndices(inds)
+            J = Base.setindex(Tuple(I), inds[I], dims)
+            expected[J...] = 2 * x[J...]
+        end
+        @test g ≈ expected
+    end
+
+    if CUDA.functional()
+        # forbid scalar indexing to make sure topk stays on the GPU
+        CUDA.allowscalar(false)
+        try
+            x = randn(Float32, 6, 8)
+            xg = cu(x)
+            for dims in (1, 2), rev in (true, false)
+                vc, ic = topk(x, 3; dims, rev)
+                vg, ig = topk(xg, 3; dims, rev)
+                @test vg isa CuArray
+                @test ig isa CuArray
+                @test Array(vg) ≈ vc
+                @test Array(ig) == ic
+            end
+            gg = Zygote.gradient(z -> sum(abs2, first(topk(z, 3; dims=1))), xg)[1]
+            gc = Zygote.gradient(z -> sum(abs2, first(topk(z, 3; dims=1))), x)[1]
+            @test gg isa CuArray
+            @test Array(gg) ≈ gc
+        finally
+            CUDA.allowscalar(true)
+        end
+    end
+end

@@ -82,6 +82,7 @@ group_indices
 normalise
 rescale
 rpad_constant
+topk
 unbatch
 unsqueeze
 unstack

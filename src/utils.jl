@@ -772,3 +772,84 @@ end
 @non_differentiable batched_searchsortedfirst(::Any...)
 @non_differentiable batched_searchsortedlast(::Any...)
 
+"""
+    topk(x, k; dims=1, rev=true) -> (values, indices)
+
+Return the `k` largest elements of array `x` along dimension `dims`, and their
+indices along that dimension. The result is sorted, with `values[1, ...]` the
+largest element. Pass `rev=false` to return the `k` smallest elements instead.
+
+`values` and `indices` are arrays equal in size to `x` except along `dims`, where
+they have size `k`. The returned `indices` are the positions of the selected
+elements along `dims`, so that for `dims=1`, `x[indices[i, j], j] == values[i, j]`.
+
+This is a differentiable, multidimensional and GPU-friendly generalization of
+`Base.partialsort`. It is the analogue of
+[`torch.topk`](https://pytorch.org/docs/stable/generated/torch.topk.html).
+
+# Examples
+
+```jldoctest
+julia> x = [1 8 3; 6 2 5; 4 9 7];
+
+julia> vals, inds = topk(x, 2; dims=2);
+
+julia> vals
+3×2 Matrix{Int64}:
+ 8  3
+ 6  5
+ 9  7
+
+julia> inds
+3×2 Matrix{Int64}:
+ 2  3
+ 1  3
+ 2  3
+
+julia> topk([5, 1, 4, 2, 3], 3)
+([5, 4, 3], [1, 3, 5])
+```
+"""
+function topk(x::AbstractArray, k::Integer; dims::Integer=1, rev::Bool=true)
+    n = size(x, dims)
+    1 <= k <= n || throw(ArgumentError("k=$k must be in the range 1:size(x, dims)=$n"))
+    perm = _sortperm(x, dims, rev)
+    lin = copy(selectdim(perm, dims, 1:k))   # linear indices of the top-k slices
+    vals = x[lin]
+    inds = _idx_along_dim(lin, size(x), dims)
+    return vals, inds
+end
+
+# `sortperm` rejects the `dims` keyword for vectors, where it is redundant anyway.
+_sortperm(x::AbstractVector, dims::Integer, rev::Bool) = sortperm(x; rev)
+_sortperm(x::AbstractArray, dims::Integer, rev::Bool) = sortperm(x; dims, rev)
+
+# Convert linear indices `lin` into x to positions along dimension `dims`.
+# Fully broadcasted so it stays on the GPU.
+function _idx_along_dim(lin, sz::Dims, dims::Integer)
+    stride = prod(sz[1:dims-1])              # 1 when dims == 1
+    dimsize = sz[dims]
+    return @. mod(div(lin - 1, stride), dimsize) + 1
+end
+
+@non_differentiable _idx_along_dim(::Any...)
+
+function rrule(::typeof(topk), x::AbstractArray, k::Integer; dims::Integer=1, rev::Bool=true)
+    n = size(x, dims)
+    1 <= k <= n || throw(ArgumentError("k=$k must be in the range 1:size(x, dims)=$n"))
+    perm = _sortperm(x, dims, rev)
+    lin = copy(selectdim(perm, dims, 1:k))
+    vals = x[lin]
+    inds = _idx_along_dim(lin, size(x), dims)
+    function topk_pullback(Δ)
+        Δvals = Δ[1]                          # only `values` carries a gradient
+        if Δvals === nothing || Δvals isa AbstractZero
+            return (NoTangent(), ZeroTangent(), NoTangent())
+        end
+        Δvals = unthunk(Δvals)
+        x̄ = zero(x)
+        x̄[lin] = Δvals                       # scatter; the top-k indices are unique
+        return (NoTangent(), x̄, NoTangent())
+    end
+    return (vals, inds), topk_pullback
+end
