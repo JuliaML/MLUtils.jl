@@ -18,7 +18,7 @@
 - Folds for cross-validation (`kfolds`, `leavepout`, `timeseries_kfolds`).
 - Datasets lazy tranformations (`mapobs`, `filterobs`, `groupobs`, `joinobs`, `shuffleobs`).
 - Toy datasets for demonstration purpose. 
-- Other data handling utilities (`flatten`, `normalise`, `unsqueeze`, `stack`, `unstack`, `slidingwindow`).
+- Other data handling utilities (`flatten`, `normalise`, `rescale`, `unsqueeze`, `stack`, `unstack`, `slidingwindow`).
 
 
 ## Examples

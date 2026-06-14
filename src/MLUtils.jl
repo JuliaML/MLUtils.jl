@@ -85,6 +85,7 @@ export chunk,
        ones_like,
        rand_like,
        randn_like,
+       rescale,
        rpad_constant,
        stack, # in Base since julia v1.9
        trues_like,

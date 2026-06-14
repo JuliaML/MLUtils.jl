@@ -51,6 +51,22 @@ end
 @testset "normalise" begin
     x = randn(Float32, 3, 2, 2)
     @test normalise(x) == normalise(x; dims=3)
+
+    x = randn(Float32, 3, 4)
+    y = normalise(x; dims=1, ϵ=0)
+    @test mean(y; dims=1) ≈ zeros(Float32, 1, 4) atol=1e-5
+    @test std(y; dims=1, corrected=false) ≈ ones(Float32, 1, 4) atol=1e-5
+end
+
+@testset "rescale" begin
+    x = randn(Float32, 3, 2, 2)
+    @test rescale(x) == rescale(x; dims=3)
+
+    x = randn(Float32, 3, 4)
+    y = rescale(x; dims=1, ϵ=0)
+    @test minimum(y; dims=1) ≈ zeros(Float32, 1, 4) atol=1e-5
+    @test maximum(y; dims=1) ≈ ones(Float32, 1, 4) atol=1e-5
+    @test all(0 .<= y .<= 1)
 end
 
 @testset "chunk" begin
