@@ -59,10 +59,10 @@ function kfolds(n::Integer, k::Integer=5)
 end
 
 """
-    kfolds(data, k = 5)
+    kfolds([rng], data, k = 5; shuffle=false, stratified=nothing)
 
 Repartition a `data` container `k` times using a `k` folds
-strategy and return the sequence of folds as a lazy iterator. 
+strategy and return the sequence of folds as a lazy iterator.
 Only data subsets are created, which means that no actual data is copied until
 [`getobs`](@ref) is invoked.
 
@@ -90,27 +90,75 @@ for ((x_train, y_train), val) in kfolds((X, Y), k=10)
 end
 ```
 
-By default the folds are created using static splits. Use
-[`shuffleobs`](@ref) to randomly assign observations to the
-folds.
+By default the folds are created using static splits. Set
+`shuffle=true` to randomly assign observations to the folds, optionally
+passing a random number generator `rng` as the first argument.
 
 ```julia
-for (x_train, x_val) in kfolds(shuffleobs(X), k=10)
+for (x_train, x_val) in kfolds(X, k=10, shuffle=true)
+    # ...
+end
+```
+
+If `stratified` is not `nothing`, it should be an array of labels with the
+same length as the data. The folds are then created in such a way that the
+proportion of each label is preserved in each validation set (stratified
+k-fold cross-validation). Each label must appear at least `k` times.
+
+```julia
+# each validation set keeps the same class proportions as `y`
+for (x_train, x_val) in kfolds(X, k=5, stratified=y)
     # ...
 end
 ```
 
 See [`leavepout`](@ref) for a related function.
 """
-function kfolds(data, k::Integer)
+function kfolds(rng::AbstractRNG, data, k::Integer;
+        shuffle::Bool=false,
+        stratified::Union{Nothing,AbstractVector}=nothing)
     n = numobs(data)
-    train_indices, val_indices = kfolds(n, k)
+    if shuffle
+        perm = randperm(rng, n)
+        data = obsview(data, perm) # same as shuffleobs(rng, data), but make it explicit to keep perm
+    end
+    if stratified !== nothing
+        length(stratified) == n || throw(ArgumentError(
+            "`stratified` must have the same length as the data ($(length(stratified)) != $n)"))
+        if shuffle
+            stratified = stratified[perm]
+        end
+        train_indices, val_indices = _kfolds_stratified(stratified, k)
+    else
+        train_indices, val_indices = kfolds(n, k)
+    end
 
     ((obsview(data, itrain), obsview(data, ival))
      for (itrain, ival) in zip(train_indices, val_indices))
 end
 
-kfolds(data; k) = kfolds(data, k)
+kfolds(data, k::Integer; kws...) = kfolds(Random.default_rng(), data, k; kws...)
+kfolds(data; k::Integer=5, kws...) = kfolds(data, k; kws...)
+kfolds(rng::AbstractRNG, data; k::Integer=5, kws...) = kfolds(rng, data, k; kws...)
+
+# Split each label group into `k` folds independently, so that every
+# validation set keeps roughly the same class proportions as the full data.
+function _kfolds_stratified(stratified::AbstractVector, k::Integer)
+    n = length(stratified)
+    val_indices = [Int[] for _ in 1:k]
+    for (label, idxs) in group_indices(stratified)
+        ng = length(idxs)
+        2 <= k <= ng || throw(ArgumentError(
+            "k=$k must be within 2:$ng for stratified kfolds (label $label has $ng observations)"))
+        _, label_val = kfolds(ng, k)
+        for i in 1:k
+            append!(val_indices[i], idxs[label_val[i]])
+        end
+    end
+    foreach(sort!, val_indices)
+    train_indices = [setdiff(1:n, v) for v in val_indices]
+    return train_indices, val_indices
+end
 
 """
     leavepout(n::Integer, [size = 1]) -> Tuple
