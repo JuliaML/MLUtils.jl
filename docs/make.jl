@@ -18,7 +18,14 @@ makedocs(;
     modules=[MLUtils, MLCore],
     sitename = "MLUtils.jl",
     pages = ["Home" => "index.md",
-             "Guide" => "guide.md",
+             "Guide" => [
+                 "Data Containers" => "guide/datacontainer.md",
+                 "Data Subsets and Views" => "guide/subsets.md",
+                 "Lazy Transformations" => "guide/transforms.md",
+                 "Labeled Data and Resampling" => "guide/resampling.md",
+                 "Cross-validation" => "guide/folds.md",
+                 "Iteration & Data Loaders" => "guide/iteration.md",
+             ],
              "API" => "api.md"],
 )
 
