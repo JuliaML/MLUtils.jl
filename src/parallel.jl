@@ -1,9 +1,10 @@
 # """
-#     eachobsparallel(data; buffer, channelsize, basesize)
+#     eachobsparallel(data; buffer, nworkers, channelsize)
 
 # Construct a data iterator over observations in container `data`.
-# It uses available threads as workers to load observations in
-# parallel, leading to large speedups when threads are available.
+# It uses worker tasks spread over the available threads to load
+# observations in parallel, leading to large speedups when threads
+# are available.
 
 # To ensure that the active Julia session has multiple threads
 # available, check that `Threads.nthreads() > 1`. You can start
@@ -19,25 +20,30 @@
 #     `data`. Setting `buffer = true` means that when using the iterator, an
 #     observation is only valid for the current loop iteration.
 #     You can also pass in a preallocated `buffer = getobs(data, 1)`.
-# - `channelsize = Threads.nthreads()`: the number of observations that are prefetched.
+# - `nworkers = Threads.nthreads()`: the number of worker tasks that load observations
+#     concurrently. Each in-flight worker holds one (possibly batched) observation, so
+#     lowering `nworkers` is the main lever for capping peak memory.
+# - `channelsize = nworkers`: the number of observations that are prefetched.
 #     Increasing `channelsize` can lead to speedups when per-observation processing
 #     time is irregular but will cause higher memory usage.
 # """
 function eachobsparallel(
         data;
         buffer::Bool = false,
-        channelsize::Int = Threads.nthreads())
+        nworkers::Int = Threads.nthreads(),
+        channelsize::Int = nworkers)
     if buffer
-        return _eachobsparallel_buffered(buffer, data; channelsize)
+        return _eachobsparallel_buffered(buffer, data; nworkers, channelsize)
     else
-        return _eachobsparallel_unbuffered(data; channelsize)
+        return _eachobsparallel_unbuffered(data; nworkers, channelsize)
     end
 end
 
 function _eachobsparallel_buffered(
         buffer,
         data;
-        channelsize::Int)
+        nworkers::Int,
+        channelsize::Int = nworkers)
     buffers = [buffer]
     foreach(_ -> push!(buffers, deepcopy(buffer)), 1:channelsize)
 
@@ -54,7 +60,7 @@ function _eachobsparallel_buffered(
     # each iteration.
     setup_channel(sz) = RingBuffer(buffers, R)
 
-    return Loader(1:numobs(data); channelsize, setup_channel) do ringbuffer, i
+    return Loader(1:numobs(data); nworkers, channelsize, setup_channel) do ringbuffer, i
         # Internally, `RingBuffer` will `put!` the result in the results channel
         put!(ringbuffer) do buf
             getobs!(buf, data, i)
@@ -68,9 +74,10 @@ _buffered_result_type(data::BatchView, buffer) = eltype(data)
 _buffered_result_type(data, buffer) = typeof(buffer)
 
 function _eachobsparallel_unbuffered(data;
-        channelsize::Int
+        nworkers::Int,
+        channelsize::Int = nworkers
     )
-    return Loader(1:numobs(data); channelsize) do ch, i
+    return Loader(1:numobs(data); nworkers, channelsize) do ch, i
         obs = getobs(data, i)
         put!(ch, obs)
     end
@@ -84,16 +91,17 @@ end
 
 
 # """
-#     Loader(f, args; channelsize, setup_channel)
+#     Loader(f, args; nworkers, channelsize, setup_channel)
 
 # Create a threaded iterator that iterates over `(f(arg) for arg in args)`
-# using threads that prefill a channel of length `channelsize`.
+# using `nworkers` worker tasks that prefill a channel of length `channelsize`.
 
 # Note: results may not be returned in the correct order.
 # """
 struct Loader
     f
     argiter::AbstractVector
+    nworkers::Int
     channelsize::Int
     setup_channel
 end
@@ -101,9 +109,10 @@ end
 function Loader(
         f,
         argiter;
-        channelsize::Int = Threads.nthreads(),
+        nworkers::Int = Threads.nthreads(),
+        channelsize::Int = nworkers,
         setup_channel = sz -> Channel(sz))
-    Loader(f, argiter, channelsize, setup_channel)
+    Loader(f, argiter, nworkers, channelsize, setup_channel)
 end
 
 Base.length(loader::Loader) = length(loader.argiter)
@@ -116,7 +125,7 @@ end
 
 function Base.iterate(loader::Loader)
     ch = loader.setup_channel(loader.channelsize)
-    basesize = length(loader.argiter) ÷ Threads.nthreads()
+    basesize = length(loader.argiter) ÷ max(loader.nworkers, 1)
     task = Threads.@spawn begin
         try
             _spawn_foreach(loader.f, ch, loader.argiter,
