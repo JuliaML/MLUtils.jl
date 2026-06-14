@@ -14,4 +14,7 @@ Base.iterate(x::AbstractDataContainer, state = 1) =
 Base.lastindex(x::AbstractDataContainer) = numobs(x)
 Base.firstindex(::AbstractDataContainer) = 1
 
-# TODO: add generic show method. See DataLoader's show for inspiration.
+# Generic fallback for subtypes that don't define their own `show`.
+# Concrete subtypes with a more specific `show` method take precedence.
+Base.show(io::IO, x::AbstractDataContainer) =
+    print(io, numobs(x), "-element ", nameof(typeof(x)))

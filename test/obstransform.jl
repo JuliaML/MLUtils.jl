@@ -115,6 +115,14 @@ end
         @test data12[3] == 3
         @test data12[6] == [1.0, 1.0]
     end
+
+    @testset "show" begin
+        # JoinedData has no specific `show` method and relies on the
+        # generic AbstractDataContainer fallback.
+        data = joinobs(1:10, 11:20)
+        @test sprint(show, data) == "20-element JoinedData"
+        @test sprint(show, MIME"text/plain"(), data) == "20-element JoinedData"
+    end
 end
 
 @testset "shuffleobs" begin
