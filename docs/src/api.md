@@ -47,6 +47,7 @@ slidingwindow
 ```@docs
 leavepout
 kfolds
+timeseries_kfolds
 splitobs
 ```
 

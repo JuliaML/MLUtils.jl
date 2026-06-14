@@ -187,3 +187,95 @@ function leavepout(data, p::Integer)
 end
 
 leavepout(data; p::Integer=1) = leavepout(data, p)
+
+"""
+    timeseries_kfolds(n::Integer; k=5, gap=0, max_train_size=nothing) -> Tuple
+
+Compute the train/validation assignments for `k` time-ordered folds of `n`
+observations, and return them in the form of two vectors of index ranges. The
+first vector contains the training ranges and the second the validation ranges.
+
+Unlike [`kfolds`](@ref), the validation block of each fold always comes *after*
+its training block, so temporal order is respected. This is the equivalent of
+scikit-learn's `TimeSeriesSplit` and MLJ's `TimeSeriesCV`.
+
+The last `k * (n ÷ (k+1))` observations are split into `k` contiguous validation
+blocks; the training set for each fold is, by default, all earlier observations
+(an expanding window). Any observations left over from the non-even division are
+absorbed into the first training block.
+
+# Keyword arguments
+- `k`: number of folds (default `5`).
+- `gap`: number of observations to discard between each training block and its
+  validation block (default `0`).
+- `max_train_size`: if given, cap each training window to this many of the most
+  recent observations (a sliding window instead of an expanding one).
+
+# Examples
+
+```jldoctest
+julia> train_idx, val_idx = timeseries_kfolds(10; k=3);
+
+julia> train_idx
+3-element Vector{UnitRange{Int64}}:
+ 1:4
+ 1:6
+ 1:8
+
+julia> val_idx
+3-element Vector{UnitRange{Int64}}:
+ 5:6
+ 7:8
+ 9:10
+```
+"""
+function timeseries_kfolds(n::Integer; k::Integer=5, gap::Integer=0,
+                           max_train_size::Union{Nothing,Integer}=nothing)
+    2 <= k <= n - 1 || throw(ArgumentError("k must be within 2:$(max(2, n - 1))"))
+    gap >= 0 || throw(ArgumentError("gap must be non-negative"))
+    max_train_size === nothing || max_train_size >= 1 ||
+        throw(ArgumentError("max_train_size must be positive"))
+    fold_size = n ÷ (k + 1)
+    fold_size >= 1 || throw(ArgumentError("not enough observations ($n) for k=$k folds"))
+
+    val_indices = Vector{UnitRange{Int}}(undef, k)
+    train_indices = Vector{UnitRange{Int}}(undef, k)
+    for i in 1:k
+        vstart = n - (k - i + 1) * fold_size + 1
+        vstop = n - (k - i) * fold_size
+        tstop = vstart - 1 - gap
+        tstop >= 1 || throw(ArgumentError("gap=$gap is too large for k=$k folds"))
+        tstart = max_train_size === nothing ? 1 : max(1, tstop - max_train_size + 1)
+        train_indices[i] = tstart:tstop
+        val_indices[i] = vstart:vstop
+    end
+    return train_indices, val_indices
+end
+
+"""
+    timeseries_kfolds(data; k=5, gap=0, max_train_size=nothing)
+
+Repartition a `data` container using a time-series k-folds strategy and return
+the sequence of folds as a lazy iterator. Only data subsets are created, which
+means that no actual data is copied until [`getobs`](@ref) is invoked.
+
+Observations are assumed to be in chronological order, i.e. `getobs(data, i)`
+precedes `getobs(data, i+1)` in time. The data is *not* sorted, and unlike
+[`kfolds`](@ref) it must **not** be shuffled, since that would destroy the
+temporal ordering the folds rely on.
+
+```julia
+for (train, val) in timeseries_kfolds(X; k=10)
+    # the observations in `train` all precede those in `val`
+end
+```
+
+See the integer method [`timeseries_kfolds(n::Integer)`](@ref) for the keyword
+arguments and the precise splitting scheme, and [`kfolds`](@ref) for the
+non-temporal variant.
+"""
+function timeseries_kfolds(data; kws...)
+    train_indices, val_indices = timeseries_kfolds(numobs(data); kws...)
+    ((obsview(data, itrain), obsview(data, ival))
+     for (itrain, ival) in zip(train_indices, val_indices))
+end

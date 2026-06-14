@@ -36,3 +36,41 @@ end
     @test collect(leavepout(1:15, p=5)) == collect(kfolds(1:15, 3))
 end
 
+@testset "timeseries_kfolds" begin
+    @testset "int" begin
+        # matches MLJ's TimeSeriesCV(nfolds=3) on 1:10
+        tr, val = timeseries_kfolds(10; k=3)
+        @test tr == [1:4, 1:6, 1:8]
+        @test val == [5:6, 7:8, 9:10]
+
+        # validation blocks are contiguous, equal-sized, and ordered after train
+        for (itr, iv) in zip(tr, val)
+            @test last(itr) < first(iv)
+        end
+
+        # gap discards observations between train and val
+        @test timeseries_kfolds(10; k=3, gap=1)[1] == [1:3, 1:5, 1:7]
+        @test timeseries_kfolds(10; k=3, gap=1)[2] == [5:6, 7:8, 9:10]
+
+        # max_train_size turns the expanding window into a sliding one
+        @test timeseries_kfolds(10; k=3, max_train_size=2)[1] == [3:4, 5:6, 7:8]
+
+        @test_throws ArgumentError timeseries_kfolds(10; k=1)
+        @test_throws ArgumentError timeseries_kfolds(10; k=10)   # k > n-1
+        @test_throws ArgumentError timeseries_kfolds(3; k=3)     # fold_size == 0
+        @test_throws ArgumentError timeseries_kfolds(10; k=3, gap=10)
+        @test_throws ArgumentError timeseries_kfolds(10; k=3, gap=-1)
+    end
+
+    @testset "data" begin
+        for (xtr, xval) in timeseries_kfolds(1:10; k=3)
+            @test maximum(xtr) < minimum(xval)
+        end
+
+        for ((xtr, ytr), (xval, yval)) in timeseries_kfolds((1:10, 11:20); k=3)
+            @test maximum(xtr) < minimum(xval)
+            @test maximum(ytr) < minimum(yval)
+        end
+    end
+end
+
