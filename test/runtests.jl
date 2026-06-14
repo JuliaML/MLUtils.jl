@@ -6,6 +6,7 @@ using SparseArrays
 using Random, Statistics
 using Test
 using ChainRulesTestUtils: test_rrule
+import Zygote
 using Zygote: ZygoteRuleConfig
 using ChainRulesCore: rrule_via_ad
 using DataFrames: DataFrame

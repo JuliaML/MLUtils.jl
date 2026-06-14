@@ -87,6 +87,7 @@ export batched_searchsortedfirst,
        rescale,
        rpad_constant,
        stack, # in Base since julia v1.9
+       topk,
        trues_like,
        unsqueeze,
        unstack,
