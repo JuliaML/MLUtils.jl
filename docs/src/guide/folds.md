@@ -108,6 +108,79 @@ for (train, val) in leavepout(X; p=2)
 end
 ```
 
+## Time-series cross-validation
+
+For sequential data — stock prices, sensor readings, anything with a temporal
+order — the strategies above are inappropriate: shuffling destroys the ordering,
+and even the contiguous blocks of `kfolds` let a model train on observations
+that lie in the *future* of its validation set. [`timeseries_kfolds`](@ref)
+avoids this by guaranteeing that the validation block of every fold comes
+strictly *after* its training block. It is the equivalent of scikit-learn's
+`TimeSeriesSplit` and MLJ's `TimeSeriesCV`.
+
+By default the training set grows from one fold to the next (an *expanding
+window*), while each validation block has the same size:
+
+```jldoctest
+julia> train_idx, val_idx = timeseries_kfolds(10; k=3);
+
+julia> train_idx
+3-element Vector{UnitRange{Int64}}:
+ 1:4
+ 1:6
+ 1:8
+
+julia> val_idx
+3-element Vector{UnitRange{Int64}}:
+ 5:6
+ 7:8
+ 9:10
+```
+
+Each training block ends exactly where its validation block begins, so the model
+is always validated on observations it has never seen and that lie in its future.
+
+!!! warning
+    Unlike `kfolds`, the data here **must not** be shuffled: `timeseries_kfolds`
+    assumes the observations are already in chronological order, with
+    `getobs(data, i)` preceding `getobs(data, i+1)` in time.
+
+Two keyword arguments tune the scheme:
+
+- **`gap`** discards a number of observations between each training block and its
+  validation block. This is useful when consecutive observations leak information
+  into one another (for instance when predicting several steps ahead) and you
+  want a buffer so the model is not validated on data that overlaps its training
+  window.
+- **`max_train_size`** caps each training window to its most recent observations,
+  turning the expanding window into a fixed-size *sliding window*. This keeps the
+  training cost constant across folds and discards stale history.
+
+```jldoctest
+julia> train_idx, val_idx = timeseries_kfolds(12; k=3, gap=1, max_train_size=2);
+
+julia> train_idx
+3-element Vector{UnitRange{Int64}}:
+ 1:2
+ 4:5
+ 7:8
+
+julia> val_idx
+3-element Vector{UnitRange{Int64}}:
+ 4:6
+ 7:9
+ 10:12
+```
+
+The data method returns the same kind of lazy iterator as `kfolds`:
+
+```julia
+for (train, val) in timeseries_kfolds(X; k=10)
+    model = train_model(train)
+    evaluate(model, val)   # every observation in val is in the future of train
+end
+```
+
 ## Combining with the rest of the pipeline
 
 A complete model-selection loop typically holds out a test set first, then runs
