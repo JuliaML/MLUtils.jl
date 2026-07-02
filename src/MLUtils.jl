@@ -2,6 +2,9 @@ module MLUtils
 
 using Random
 using Statistics
+using Distributed: Distributed, addprocs, rmprocs, workers,
+                   WorkerPool, CachingPool, AbstractWorkerPool,
+                   remotecall_fetch
 using ShowCases: ShowLimit
 import StatsBase: sample
 using Tables
@@ -46,6 +49,10 @@ include("dataloader.jl")
 export eachobs, DataLoader
 
 include("parallel.jl")
+
+include("distributed.jl")
+# `close_dataloader_pool` is intentionally not exported: it is a rarely-needed
+# cleanup knob, reachable as `MLUtils.close_dataloader_pool()`.
 
 include("folds.jl")
 export kfolds,

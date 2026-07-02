@@ -102,6 +102,7 @@ include("test_utils.jl")
 @testset "splitobs" begin; include("splitobs.jl"); end
 @testset "utils" begin; include("utils.jl"); end
 @testset "eachobsparallel" begin; include("parallel.jl"); end
+@testset "distributed" begin; include("distributed.jl"); end
 
 @testset "Datasets/datasets" begin; include("Datasets/datasets.jl"); end
 @testset "Datasets/generators" begin; include("Datasets/generators.jl"); end
