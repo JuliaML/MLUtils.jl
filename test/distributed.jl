@@ -52,15 +52,16 @@ end
     labels = sort(reduce(vcat, [b[2] for b in batches]))
     @test labels == collect(1:20)
 
-    # a second epoch reuses the warm pool + cached data
+    # a second epoch reuses the loader's own warm workers + cached data
     nprocs_before = nprocs()
     @test length(collect(dl)) == 5
     @test nprocs() == nprocs_before   # no new workers spawned
 
-    # a *distinct* loader also reuses the persistent pool (no extra addprocs)
+    # a *distinct* loader, while `dl` is still alive, gets its OWN disjoint workers so
+    # concurrent/nested loaders never contend for the same processes
     dl2 = DataLoader(D; batchsize=5, num_workers=2)
     @test length(collect(dl2)) == 4
-    @test nprocs() == nprocs_before
+    @test isempty(intersect(dl._cache[].pids, dl2._cache[].pids))
 
     # early termination (`first`) yields a valid batch and does not hang
     @test size(first(DataLoader(D; batchsize=5, num_workers=2))) == (4, 5)
@@ -75,8 +76,13 @@ end
 # `Serialization` dispatched over MLUtils' `CachingPool` is reconstructed exactly
 # ONCE per worker (not once per batch), so `data` crosses the process boundary once.
 @testset "reconstruct-once per worker (CachingPool)" begin
-    # Force the managed pool to exist so `@everywhere` can define the toy type on it.
-    collect(DataLoader(rand(2, 6); batchsize=3, num_workers=2))
+    MLUtils.close_dataloader_pool()
+    # Force the managed pool to exist so `@everywhere` can define the toy type on it. The
+    # throwaway loader is created inside a function so it becomes unreachable on return; a
+    # GC below then frees its workers back to the pool and the real loader re-leases those
+    # same (now type-aware) workers rather than spawning fresh, type-less ones.
+    _warmup(n) = (collect(DataLoader(rand(2, 6); batchsize=3, num_workers=n)); nothing)
+    _warmup(2)
     @test length(workers()) >= 2
 
     @everywhere begin
@@ -101,6 +107,10 @@ end
 
     foreach(w -> remotecall_fetch(_reset_recon, w), workers())
 
+    # Release the throwaway loader's lease so the real loader reuses those workers
+    # (which now have `ReconCounter` defined) instead of spawning fresh, type-less ones.
+    GC.gc(); GC.gc()
+
     data = ReconCounter(100)
     dl = DataLoader(data; batchsize=10, num_workers=2, collate=false)  # 10 batches
     batches = collect(dl)
@@ -114,27 +124,47 @@ end
     @test sum(counts) >= 1
 end
 
-@testset "multiple loaders share one pool, each bound to its own num_workers" begin
+@testset "concurrent loaders get disjoint workers (no contention)" begin
     MLUtils.close_dataloader_pool()
     D = reshape(collect(1.0:60.0), 4, 15)
 
-    dlbig = DataLoader(D; batchsize=5, num_workers=3)
-    @test length(collect(dlbig)) == 3
-    @test nprocs() == 4                      # main + 3
-    @test length(dlbig._cache[].pids) == 3
+    dlA = DataLoader(D; batchsize=5, num_workers=2)
+    @test length(collect(dlA)) == 3
+    @test nprocs() == 3                      # main + 2
+    pidsA = copy(dlA._cache[].pids)
+    @test length(pidsA) == 2
 
-    # a smaller loader created afterwards must NOT grab the whole (larger) pool
-    dlsmall = DataLoader(D; batchsize=5, num_workers=2)
-    @test length(collect(dlsmall)) == 3
-    @test nprocs() == 4                      # reused, no new workers
-    @test length(dlsmall._cache[].pids) == 2 # bound to exactly 2, not 3
-    @test dlsmall._cache[].pids == dlbig._cache[].pids[1:2]  # deterministic slice
+    # a second loader created while `dlA` is still alive must get its OWN, disjoint
+    # workers — the fix for the bug where distinct loaders shared (and fought over) pids
+    dlB = DataLoader(D; batchsize=5, num_workers=2)
+    @test length(collect(dlB)) == 3
+    pidsB = copy(dlB._cache[].pids)
+    @test length(pidsB) == 2
+    @test isempty(intersect(pidsA, pidsB))   # disjoint: no shared workers
+    @test nprocs() == 5                      # main + 2 + 2 (grew rather than sharing)
 
-    # a loader needing more than currently exist grows the shared pool
-    dlbigger = DataLoader(D; batchsize=5, num_workers=4)
-    @test length(collect(dlbigger)) == 3
-    @test nprocs() == 5                      # grew by 1
-    @test length(dlbigger._cache[].pids) == 4
+    # each loader re-iterates on its own warm workers across epochs, no growth
+    @test length(collect(dlA)) == 3
+    @test dlA._cache[].pids == pidsA
+    @test length(collect(dlB)) == 3
+    @test dlB._cache[].pids == pidsB
+    @test nprocs() == 5
+end
+
+@testset "a dropped loader's workers return to the pool" begin
+    MLUtils.close_dataloader_pool()
+    D = reshape(collect(1.0:40.0), 4, 10)
+
+    # run a loader entirely inside a function so it is unreachable after the call returns
+    run_once() = (@test length(collect(DataLoader(D; batchsize=5, num_workers=2))) == 2; nothing)
+    run_once()
+    @test nprocs() == 3                      # main + 2
+    GC.gc(); GC.gc()                         # collect the loader; its lease is released
+
+    # a new same-size loader reuses the freed workers instead of spawning more
+    dl2 = DataLoader(D; batchsize=5, num_workers=2)
+    @test length(collect(dl2)) == 2
+    @test nprocs() == 3                      # reused, no new addprocs
 end
 
 @testset "pool teardown rebuilds a stale loader" begin
