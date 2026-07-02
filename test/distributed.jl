@@ -114,6 +114,29 @@ end
     @test sum(counts) >= 1
 end
 
+@testset "multiple loaders share one pool, each bound to its own num_workers" begin
+    MLUtils.close_dataloader_pool()
+    D = reshape(collect(1.0:60.0), 4, 15)
+
+    dlbig = DataLoader(D; batchsize=5, num_workers=3)
+    @test length(collect(dlbig)) == 3
+    @test nprocs() == 4                      # main + 3
+    @test length(dlbig._cache[].pids) == 3
+
+    # a smaller loader created afterwards must NOT grab the whole (larger) pool
+    dlsmall = DataLoader(D; batchsize=5, num_workers=2)
+    @test length(collect(dlsmall)) == 3
+    @test nprocs() == 4                      # reused, no new workers
+    @test length(dlsmall._cache[].pids) == 2 # bound to exactly 2, not 3
+    @test dlsmall._cache[].pids == dlbig._cache[].pids[1:2]  # deterministic slice
+
+    # a loader needing more than currently exist grows the shared pool
+    dlbigger = DataLoader(D; batchsize=5, num_workers=4)
+    @test length(collect(dlbigger)) == 3
+    @test nprocs() == 5                      # grew by 1
+    @test length(dlbigger._cache[].pids) == 4
+end
+
 @testset "pool teardown rebuilds a stale loader" begin
     D = reshape(collect(1.0:40.0), 4, 10)
     dl = DataLoader(D; batchsize=5, num_workers=2)

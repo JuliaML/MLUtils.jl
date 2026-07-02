@@ -54,29 +54,37 @@ end
 # Worker-pool management
 # ---------------------------------------------------------------------------
 
-# A persistent, lazily-grown pool of worker processes (like PyTorch's
-# `persistent_workers=True`), reused across loaders and epochs to amortize startup.
-const _POOL = Ref{Union{Nothing,WorkerPool}}(nothing)
+# A persistent, lazily-grown set of managed worker processes (like PyTorch's
+# `persistent_workers=True`), reused across loaders and epochs to amortize startup. Stored
+# as an ordered pid vector so that slicing `[1:n]` is deterministic: a `num_workers=n`
+# loader always binds to the *same* first `n` workers, and two loaders requesting the same
+# `n` share them rather than fighting over the whole set. The lock makes concurrent
+# first-iterations grow the set atomically (no double `addprocs`, no orphaned pids).
 const _POOL_PIDS = Ref{Vector{Int}}(Int[])
+const _POOL_LOCK = ReentrantLock()
 
-# Ensure at least `n` managed worker processes exist and return the managed pool.
+# Ensure at least `n` managed worker processes exist; return the full ordered pid vector.
 function _ensure_pool(n::Int, data)
-    pids = _POOL_PIDS[]
-    if length(pids) < n
-        # Match the parent's environment so workers instantiate the same project (and, for
-        # HF datasets, the same CondaPkg Python). `active_project()` is normally a path.
-        proj = Base.active_project()
-        exeflags = proj === nothing ? `` : `--project=$proj`
-        newpids = addprocs(n - length(pids); exeflags)
-        pids = vcat(pids, newpids)
-        _POOL_PIDS[] = pids
-        _POOL[] = WorkerPool(pids)
+    pids = lock(_POOL_LOCK) do
+        pids = _POOL_PIDS[]
+        if length(pids) < n
+            # Match the parent's environment so workers instantiate the same project (and,
+            # for HF datasets, the same CondaPkg Python). `active_project()` is usually a path.
+            proj = Base.active_project()
+            exeflags = proj === nothing ? `` : `--project=$proj`
+            newpids = addprocs(n - length(pids); exeflags)
+            pids = vcat(pids, newpids)
+            _POOL_PIDS[] = pids
+        end
+        return pids
     end
     _load_modules_on_workers(data, pids)
-    return _POOL[]
+    return pids
 end
 
-_poolpids(pool::AbstractWorkerPool) = Distributed.workers(pool)
+# Are all of `pids` still alive? (False after `close_dataloader_pool`, so a stale cached
+# `CachingPool` gets rebuilt rather than dispatched onto dead workers.)
+_pool_alive(pids) = !isempty(pids) && all(in(Distributed.procs()), pids)
 
 # Make MLUtils (needed to deserialize the worker closure and call `getobs`) and the data
 # container's defining package available on each worker so it can deserialize `data`.
@@ -102,11 +110,10 @@ end
 # epochs to amortize startup, and are child processes killed automatically on exit; this
 # is only for releasing them earlier (e.g. to reclaim memory in a long-lived session).
 function close_dataloader_pool()
-    if !isempty(_POOL_PIDS[])
-        rmprocs(_POOL_PIDS[]...)
+    lock(_POOL_LOCK) do
+        isempty(_POOL_PIDS[]) || rmprocs(_POOL_PIDS[]...)
+        _POOL_PIDS[] = Int[]
     end
-    _POOL[] = nothing
-    _POOL_PIDS[] = Int[]
     return nothing
 end
 
@@ -141,10 +148,6 @@ function Base.iterate(dl::DistributedLoader, remaining::Int = dl.len)
     return result, remaining - 1
 end
 
-# Are all of the pool's worker processes still alive? (False after
-# `close_dataloader_pool`, so a stale cached `CachingPool` is rebuilt rather than used.)
-_pool_alive(pool) = (pids = _poolpids(pool); !isempty(pids) && all(in(Distributed.procs()), pids))
-
 function _distributed_loader(d::DataLoader)
     idxsets, collate = _distributed_index_sets(d)
 
@@ -154,20 +157,24 @@ function _distributed_loader(d::DataLoader)
         return DistributedLoader(ch, nothing, 0)
     end
 
-    # Cache the pool + `CachingPool` + closure on the loader so that `data` stays cached on
-    # the workers across epochs (only the shuffled index sets change). Rebuild if the cached
-    # workers were torn down (e.g. by `close_dataloader_pool`).
+    # Cache this loader's own `CachingPool` (over exactly its `num_workers` workers) + the
+    # closure, so that `data` stays cached on the workers across epochs (only the shuffled
+    # index sets change). Rebuild if those workers were torn down (e.g. by
+    # `close_dataloader_pool`) — checked against the cached pids, not the shared global set.
     cache = d._cache[]
-    if cache === nothing || !_pool_alive(cache.pool)
-        pool = _ensure_pool(d.num_workers, d.data)
-        cpool = CachingPool(_poolpids(pool))
+    if cache === nothing || !_pool_alive(cache.pids)
+        allpids = _ensure_pool(d.num_workers, d.data)
+        # Bind to exactly `num_workers` workers so distinct loaders don't grab the whole,
+        # possibly larger, shared set (deterministic slice: same request → same workers).
+        pids = allpids[1:min(d.num_workers, length(allpids))]
+        cpool = CachingPool(pids)
         f = _worker_closure(collate, d.data)
-        cache = (pool = pool, cpool = cpool, f = f)
+        cache = (pids = pids, cpool = cpool, f = f)
         d._cache[] = cache
     end
-    pool, cpool, f = cache.pool, cache.cpool, cache.f
+    pids, cpool, f = cache.pids, cache.cpool, cache.f
 
-    nworkers = max(length(_poolpids(pool)), 1)
+    nworkers = max(length(pids), 1)
     ch = Channel(nworkers)   # bounded prefetch → overlap + backpressure
     task = Threads.@spawn begin
         try

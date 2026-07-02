@@ -2,9 +2,7 @@ module MLUtils
 
 using Random
 using Statistics
-using Distributed: Distributed, addprocs, rmprocs, workers,
-                   WorkerPool, CachingPool, AbstractWorkerPool,
-                   remotecall_fetch
+using Distributed: Distributed, addprocs, rmprocs, CachingPool, remotecall_fetch
 using ShowCases: ShowLimit
 import StatsBase: sample
 using Tables
