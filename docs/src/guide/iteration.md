@@ -68,6 +68,10 @@ The most useful keyword arguments are:
   multiple threads (`Threads.nthreads() > 1`). Speeds up loading when `getobs`
   is expensive (e.g. reading from disk), but **breaks ordering guarantees**.
   Default `false`.
+- **`num_workers`**: load batches on worker *processes* instead of threads. Use
+  this when `getobs` does not scale under threads — most notably `PythonCall`-backed
+  datasets, whose shared CPython GIL serializes threaded reads. See
+  [Distributed (multiprocess) loading](@ref) below. Default `0` (off).
 - **`buffer`**: reuse a preallocated buffer across iterations via
   [`getobs!`](@ref), avoiding per-batch allocations. Default `false`.
 - **`collate`**: how a vector of observations is combined into a batch. See the
@@ -302,6 +306,51 @@ data-container tools, since they are all written against `numobs` and `getobs`.
 For allocation-free loading, DataAugmentation's [`Buffered`](https://fluxml.ai/DataAugmentation.jl/dev/)
 pipelines pair naturally with a [`getobs!`](@ref) method and the `DataLoader`'s
 `buffer=true` option; see [Data Containers](@ref) for details.
+
+## Distributed (multiprocess) loading
+
+`parallel=true` spreads `getobs` over **threads**. That is ideal when `getobs` is
+pure Julia and CPU-bound, but it breaks down when `getobs` is *not* thread-parallel
+— the sharpest case being a `PythonCall`-backed container (e.g. a Hugging Face
+`datasets.Dataset`), where CPython's global interpreter lock (GIL) lets only one
+thread run Python at a time, capping threaded loading at ~1×.
+
+For those cases, `num_workers=N` loads batches on `N` worker **processes** instead,
+mirroring PyTorch's `DataLoader(num_workers=N)`. Each process has its own
+interpreter (and its own GIL), so GIL-bound loading scales near-linearly:
+
+```julia
+loader = DataLoader(hf_dataset; batchsize=128, shuffle=true, num_workers=4)
+
+for (x, y) in loader
+    # batches are produced by 4 separate processes and shipped back
+end
+```
+
+`parallel` (threads) and `num_workers` (processes) are **mutually exclusive**; set
+at most one. As with `parallel`, distributed loading **breaks ordering guarantees**,
+and `buffer`/`getobs!` is not supported.
+
+**The container contract: be serializable.** MLUtils uses only `getobs`/`numobs`,
+exactly as before. The one extra requirement is that the `data` container — and the
+values `getobs` returns — be serializable with Julia's stdlib `Serialization`. This
+is the direct analog of PyTorch requiring a *picklable* dataset for its spawned
+workers. Arrays, tuples and named tuples already satisfy this, so they work with no
+changes. Containers holding non-serializable handles (a `PythonCall.Py`, a live database
+connection) must define a `Serialization.serialize`/`deserialize` pair that ships a
+cheap *recipe* and rebuilds it on the worker — again, exactly as a PyTorch dataset
+owns its pickling behavior.
+
+Under the hood MLUtils sends `data` to each worker **once** (via a `Distributed.CachingPool`),
+then dispatches only the per-batch index sets; `getobs` and `collate` run on the worker
+so a single collated array is shipped back per batch. The worker pool is started lazily
+on the first distributed iteration and kept warm across loaders and epochs to amortize
+the startup cost. The workers are child processes, so they are terminated automatically
+when Julia exits.
+
+Distributed loading pays off only when per-batch work is *expensive* (image decode,
+heavy transforms, GIL-bound Python). If `getobs` is tiny, inter-process communication
+overhead can erase the gain — prefer serial or threaded loading there.
 
 ## Where to go next
 

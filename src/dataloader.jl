@@ -36,7 +36,7 @@ function eachobs(data; batchsize=-1, kws...)
 end
 
 """
-    DataLoader(data; [batchsize, buffer, collate, parallel, partial, rng, shuffle])
+    DataLoader(data; [batchsize, buffer, collate, parallel, num_workers, partial, rng, shuffle])
 
 An object that iterates over mini-batches of `data`,
 each mini-batch containing `batchsize` observations
@@ -81,6 +81,17 @@ The original data is preserved in the `data` field of the DataLoader.
       one (possibly batched) observation, a small `n` caps the number of batches
       built concurrently and hence peak memory; `n = 1` runs a single background
       worker that overlaps loading with the iterating task.
+- **`num_workers`**: Controls parallel data loading with worker **processes** (via
+    `Distributed`), mirroring PyTorch. Unlike `parallel` (threads), this scales `getobs`
+    that is *not* thread-parallel — most importantly `PythonCall`-backed datasets, whose
+    shared CPython GIL serializes all reads under threads. Each worker process has its own
+    interpreter (and its own GIL), so loading scales near-linearly. `parallel` and
+    `num_workers` are **mutually exclusive**. The data container and the values returned by
+    `getobs` must be serializable (Julia `Serialization`) — arrays, tuples and named tuples
+    already are. **Breaks ordering guarantees.** `buffer` is not supported. Accepts:
+    - `0` (default): no worker processes (loads according to `parallel`).
+    - `N::Integer`: spawn/reuse `N` worker processes, managed by MLUtils. The pool is kept
+      warm across loaders and epochs and terminated automatically when Julia exits.
 - **`partial`**: This argument is used only when `batchsize > 0`.
   If `partial=false` and the number of observations is not divisible by the batchsize,
   then the last mini-batch is dropped. Default `true`.
@@ -149,8 +160,10 @@ struct DataLoader{T<:Union{ObsView,BatchView},B,P,C,O,R<:AbstractRNG}
     partial::Bool
     shuffle::Bool
     parallel::Union{Bool,Int}
+    num_workers::Int  # 0 (off) or N managed worker processes
     collate::C
     rng::R
+    _cache::Base.RefValue{Any}  # lazily holds the distributed pool/closure; unused otherwise
 end
 
 # Resolve the `parallel` kwarg to a number of loading worker tasks.
@@ -164,6 +177,7 @@ function DataLoader(
         data;
         buffer = false,
         parallel::Union{Bool,Integer} = false,
+        num_workers::Integer = 0,
         shuffle::Bool = false,
         batchsize::Int = 1,
         partial::Bool = true,
@@ -175,10 +189,20 @@ function DataLoader(
     end
 
     # Wrapping with ObsView in order to work around
-    # issue https://github.com/FluxML/Flux.jl/issues/1935    
+    # issue https://github.com/FluxML/Flux.jl/issues/1935
     _data = ObsView(data, collect(1:numobs(data)))
     if batchsize > 0
         _data = BatchView(_data; batchsize, partial, collate)
+    end
+
+    distributed = num_workers > 0
+    if distributed
+        _nworkers(parallel) > 0 && throw(ArgumentError(
+            "`parallel` and `num_workers` are mutually exclusive: set only one. " *
+            "`parallel` selects thread parallelism, `num_workers` selects process parallelism."))
+        buffer != false && throw(ArgumentError(
+            "`buffer`/`getobs!` is not supported with `num_workers` (distributed loading): " *
+            "a main-process buffer cannot be filled by a worker process."))
     end
 
     if buffer == true
@@ -187,12 +211,13 @@ function DataLoader(
     # Normalize the stored value (keep `Bool` as-is for faithful printing /
     # round-tripping, narrow any other `Integer` to `Int` to match the field).
     parallel = parallel isa Bool ? parallel : Int(parallel)
-    P = _nworkers(parallel) > 0 ? :parallel : :serial
+    num_workers = Int(num_workers)
+    P = distributed ? :distributed : (_nworkers(parallel) > 0 ? :parallel : :serial)
     # for buffer == false and external buffer, we keep as is
 
     T, O, B, C, R = typeof(_data), typeof(data), typeof(buffer), typeof(collate), typeof(rng)
-    return DataLoader{T,B,P,C,O,R}(data, _data, batchsize, buffer, 
-                                partial, shuffle, parallel, collate, rng) 
+    return DataLoader{T,B,P,C,O,R}(data, _data, batchsize, buffer,
+                                partial, shuffle, parallel, num_workers, collate, rng, Ref{Any}(nothing))
 end
 
 
@@ -330,6 +355,7 @@ function mapobs(f, d::DataLoader)
                     partial=d.partial,
                     shuffle=d.shuffle,
                     parallel=d.parallel,
+                    num_workers=d.num_workers,
                     collate=collate,
                     rng=d.rng)
 end
@@ -344,6 +370,7 @@ function Base.showarg(io::IO, d::DataLoader, toplevel)
         Base.showarg(io, d.buffer, false)
     end
     d.parallel == false || print(io, ", parallel=", d.parallel)
+    d.num_workers == 0 || print(io, ", num_workers=", d.num_workers)
     d.shuffle == false || print(io, ", shuffle=", d.shuffle)
     d.batchsize == 1 || print(io, ", batchsize=", d.batchsize)
     d.partial == true || print(io, ", partial=", d.partial)
