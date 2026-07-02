@@ -63,7 +63,11 @@ const _POOL_PIDS = Ref{Vector{Int}}(Int[])
 function _ensure_pool(n::Int, data)
     pids = _POOL_PIDS[]
     if length(pids) < n
-        newpids = addprocs(n - length(pids); exeflags = `--project=$(Base.active_project())`)
+        # Match the parent's environment so workers instantiate the same project (and, for
+        # HF datasets, the same CondaPkg Python). `active_project()` is normally a path.
+        proj = Base.active_project()
+        exeflags = proj === nothing ? `` : `--project=$proj`
+        newpids = addprocs(n - length(pids); exeflags)
         pids = vcat(pids, newpids)
         _POOL_PIDS[] = pids
         _POOL[] = WorkerPool(pids)
@@ -113,10 +117,19 @@ end
 # A `Channel`-backed iterator over collated batches produced on worker processes.
 # Mirrors the threaded `Loader` in `parallel.jl`, with `remotecall_fetch` over a
 # `CachingPool` in place of `Threads.@spawn`.
-struct DistributedLoader
+mutable struct DistributedLoader
     channel::Channel
-    task::Task
+    task::Union{Task,Nothing}
     len::Int
+
+    function DistributedLoader(channel::Channel, task, len::Int)
+        dl = new(channel, task, len)
+        # If the consumer stops early (`first`, `break`, an error in the loop), the
+        # iterator state becomes unreferenced; closing the channel then unblocks a feeder
+        # parked on `put!` so it unwinds instead of leaking a task and busy workers.
+        finalizer(dl -> isopen(dl.channel) && close(dl.channel), dl)
+        return dl
+    end
 end
 
 Base.length(dl::DistributedLoader) = dl.len
@@ -128,13 +141,24 @@ function Base.iterate(dl::DistributedLoader, remaining::Int = dl.len)
     return result, remaining - 1
 end
 
+# Are all of the pool's worker processes still alive? (False after
+# `close_dataloader_pool`, so a stale cached `CachingPool` is rebuilt rather than used.)
+_pool_alive(pool) = (pids = _poolpids(pool); !isempty(pids) && all(in(Distributed.procs()), pids))
+
 function _distributed_loader(d::DataLoader)
     idxsets, collate = _distributed_index_sets(d)
 
+    # Nothing to load: don't spin up worker processes at all.
+    if isempty(idxsets)
+        ch = Channel(0); close(ch)
+        return DistributedLoader(ch, nothing, 0)
+    end
+
     # Cache the pool + `CachingPool` + closure on the loader so that `data` stays cached on
-    # the workers across epochs (only the shuffled index sets change).
+    # the workers across epochs (only the shuffled index sets change). Rebuild if the cached
+    # workers were torn down (e.g. by `close_dataloader_pool`).
     cache = d._cache[]
-    if cache === nothing
+    if cache === nothing || !_pool_alive(cache.pool)
         pool = _ensure_pool(d.num_workers, d.data)
         cpool = CachingPool(_poolpids(pool))
         f = _worker_closure(collate, d.data)
@@ -150,10 +174,12 @@ function _distributed_loader(d::DataLoader)
             asyncmap(idxs -> put!(ch, remotecall_fetch(f, cpool, idxs)), idxsets; ntasks = nworkers)
             close(ch)
         catch e
-            close(ch, e)
+            # A worker `getobs` failure is surfaced to the consumer's `take!`; but if the
+            # channel is already closed (consumer abandoned iteration, see the finalizer
+            # above), just unwind quietly.
+            isopen(ch) ? close(ch, e) : nothing
         end
     end
-    errormonitor(task)
     return DistributedLoader(ch, task, length(idxsets))
 end
 

@@ -39,6 +39,12 @@ end
         end
     end
 
+    # batchsize <= 0: iterate single observations (ObsView path, no collate)
+    dl = DataLoader(D; batchsize=-1, num_workers=2)
+    obs = collect(dl)
+    @test length(obs) == 20
+    @test sort([sum(c) for c in obs]) == sort([sum(c) for c in eachcol(D)])
+
     # tuples + shuffle: every observation shows up exactly once
     dl = DataLoader((D, collect(1:20)); batchsize=4, num_workers=2, shuffle=true, collate=true)
     batches = collect(dl)
@@ -47,7 +53,17 @@ end
     @test labels == collect(1:20)
 
     # a second epoch reuses the warm pool + cached data
+    nprocs_before = nprocs()
     @test length(collect(dl)) == 5
+    @test nprocs() == nprocs_before   # no new workers spawned
+
+    # a *distinct* loader also reuses the persistent pool (no extra addprocs)
+    dl2 = DataLoader(D; batchsize=5, num_workers=2)
+    @test length(collect(dl2)) == 4
+    @test nprocs() == nprocs_before
+
+    # early termination (`first`) yields a valid batch and does not hang
+    @test size(first(DataLoader(D; batchsize=5, num_workers=2))) == (4, 5)
 
     # errors thrown inside a worker propagate to the consumer
     bad = mapobs(_ -> error("boom in worker"), collect(1:8))
@@ -96,6 +112,18 @@ end
     @test sum(counts) == count(>(0), counts)
     @test sum(counts) <= length(workers())
     @test sum(counts) >= 1
+end
+
+@testset "pool teardown rebuilds a stale loader" begin
+    D = reshape(collect(1.0:40.0), 4, 10)
+    dl = DataLoader(D; batchsize=5, num_workers=2)
+    @test length(collect(dl)) == 2
+    MLUtils.close_dataloader_pool()
+    @test nprocs() == 1
+    # re-iterating the same loader after teardown must rebuild the pool, not crash
+    batches = collect(dl)
+    @test length(batches) == 2
+    @test sort([sum(c) for b in batches for c in eachcol(b)]) == sort([sum(c) for c in eachcol(D)])
 end
 
 MLUtils.close_dataloader_pool()
