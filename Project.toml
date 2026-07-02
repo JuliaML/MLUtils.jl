@@ -3,6 +3,9 @@ uuid = "f1d291b0-491e-4a28-83b9-f70985020b54"
 authors = ["Carlo Lucibello <carlo.lucibello@gmail.com> and contributors"]
 version = "0.4.9"
 
+[workspace]
+projects = ["test", "docs"]
+
 [deps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
