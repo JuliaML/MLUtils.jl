@@ -55,28 +55,50 @@ end
 # ---------------------------------------------------------------------------
 
 # A persistent, lazily-grown set of managed worker processes (like PyTorch's
-# `persistent_workers=True`), reused across loaders and epochs to amortize startup. Stored
-# as an ordered pid vector so that slicing `[1:n]` is deterministic: a `num_workers=n`
-# loader always binds to the *same* first `n` workers, and two loaders requesting the same
-# `n` share them rather than fighting over the whole set. The lock makes concurrent
-# first-iterations grow the set atomically (no double `addprocs`, no orphaned pids).
-const _POOL_PIDS = Ref{Vector{Int}}(Int[])
+# `persistent_workers=True`), reused across epochs to amortize startup. Unlike PyTorch —
+# where every `DataLoader` spawns its *own* workers — MLUtils keeps a single shared pool
+# but hands each *live* loader a **disjoint** block of workers. Two loaders alive at once
+# (a train and a validation loader, or a loader iterated inside another's loop) therefore
+# never bind to the same processes, so they can't contend for them or double-cache their
+# `data` on them. Workers whose owning loader has been garbage-collected return to the warm
+# pool and are reused by the next loader instead of being killed.
+#
+# `_ALL_PIDS` is every managed worker (leased + free). `_LEASES` records, per live loader,
+# a *weak* reference to its `_cache` (a per-loader mutable object that lives exactly as long
+# as the loader) alongside the pids it owns. The weak ref lets a collected loader's workers
+# re-enter the free set: the GC nulls the ref, and the next allocation prunes it. The lock
+# makes concurrent first-iterations allocate atomically (no double `addprocs`, and never two
+# loaders handed the same pid).
 const _POOL_LOCK = ReentrantLock()
+const _ALL_PIDS = Int[]
+const _LEASES = Tuple{WeakRef,Vector{Int}}[]
 
-# Ensure at least `n` managed worker processes exist; return the full ordered pid vector.
-function _ensure_pool(n::Int, data)
+# Lease `n` worker processes for `owner`, disjoint from every other live loader's workers;
+# spawn more only if fewer than `n` are currently free. Returns the leased pids.
+function _lease_workers(n::Int, data, owner)
     pids = lock(_POOL_LOCK) do
-        pids = _POOL_PIDS[]
-        if length(pids) < n
+        # Prune workers that died, and leases whose loader was garbage-collected (weak ref
+        # nulled) or a stale prior lease for this same `owner`; the pids they held re-enter
+        # the free set. The complement of what live loaders still hold is the free set.
+        filter!(in(Distributed.procs()), _ALL_PIDS)
+        filter!(e -> !(e[1].value === nothing || e[1].value === owner), _LEASES)
+        leased = Int[]
+        for (_, owned) in _LEASES
+            append!(leased, owned)
+        end
+        free = setdiff(_ALL_PIDS, leased)
+        if length(free) < n
             # Match the parent's environment so workers instantiate the same project (and,
             # for HF datasets, the same CondaPkg Python). `active_project()` is usually a path.
             proj = Base.active_project()
             exeflags = proj === nothing ? `` : `--project=$proj`
-            newpids = addprocs(n - length(pids); exeflags)
-            pids = vcat(pids, newpids)
-            _POOL_PIDS[] = pids
+            newpids = addprocs(n - length(free); exeflags)
+            append!(_ALL_PIDS, newpids)
+            append!(free, newpids)
         end
-        return pids
+        mine = free[1:n]
+        push!(_LEASES, (WeakRef(owner), mine))
+        return mine
     end
     _load_modules_on_workers(data, pids)
     return pids
@@ -111,8 +133,9 @@ end
 # is only for releasing them earlier (e.g. to reclaim memory in a long-lived session).
 function close_dataloader_pool()
     lock(_POOL_LOCK) do
-        isempty(_POOL_PIDS[]) || rmprocs(_POOL_PIDS[]...)
-        _POOL_PIDS[] = Int[]
+        isempty(_ALL_PIDS) || rmprocs(_ALL_PIDS...)
+        empty!(_ALL_PIDS)
+        empty!(_LEASES)
     end
     return nothing
 end
@@ -157,16 +180,15 @@ function _distributed_loader(d::DataLoader)
         return DistributedLoader(ch, nothing, 0)
     end
 
-    # Cache this loader's own `CachingPool` (over exactly its `num_workers` workers) + the
+    # Cache this loader's own `CachingPool` (over its leased, disjoint workers) + the
     # closure, so that `data` stays cached on the workers across epochs (only the shuffled
     # index sets change). Rebuild if those workers were torn down (e.g. by
     # `close_dataloader_pool`) — checked against the cached pids, not the shared global set.
+    # `d._cache` is the loader-lifetime key under which the lease is held, so the workers
+    # are released back to the pool automatically once this loader is garbage-collected.
     cache = d._cache[]
     if cache === nothing || !_pool_alive(cache.pids)
-        allpids = _ensure_pool(d.num_workers, d.data)
-        # Bind to exactly `num_workers` workers so distinct loaders don't grab the whole,
-        # possibly larger, shared set (deterministic slice: same request → same workers).
-        pids = allpids[1:min(d.num_workers, length(allpids))]
+        pids = _lease_workers(d.num_workers, d.data, d._cache)
         cpool = CachingPool(pids)
         f = _worker_closure(collate, d.data)
         cache = (pids = pids, cpool = cpool, f = f)
