@@ -167,5 +167,4 @@ Nothing in this pipeline materializes data until the inner `eachobs` loop runs
 ## Where to go next
 
 - [Labeled Data and Resampling](@ref) — balance class distributions.
-- [Iteration & Data Loaders](@ref) — turn these containers into mini-batch
-  streams.
+- [Data Loaders](@ref) — turn these containers into mini-batch streams.
