@@ -18,7 +18,12 @@
 # `collate` function, so that a `CachingPool` sends them exactly once per worker; after
 # that only index sets travel out and collated Julia arrays travel back. It is built as
 # an anonymous function (a `Function`, as `CachingPool` requires) by `_worker_closure`.
-_worker_closure(collate, data) = idxs -> _worker_getbatch(collate, data, idxs)
+#
+# A `nothing` index set is a pre-warm sentinel (see `_distributed_loader`): it primes the
+# `CachingPool` — first-touching the worker so `data` is serialized on the caller's task —
+# without doing any work. Real `idxsets` elements are always `Int`/`Vector{Int}`, so
+# `nothing` is unambiguous.
+_worker_closure(collate, data) = idxs -> idxs === nothing ? nothing : _worker_getbatch(collate, data, idxs)
 
 # Mirror `BatchView`'s `_getbatch` collate semantics, but starting from the raw data
 # container and a set of *original* observation indices computed on the main process.
@@ -75,7 +80,8 @@ const _LEASES = Tuple{WeakRef,Vector{Int}}[]
 
 # Lease `n` worker processes for `owner`, disjoint from every other live loader's workers;
 # spawn more only if fewer than `n` are currently free. Returns the leased pids.
-function _lease_workers(n::Int, data, owner)
+# (Module loading is done by the caller, `_distributed_loader`, where `collate` is in scope.)
+function _lease_workers(n::Int, owner)
     pids = lock(_POOL_LOCK) do
         # Prune workers that died, and leases whose loader was garbage-collected (weak ref
         # nulled) or a stale prior lease for this same `owner`; the pids they held re-enter
@@ -100,7 +106,6 @@ function _lease_workers(n::Int, data, owner)
         push!(_LEASES, (WeakRef(owner), mine))
         return mine
     end
-    _load_modules_on_workers(data, pids)
     return pids
 end
 
@@ -108,22 +113,279 @@ end
 # `CachingPool` gets rebuilt rather than dispatched onto dead workers.)
 _pool_alive(pids) = !isempty(pids) && all(in(Distributed.procs()), pids)
 
-# Make MLUtils (needed to deserialize the worker closure and call `getobs`) and the data
-# container's defining package available on each worker so it can deserialize `data`.
-function _load_modules_on_workers(data, pids)
-    isempty(pids) && return nothing
-    Distributed.remotecall_eval(Main, pids, :(import MLUtils))
-    mod = parentmodule(typeof(data))
-    if !(mod === Main || mod === Base || mod === Core || mod === MLUtils)
-        name = nameof(mod)
-        try
-            Distributed.remotecall_eval(Main, pids, :(using $name))
-        catch e
-            error("MLUtils: could not auto-load module `$name` on worker processes for " *
-                  "distributed data loading. Load it manually with `@everywhere using $name` " *
-                  "before iterating the DataLoader. Original error: $e")
+# Root package modules referenced by a (possibly nested) type — walk type parameters and
+# field types, guarding against cycles. Handles Union/UnionAll wrappers (e.g. an optional
+# `Union{Nothing, Dataset}` child field). Excludes Base/Core/Main.
+function _referenced_modules!(acc::Set{Module}, seen::Set{Any}, @nospecialize(T))
+    (T in seen) && return acc
+    push!(seen, T)
+    T isa UnionAll && return _referenced_modules!(acc, seen, T.body)
+    T isa Union    && (_referenced_modules!(acc, seen, T.a);
+                       return _referenced_modules!(acc, seen, T.b))
+    T isa DataType || return acc
+    let m = Base.moduleroot(parentmodule(T))
+        (m === Base || m === Core || m === Main) || push!(acc, m)
+    end
+    for p in T.parameters
+        p isa Type && _referenced_modules!(acc, seen, p)
+    end
+    # Only types with a definite field layout can be walked; `fieldtypes` throws on abstract
+    # types (which are also `DataType`s) and other indefinite types (e.g. an abstractly-typed
+    # `jltransform` field reached during the walk). We already recorded such a type's own
+    # module above, so skipping its (undefined) fields loses nothing loadable.
+    if isconcretetype(T)
+        for ft in fieldtypes(T)                 # catches captured closure fields, loose wrappers
+            ft isa Type && _referenced_modules!(acc, seen, ft)
         end
     end
+    return acc
+end
+
+_referenced_modules(@nospecialize(x)) =
+    _referenced_modules!(Set{Module}(), Set{Any}(), typeof(x))
+
+# Make MLUtils (needed to deserialize the worker closure and call `getobs`) and every root
+# package referenced by the (possibly nested) `data` container and `collate` function
+# available on each worker, so it can deserialize them. Runs on the main task, where the
+# concrete types are visible — so it sees a `Dataset` nested inside a `MappedData` that the
+# outermost-type-only approach would miss.
+#
+# We only `import` packages that are *directly loadable* in this environment (a direct
+# dependency or a stdlib, per `Base.identify_package`). The field-type walk can also surface
+# a package's own *transitive* dependencies (e.g. `PythonCall` reached through a `Dataset`'s
+# internal `Py` field) — those are not directly importable by name, but are pulled onto the
+# worker anyway when their parent package is imported, so skipping them is both necessary
+# (the bare `import` would fail) and sufficient (they still resolve for `deserialize`).
+function _load_modules_on_workers(data, collate, pids)
+    isempty(pids) && return nothing
+    Distributed.remotecall_eval(Main, pids, :(import MLUtils))
+    _import_packages(union(_referenced_modules(data), _referenced_modules(collate)), pids)
+    return nothing
+end
+
+# `import` each of `mods` on the workers, skipping MLUtils (already imported) and any package
+# that is not *directly loadable* in this environment (a direct dependency or a stdlib, per
+# `Base.identify_package`) — a transitive-only package (e.g. `PythonCall` reached through a
+# `Dataset`'s internal `Py` field) is pulled in anyway when its parent package is imported.
+function _import_packages(mods, pids)
+    isempty(pids) && return nothing
+    for m in mods
+        (m === MLUtils) && continue
+        name = nameof(m)
+        Base.identify_package(String(name)) === nothing && continue
+        try
+            Distributed.remotecall_eval(Main, pids, :(import $name))
+        catch e
+            error("MLUtils: could not auto-load `$name` on worker processes for distributed " *
+                  "data loading. Load it manually with `@everywhere using $name` before " *
+                  "iterating the DataLoader. Original error: $e")
+        end
+    end
+    return nothing
+end
+
+# ---------------------------------------------------------------------------
+# Shipping `Main`-defined functions/structs to workers
+# ---------------------------------------------------------------------------
+#
+# `Serialization` sends a *named* `Main` function or a `Main` struct by *reference* (module +
+# name); the worker then needs that binding to exist or `deserialize` throws `UndefVarError`.
+# (Anonymous closures, by contrast, ship whole — by value.) To make e.g.
+# `DataLoader(mapobs(named_fn, custom_struct); num_workers=N)` work without the user manually
+# `@everywhere`-defining anything, we walk the `data`/`collate` value graph, recover the
+# *source* of every referenced `Main` function/struct — via `CodeTracking`, which reads it
+# straight from the defining file, with no Revise and no tracking — and `remotecall_eval` those
+# definitions onto the leased workers before any data is shipped (i.e. before the pre-warm).
+#
+# Covered: named functions (including transitive helpers and keyword methods), the `Main`
+# globals those bodies read, `Main` structs used as containers (with their `getobs`/`numobs`/…
+# methods), and closures that capture any of the above. Not covered: objects with no
+# file-backed source (defined at the REPL or via `eval`/`include_string`) — those raise a
+# precise error listing the fixes, instead of a cryptic worker-side `UndefVarError`.
+
+# Source (as an `Expr`) of a method's definition, read from its defining file; `nothing` if
+# unavailable (REPL/`eval`-defined). `CodeTracking.definition` resolves keyword methods and
+# depot-path remapping for us.
+function _method_source(m::Method)
+    got = CodeTracking.definition(String, m)
+    got === nothing && return nothing
+    ex = try Meta.parse(String(first(got)); raise = false) catch; nothing end
+    return (ex isa Expr && !Meta.isexpr(ex, :incomplete) && !Meta.isexpr(ex, :error)) ? ex : nothing
+end
+
+# Source of a `Main` struct's `struct … end` block. `CodeTracking` targets *methods*, not type
+# definitions, so parse the defining file (located via the auto-generated constructor's
+# file/line) and take the top-level expression covering that line.
+function _struct_source(@nospecialize(T::DataType))
+    isempty(methods(T)) && return nothing
+    m = first(methods(T))
+    path, line = string(m.file), Int(m.line)
+    isfile(path) || return nothing
+    ast = try Meta.parseall(read(path, String); filename = path) catch; return nothing end
+    covering = nothing; curline = 0
+    for a in ast.args
+        if a isa LineNumberNode
+            curline = a.line
+        elseif curline <= line
+            covering = a                    # last top-level expr at/above the struct's line
+        end
+    end
+    return covering
+end
+
+_ismain(@nospecialize(T)) = T isa DataType && T.name.module === Main
+
+# Wrap a struct definition so re-shipping it to a *reused* warm worker (which may already have
+# the type — struct redefinition is an error) is a no-op. Functions/globals re-eval harmlessly.
+_guard_struct(name::Symbol, ex) =
+    :(isdefined(Main, $(QuoteNode(name))) || Core.eval(Main, $(QuoteNode(ex))))
+
+# Walk the value graph of `roots`, collecting the ordered `Main` definitions the workers need
+# (`structs`, then `globals`, then `funcs`), the extra packages the shipped bodies call
+# (`mods`), and the names of anything whose source could not be recovered (`unresolved`).
+function _collect_worker_defs(roots)
+    structs = Expr[]; globals = Expr[]; funcs = Expr[]
+    mods = Set{Module}(); unresolved = Symbol[]
+    done = Set{Symbol}()                    # def-names already emitted
+    locs = Set{Tuple{String,Int}}()         # method source locations already shipped
+    seen = Base.IdSet{Any}()                # value-graph cycle guard
+    visit = Ref{Any}()
+
+    # Ship a method's source once per file location (a keyword method surfaces as several
+    # `Method` objects — body + sorter — all pointing at the same definition line).
+    pushmethod(m::Method, nm::Symbol) = begin
+        loc = (string(m.file), Int(m.line))
+        loc in locs && return
+        push!(locs, loc)
+        ex = _method_source(m)
+        ex === nothing ? push!(unresolved, nm) : push!(funcs, ex)
+        scanbody(m)
+    end
+
+    # Descend into a value's contents (struct fields / tuple / small array elements) to find
+    # nested `Main` functions and struct instances. Bits arrays (numbers, etc.) are skipped.
+    recurse(@nospecialize(v)) = begin
+        if v isa Tuple || v isa NamedTuple
+            for x in v; visit[](x); end
+        elseif v isa AbstractArray
+            (isbitstype(eltype(v)) || eltype(v) <: Union{AbstractString,Symbol}) || for x in v
+                visit[](x)
+            end
+        elseif isstructtype(typeof(v))
+            for i in 1:nfields(v)
+                isdefined(v, i) || continue
+                f = try getfield(v, i) catch; continue end
+                visit[](f)
+            end
+        end
+    end
+
+    # Scan a method's lowered code for `GlobalRef`s: `Main` functions/structs → ship them,
+    # `Main` plain globals → ship by value, package refs → import that package on the worker.
+    scanbody(m::Method) = begin
+        ci = try Base.uncompressed_ir(m) catch; return end
+        scan = Ref{Any}()
+        scan[] = (@nospecialize(x)) -> begin
+            if x isa GlobalRef
+                if x.mod === Main && isdefined(Main, x.name)
+                    v = getglobal(Main, x.name)
+                    if v isa Function || v isa Type
+                        visit[](v)
+                    elseif !(v isa Module)
+                        _ismain(typeof(v)) && visit[](v)
+                        if !(x.name in done)
+                            push!(done, x.name)
+                            push!(globals, :(global $(x.name) = $(QuoteNode(v))))
+                        end
+                    end
+                elseif x.mod !== Base && x.mod !== Core && x.mod !== Main
+                    push!(mods, Base.moduleroot(x.mod))
+                end
+            elseif x isa Expr
+                foreach(scan[], x.args)
+            elseif x isa Core.ReturnNode
+                isdefined(x, :val) && scan[](x.val)
+            elseif x isa Core.GotoIfNot
+                scan[](x.cond)
+            end
+        end
+        foreach(scan[], ci.code)
+    end
+
+    # A `Main`-bound named function's Symbol, or `nothing` for anonymous/closure/package fns.
+    mainfuncname(@nospecialize(f)) = begin
+        T = typeof(f)
+        (T isa DataType && T.name.module === Main && supertype(T) === Function) || return nothing
+        nm = nameof(f)
+        (isdefined(Main, nm) && getglobal(Main, nm) === f) ? nm : nothing
+    end
+
+    shipfunc(@nospecialize(f), nm::Symbol) = begin
+        nm in done && return
+        push!(done, nm)
+        for m in methods(f); pushmethod(m, nm); end
+    end
+
+    shipstruct(@nospecialize(T::DataType)) = begin
+        nm = nameof(T)
+        nm in done && return
+        push!(done, nm)
+        ex = _struct_source(T)
+        ex === nothing ? push!(unresolved, nm) : push!(structs, _guard_struct(nm, ex))
+        for m in methodswith(T; supertypes = false)
+            (m.name === nm || m.module !== Main) && continue   # skip ctor / package methods
+            pushmethod(m, m.name)
+        end
+    end
+
+    visit[] = (@nospecialize(v)) -> begin
+        (v isa Symbol || v isa Module) && return
+        v in seen && return
+        push!(seen, v)
+        if v isa Function
+            nm = mainfuncname(v)
+            if nm === nothing                       # anonymous/closure: ships by value…
+                if typeof(v).name.module === Main    # …but scan its body + captured fields
+                    foreach(scanbody, methods(v)); recurse(v)
+                end
+            else
+                shipfunc(v, nm)
+            end
+        elseif v isa Type
+            v isa DataType && _ismain(v) && shipstruct(v)
+        else
+            _ismain(typeof(v)) && shipstruct(typeof(v))
+            recurse(v)
+        end
+    end
+
+    foreach(visit[], roots)
+    return (; structs, globals, funcs, mods, unresolved)
+end
+
+# Ship every `Main`-defined function/struct/global reachable from `data`/`collate` onto the
+# workers (plus any package their bodies call), so a named transform or a script-local struct
+# container works under `num_workers` without a manual `@everywhere`. Runs after
+# `_load_modules_on_workers` (packages first) and before the pool pre-warm (defs before data).
+function _ship_worker_defs(data, collate, pids)
+    isempty(pids) && return nothing
+    defs = _collect_worker_defs((data, collate))
+    _import_packages(defs.mods, pids)
+    if !isempty(defs.unresolved)
+        names = join(sort(unique(String.(defs.unresolved))), ", ")
+        error("MLUtils: cannot ship $(names) to worker processes for `num_workers` loading — " *
+              "their source is unavailable (defined at the REPL or via `eval`/`include_string`, " *
+              "not a file on disk). Fixes: put them in a file loaded with `include`, move them " *
+              "into a package/module your project depends on, or use an anonymous function.")
+    end
+    # Two rounds so evaluation is interleaved with deserialization: a shipped global may hold a
+    # *value* of a shipped `Main` struct, and the whole `:toplevel` expression is deserialized on
+    # the worker before any of it runs — so the struct types must already exist from a prior
+    # `remotecall_eval`. Round 1 (structs + funcs) is pure source with no embedded instances;
+    # round 2 (globals) may embed instances, which now deserialize against the round-1 types.
+    code = vcat(defs.structs, defs.funcs)
+    isempty(code)         || Distributed.remotecall_eval(Main, pids, Expr(:toplevel, code...))
+    isempty(defs.globals) || Distributed.remotecall_eval(Main, pids, Expr(:toplevel, defs.globals...))
     return nothing
 end
 
@@ -188,9 +450,20 @@ function _distributed_loader(d::DataLoader)
     # are released back to the pool automatically once this loader is garbage-collected.
     cache = d._cache[]
     if cache === nothing || !_pool_alive(cache.pids)
-        pids = _lease_workers(d.num_workers, d.data, d._cache)
+        pids = _lease_workers(d.num_workers, d._cache)
+        _load_modules_on_workers(d.data, collate, pids)  # import referenced packages…
+        _ship_worker_defs(d.data, collate, pids)         # …then ship Main funcs/structs/globals
         cpool = CachingPool(pids)
         f = _worker_closure(collate, d.data)
+        # Prime the pool from the consumer's task: first-touch each worker here so `d.data`
+        # is serialized on this task (not the GIL-less feeder below) and cached remotely.
+        # The feeder then ships only cached refs + index sets — it never serializes `d.data`
+        # (never touches Python). `asyncmap` keeps serialization on this task/thread while
+        # overlapping the N worker-side rebuilds (deserialize / pickle.loads run concurrently
+        # across workers instead of N sequential round-trips). Each of the `length(pids)`
+        # concurrent calls does `take!(pool)` on the freshly built `cpool`, draining it so
+        # every call lands on a distinct worker → each worker first-touched exactly once.
+        asyncmap(_ -> remotecall_fetch(f, cpool, nothing), 1:length(pids); ntasks = length(pids))
         cache = (pids = pids, cpool = cpool, f = f)
         d._cache[] = cache
     end

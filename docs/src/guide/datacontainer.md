@@ -149,7 +149,7 @@ For performance-critical pipelines it can be worthwhile to load an observation
 into a preallocated buffer instead of allocating a fresh array every time. This
 is what [`getobs!`](@ref) is for. When you implement `getobs!(buffer, data, idx)`
 for your type, [`DataLoader`](@ref) can reuse a buffer across iterations by
-passing `buffer=true` (see [Iteration & Data Loaders](@ref)).
+passing `buffer=true` (see [Data Loaders](@ref)).
 
 If you do not implement it, `getobs!` falls back to `getobs`, so it is purely
 an optional optimization.
@@ -159,4 +159,5 @@ an optional optimization.
 - [Data Subsets and Views](@ref) — lazily subset, shuffle and split data
   without copying.
 - [Lazy Transformations](@ref) — map, filter, group and join data containers.
-- [Iteration & Data Loaders](@ref) — iterate over observations and mini-batches.
+- [Iteration & Views](@ref) — iterate over observations, batches and windows.
+- [Data Loaders](@ref) — mini-batch loading, collation, and parallel/distributed loading.

@@ -24,7 +24,8 @@ makedocs(;
                  "Lazy Transformations" => "guide/transforms.md",
                  "Labeled Data and Resampling" => "guide/resampling.md",
                  "Cross-validation" => "guide/folds.md",
-                 "Iteration & Data Loaders" => "guide/iteration.md",
+                 "Iteration & Views" => "guide/iteration.md",
+                 "Data Loaders" => "guide/dataloader.md",
              ],
              "API" => "api.md"],
 )

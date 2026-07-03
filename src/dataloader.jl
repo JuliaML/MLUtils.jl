@@ -88,7 +88,10 @@ The original data is preserved in the `data` field of the DataLoader.
     interpreter (and its own GIL), so loading scales near-linearly. `parallel` and
     `num_workers` are **mutually exclusive**. The data container and the values returned by
     `getobs` must be serializable (Julia `Serialization`) — arrays, tuples and named tuples
-    already are. **Breaks ordering guarantees.** `buffer` is not supported. Accepts:
+    already are. **Breaks ordering guarantees.** `buffer` is not supported. For a
+    `PythonCall`-backed loader, iterate it from the thread that can call Python (in practice,
+    thread 1): the data container is serialized on the task that first iterates the loader.
+    Accepts:
     - `0` (default): no worker processes (loads according to `parallel`).
     - `N::Integer`: spawn/reuse `N` worker processes, managed by MLUtils. The pool is kept
       warm across loaders and epochs and terminated automatically when Julia exits.

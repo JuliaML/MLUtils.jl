@@ -3,6 +3,8 @@ module MLUtils
 using Random
 using Statistics
 using Distributed: Distributed, addprocs, rmprocs, CachingPool, remotecall_fetch
+import CodeTracking
+using InteractiveUtils: methodswith
 using ShowCases: ShowLimit
 import StatsBase: sample
 using Tables

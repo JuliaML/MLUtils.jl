@@ -206,6 +206,6 @@ shuffle are all lazy views.
 
 ## Where to go next
 
-- [Iteration & Data Loaders](@ref) — iterate over the folds in mini-batches.
+- [Data Loaders](@ref) — iterate over the folds in mini-batches.
 - [Data Subsets and Views](@ref) — the `splitobs` / `shuffleobs` primitives used
   above.

@@ -5,3 +5,4 @@ Manifest.toml
 docs/build
 .vscode
 /test.jl
+.CondaPkg
