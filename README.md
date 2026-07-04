@@ -20,7 +20,6 @@
 - Toy datasets for demonstration purpose. 
 - Other data handling utilities (`flatten`, `normalise`, `unsqueeze`, `stack`, `unstack`, `slidingwindow`).
 
-
 ## Examples
 
 Let us take a look at a hello world example to get a feeling for 
@@ -61,21 +60,15 @@ only place where data other than indices is actually being
 copied. In fact, while `x` and `y` are materialized arrays, 
 all the rest are data views. 
 
-
 ## Historical Notes
 
 *MLUtils.jl* brings together functionalities previously found in [LearnBase.jl](https://github.com/JuliaML/LearnBase.jl) , [MLDataPattern.jl](https://github.com/JuliaML/MLDataPattern.jl) and [MLLabelUtils.jl](https://github.com/JuliaML/MLLabelUtils.jl). These packages are now discontinued. 
 
 Other features were ported from the deep learning library [Flux.jl](https://github.com/FluxML/Flux.jl), as they are of general use. 
 
-
 ## Alternatives and Related Packages
 
 - [MLJ.jl](https://alan-turing-institute.github.io/MLJ.jl/dev/) is a more complete package for managing the whole machine learning pipeline if you are looking for a sklearn replacement.
-
 - [NNlib.jl](https://github.com/FluxML/NNlib.jl) provides utility functions for neural networks.
-
 - [TableTransforms.jl](https://github.com/JuliaML/TableTransforms.jl) contains transformations for tabular datasets.
-
 - [DataAugmentation.jl](https://github.com/FluxML/DataAugmentation.jl). Efficient, composable data augmentation for machine and deep learning with support for n-dimensional images, keypoints and categorical masks.
-
