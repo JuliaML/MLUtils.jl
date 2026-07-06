@@ -3,6 +3,7 @@ module MLUtils
 using Random
 using Statistics
 using Distributed: Distributed, addprocs, rmprocs, CachingPool, remotecall_fetch
+import Mmap
 import CodeTracking
 using InteractiveUtils: methodswith
 using ShowCases: ShowLimit
@@ -49,6 +50,8 @@ include("dataloader.jl")
 export eachobs, DataLoader
 
 include("parallel.jl")
+
+include("shmem.jl")
 
 include("distributed.jl")
 # `close_dataloader_pool` is intentionally not exported: it is a rarely-needed

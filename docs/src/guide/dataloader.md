@@ -103,7 +103,7 @@ in PyTorch), so do not rely on batch order.
 |---|---|---|
 | Memory | shared — no copy of `data` | `data` serialized to each worker once |
 | Startup cost | negligible | spawns processes (amortized: kept warm) |
-| Per-batch overhead | none (shared memory) | ship index set out, collated array back |
+| Per-batch overhead | none (shared memory) | ship index set out; collated batch back through **shared memory** (Unix) or serialized |
 | GIL-bound `getobs` (Python) | no speedup (one shared GIL) | scales (one GIL per process) |
 | Pure-Julia CPU-bound `getobs` | scales | scales, but pays IPC + copy |
 | Large in-memory `data` | ideal (zero-copy) | costly (copied per worker) |
@@ -131,6 +131,28 @@ batch. The pool is started lazily on the first distributed iteration, kept warm
 across loaders and epochs, and — being child processes — terminated automatically
 when Julia exits. To release the workers earlier, call
 `MLUtils.close_dataloader_pool()`.
+
+### Shared-memory batch transport
+
+Returning each collated batch by *serializing* it, pushing the bytes through a
+socket, and deserializing on the main process is a full bulk copy per batch — and
+for large batches it becomes the scaling bottleneck, so that adding workers may not
+beat serial loading. To avoid it, on Unix MLUtils moves batches through **shared
+memory**, the same trick as `torch.multiprocessing`: the worker writes each large
+array leaf of a batch into a memory-mapped file (under `/dev/shm` on Linux,
+`tempdir()` on other Unix) and only a small *handle* crosses the socket; the main
+process maps the file back to an array and immediately unlinks it. Because the
+pool's workers are always local processes on the same host, they share the
+filesystem, so no bytes are copied across the socket. This is automatic — there is
+no option to configure. Windows cannot unlink a memory-mapped file, so it uses the
+serialized path. Two properties worth knowing:
+
+- Received array leaves are dense, **writable** `Array`s. Views, `BitArray`s and
+  other non-`Array` arrays are normalized to a dense `Array`, and a container's
+  element type may widen (e.g. a `Dict{String,Any}`).
+- Batches are backed by shared memory until they are garbage-collected, so avoid
+  holding many epochs of batches alive at once (their pages are invisible to Julia's
+  GC accounting, and `/dev/shm` can be small — 64 MB by default in some containers).
 
 !!! note "Iterate Python-backed loaders from the main thread"
     For a `PythonCall`-backed loader, the container is serialized on the task that

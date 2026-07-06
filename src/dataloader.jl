@@ -95,6 +95,11 @@ The original data is preserved in the `data` field of the DataLoader.
     - `0` (default): no worker processes (loads according to `parallel`).
     - `N::Integer`: spawn/reuse `N` worker processes, managed by MLUtils. The pool is kept
       warm across loaders and epochs and terminated automatically when Julia exits.
+    On Unix, collated batches are returned to the main process through shared memory (only a
+    handle crosses the socket, not the bulk bytes), so that loading scales with `N`. A consequence
+    is that received array leaves are dense, **writable** `Array`s — views and `BitArray`s are
+    materialized to a dense `Array`, and a container's element type may widen (e.g.
+    `Dict{String,Any}`).
 - **`partial`**: This argument is used only when `batchsize > 0`.
   If `partial=false` and the number of observations is not divisible by the batchsize,
   then the last mini-batch is dropped. Default `true`.
@@ -164,6 +169,7 @@ struct DataLoader{T<:Union{ObsView,BatchView},B,P,C,O,R<:AbstractRNG}
     shuffle::Bool
     parallel::Union{Bool,Int}
     num_workers::Int  # 0 (off) or N managed worker processes
+    shm::Bool  # shared-memory batch transport under num_workers; resolved from the `shm` kwarg
     collate::C
     rng::R
     _cache::Base.RefValue{Any}  # lazily holds the distributed pool/closure; unused otherwise
@@ -181,6 +187,7 @@ function DataLoader(
         buffer = false,
         parallel::Union{Bool,Integer} = false,
         num_workers::Integer = 0,
+        shm::Union{Bool,Nothing} = nothing,
         shuffle::Bool = false,
         batchsize::Int = 1,
         partial::Bool = true,
@@ -208,6 +215,23 @@ function DataLoader(
             "a main-process buffer cannot be filled by a worker process."))
     end
 
+    # Resolve the shared-memory batch transport (only meaningful under `num_workers`).
+    # `nothing` (auto) turns it on wherever it is supported; an explicit request is honored but
+    # fails loud when it cannot be satisfied. `shm` is deliberately **undocumented** — the transport
+    # is automatic — but kept as an internal escape hatch: `shm=false` forces the serialized path
+    # for the rare caller who needs byte-identical batch types (no view/`BitArray`→dense, no
+    # container-eltype widening) or who retains many batches and must avoid `/dev/shm` pressure.
+    if shm === nothing
+        shm = distributed && _shm_supported()
+    elseif shm
+        distributed || throw(ArgumentError(
+            "`shm=true` requires `num_workers > 0`: the shared-memory batch transport only " *
+            "applies to distributed (multiprocess) loading."))
+        _shm_supported() || throw(ArgumentError(
+            "`shm=true` is not supported on this platform: the shared-memory batch transport " *
+            "requires a Unix system (it relies on unlinking a memory-mapped file)."))
+    end
+
     if buffer == true
         buffer = _create_buffer(_data)
     end
@@ -215,12 +239,13 @@ function DataLoader(
     # round-tripping, narrow any other `Integer` to `Int` to match the field).
     parallel = parallel isa Bool ? parallel : Int(parallel)
     num_workers = Int(num_workers)
+    shm = shm::Bool  # resolved above to a concrete Bool
     P = distributed ? :distributed : (_nworkers(parallel) > 0 ? :parallel : :serial)
     # for buffer == false and external buffer, we keep as is
 
     T, O, B, C, R = typeof(_data), typeof(data), typeof(buffer), typeof(collate), typeof(rng)
     return DataLoader{T,B,P,C,O,R}(data, _data, batchsize, buffer,
-                                partial, shuffle, parallel, num_workers, collate, rng, Ref{Any}(nothing))
+                                partial, shuffle, parallel, num_workers, shm, collate, rng, Ref{Any}(nothing))
 end
 
 
@@ -359,6 +384,7 @@ function mapobs(f, d::DataLoader)
                     shuffle=d.shuffle,
                     parallel=d.parallel,
                     num_workers=d.num_workers,
+                    shm=d.shm,
                     collate=collate,
                     rng=d.rng)
 end
@@ -374,6 +400,8 @@ function Base.showarg(io::IO, d::DataLoader, toplevel)
     end
     d.parallel == false || print(io, ", parallel=", d.parallel)
     d.num_workers == 0 || print(io, ", num_workers=", d.num_workers)
+    # Print `shm` only when it deviates from the auto-resolved platform default.
+    d.shm == (d.num_workers > 0 && _shm_supported()) || print(io, ", shm=", d.shm)
     d.shuffle == false || print(io, ", shuffle=", d.shuffle)
     d.batchsize == 1 || print(io, ", batchsize=", d.batchsize)
     d.partial == true || print(io, ", partial=", d.partial)
