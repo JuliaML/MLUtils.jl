@@ -23,7 +23,10 @@
 # `CachingPool` — first-touching the worker so `data` is serialized on the caller's task —
 # without doing any work. Real `idxsets` elements are always `Int`/`Vector{Int}`, so
 # `nothing` is unambiguous.
-_worker_closure(collate, data) = idxs -> idxs === nothing ? nothing : _worker_getbatch(collate, data, idxs)
+# `shm` is a `ShmSession` (pack collated batches into shared memory) or `nothing` (serialize as
+# before). Packing happens *inside* the closure, on the worker, so only the small skeleton crosses
+# `remotecall_fetch`. The `nothing` pre-warm sentinel is untouched (no batch, so nothing to pack).
+_worker_closure(collate, data, shm) = idxs -> idxs === nothing ? nothing : shm_pack(_worker_getbatch(collate, data, idxs), shm)
 
 # Mirror `BatchView`'s `_getbatch` collate semantics, but starting from the raw data
 # container and a set of *original* observation indices computed on the main process.
@@ -399,6 +402,8 @@ function close_dataloader_pool()
         empty!(_ALL_PIDS)
         empty!(_LEASES)
     end
+    # Workers are gone, so no straggler can write; reclaim every shared-memory session dir.
+    _shm_close_all()
     return nothing
 end
 
@@ -454,7 +459,11 @@ function _distributed_loader(d::DataLoader)
         _load_modules_on_workers(d.data, collate, pids)  # import referenced packages…
         _ship_worker_defs(d.data, collate, pids)         # …then ship Main funcs/structs/globals
         cpool = CachingPool(pids)
-        f = _worker_closure(collate, d.data)
+        # One shared-memory session per cache build, created on main before the pre-warm. The
+        # session dir's lifetime is tied to `d._cache` via a finalizer (see `_shm_session_create`);
+        # `nothing` (shm off, unsupported platform, or mkdir failure) degrades to serialization.
+        shmses = d.shm ? _shm_session_create(d._cache) : nothing
+        f = _worker_closure(collate, d.data, shmses)
         # Prime the pool from the consumer's task: first-touch each worker here so `d.data`
         # is serialized on this task (not the GIL-less feeder below) and cached remotely.
         # The feeder then ships only cached refs + index sets — it never serializes `d.data`
@@ -464,16 +473,19 @@ function _distributed_loader(d::DataLoader)
         # concurrent calls does `take!(pool)` on the freshly built `cpool`, draining it so
         # every call lands on a distinct worker → each worker first-touched exactly once.
         asyncmap(_ -> remotecall_fetch(f, cpool, nothing), 1:length(pids); ntasks = length(pids))
-        cache = (pids = pids, cpool = cpool, f = f)
+        cache = (pids = pids, cpool = cpool, f = f, shm = shmses)
         d._cache[] = cache
     end
-    pids, cpool, f = cache.pids, cache.cpool, cache.f
+    pids, cpool, f, shmses = cache.pids, cache.cpool, cache.f, cache.shm
 
     nworkers = max(length(pids), 1)
     ch = Channel(nworkers)   # bounded prefetch → overlap + backpressure
     task = Threads.@spawn begin
         try
-            asyncmap(idxs -> put!(ch, remotecall_fetch(f, cpool, idxs)), idxsets; ntasks = nworkers)
+            # Unpack (mmap + immediate unlink) before `put!`, so the backing files are freed even
+            # if `put!` throws on a channel the consumer already closed. Unpacking touches no
+            # Python, so keeping it on the feeder task preserves the GIL isolation of the pre-warm.
+            asyncmap(idxs -> put!(ch, shm_unpack(remotecall_fetch(f, cpool, idxs), shmses)), idxsets; ntasks = nworkers)
             close(ch)
         catch e
             # A worker `getobs` failure is surfaced to the consumer's `take!`; but if the

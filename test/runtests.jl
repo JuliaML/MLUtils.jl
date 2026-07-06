@@ -102,6 +102,7 @@ include("test_utils.jl")
 @testset "splitobs" begin; include("splitobs.jl"); end
 @testset "utils" begin; include("utils.jl"); end
 @testset "eachobsparallel" begin; include("parallel.jl"); end
+@testset "shmem" begin; include("shmem.jl"); end
 @testset "distributed" begin; include("distributed.jl"); end
 @testset "huggingface" begin; include("huggingface.jl"); end
 

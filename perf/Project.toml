@@ -1,0 +1,9 @@
+[deps]
+HuggingFaceDatasets = "d94b9a45-fdf5-4270-b024-5cbb9ef7117d"
+MLUtils = "f1d291b0-491e-4a28-83b9-f70985020b54"
+
+[sources]
+MLUtils = {path = ".."}
+# The benchmark was developed against a local HuggingFaceDatasets checkout; drop this line to use
+# the registered release instead.
+HuggingFaceDatasets = {path = "../../HuggingFaceDatasets"}

@@ -1,7 +1,7 @@
 name = "MLUtils"
 uuid = "f1d291b0-491e-4a28-83b9-f70985020b54"
 authors = ["Carlo Lucibello <carlo.lucibello@gmail.com> and contributors"]
-version = "0.4.11"
+version = "0.4.12"
 
 [workspace]
 projects = ["test", "docs"]
@@ -15,6 +15,7 @@ DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 MLCore = "c2834f40-e789-41da-a90e-33b280584a8c"
+Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
 NNlib = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 ShowCases = "605ecd9f-84a6-4c9e-81e2-4798472b76a3"
@@ -32,6 +33,7 @@ DelimitedFiles = "1.0"
 Distributed = "1"
 InteractiveUtils = "1"
 MLCore = "1.0.0"
+Mmap = "1"
 NNlib = "0.8, 0.9"
 ShowCases = "0.1"
 SimpleTraits = "0.9"

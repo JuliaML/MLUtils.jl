@@ -303,5 +303,112 @@ end
     MLUtils.close_dataloader_pool()
 end
 
+# Shared-memory batch transport under `num_workers`. Gated on `_shm_supported()` (Unix only);
+# on Windows CI only the validation/printing tests in `test/shmem.jl` and the unchanged
+# serialized path run. The threshold is lowered so the small test batches actually pack — set
+# *before* each loader's first iteration, since a session snapshots it at cache-build time.
+@testset "shared-memory transport" begin
+    MLUtils.close_dataloader_pool()
+    if MLUtils._shm_supported()
+        old = MLUtils._SHM_MIN_BYTES[]
+        MLUtils._SHM_MIN_BYTES[] = 64
+        try
+            D = reshape(collect(1.0:80.0), 4, 20)
+            ref = sort([sum(c) for c in eachcol(D)])
+
+            @testset "set-equality vs serial, collate=$(coll)" for coll in (Val(nothing), true, false)
+                MLUtils.close_dataloader_pool()
+                dl = DataLoader(D; batchsize=5, num_workers=2, collate=coll)
+                @test dl.shm == true
+                batches = collect(dl)
+                if coll === false
+                    cols = [c for b in batches for c in b]
+                    @test sort([sum(c) for c in cols]) == ref
+                else
+                    @test sort([sum(c) for b in batches for c in eachcol(b)]) == ref
+                end
+                # whitebox transport-proof: the cached closure packs the batch into a skeleton —
+                # a `ShmHandle` for a collated dense array, a `ShmVector` for the collate=false
+                # vector-of-observations (whose small per-obs columns ride inside it).
+                sk = dl._cache[].f([1, 2, 3, 4, 5])
+                @test sk isa (coll === false ? MLUtils.ShmVector : MLUtils.ShmHandle)
+            end
+
+            @testset "batchsize<=0 + shuffle" begin
+                MLUtils.close_dataloader_pool()
+                dl = DataLoader(D; batchsize=-1, num_workers=2)
+                @test sort([sum(c) for c in collect(dl)]) == ref
+                dl2 = DataLoader((D, collect(1:20)); batchsize=4, num_workers=2, shuffle=true, collate=true)
+                labels = sort(reduce(vcat, [b[2] for b in collect(dl2)]))
+                @test labels == collect(1:20)
+            end
+
+            @testset "warm second epoch reuses session" begin
+                MLUtils.close_dataloader_pool()
+                dl = DataLoader(D; batchsize=5, num_workers=2, collate=true)
+                @test sort([sum(c) for b in collect(dl) for c in eachcol(b)]) == ref
+                dir = dl._cache[].shm.dir
+                np = nprocs()
+                @test sort([sum(c) for b in collect(dl) for c in eachcol(b)]) == ref
+                @test nprocs() == np                 # no new workers
+                @test dl._cache[].shm.dir == dir     # same session
+            end
+
+            @testset "concurrent loaders get distinct session dirs" begin
+                MLUtils.close_dataloader_pool()
+                dlA = DataLoader(D; batchsize=5, num_workers=2, collate=true); collect(dlA)
+                dlB = DataLoader(D; batchsize=5, num_workers=2, collate=true); collect(dlB)
+                @test dlA._cache[].shm.dir != dlB._cache[].shm.dir
+                @test isdir(dlA._cache[].shm.dir) && isdir(dlB._cache[].shm.dir)
+            end
+
+            @testset "dropped loader's session dir is removed" begin
+                MLUtils.close_dataloader_pool()
+                # Build + drain the loader inside a function so it is unreachable on return.
+                getdir() = (d = DataLoader(D; batchsize=5, num_workers=2, collate=true);
+                            collect(d); d._cache[].shm.dir)
+                dir = getdir()
+                # Finalizers run asynchronously; poll for the `_cache` finalizer to tear the dir down.
+                removed = false
+                for _ in 1:60
+                    GC.gc(); GC.gc(); yield()
+                    isdir(dir) || (removed = true; break)
+                    sleep(0.05)
+                end
+                @test removed
+            end
+
+            @testset "pool teardown rebuilds a fresh session" begin
+                MLUtils.close_dataloader_pool()
+                dl = DataLoader(D; batchsize=5, num_workers=2, collate=true); collect(dl)
+                dir1 = dl._cache[].shm.dir
+                MLUtils.close_dataloader_pool()
+                @test !isdir(dir1)                   # _shm_close_all reclaimed it
+                collect(dl)                          # re-iterate after teardown → new session
+                @test isdir(dl._cache[].shm.dir) && dl._cache[].shm.dir != dir1
+            end
+
+            @testset "shm=false uses the serialized path" begin
+                MLUtils.close_dataloader_pool()
+                dl = DataLoader(D; batchsize=5, num_workers=2, collate=true, shm=false)
+                @test sort([sum(c) for b in collect(dl) for c in eachcol(b)]) == ref
+                @test dl._cache[].shm === nothing
+            end
+
+            @testset "worker errors still propagate" begin
+                MLUtils.close_dataloader_pool()
+                bad = mapobs(_ -> error("boom in worker"), collect(1:8))
+                dlbad = DataLoader(bad; batchsize=2, num_workers=2)
+                @test_throws Exception collect(dlbad)
+            end
+        finally
+            MLUtils._SHM_MIN_BYTES[] = old
+            MLUtils.close_dataloader_pool()
+            # no shared-memory residue left behind by the whole block
+            @test isempty(filter(n -> startswith(n, "jl_mlutils_shm_"), readdir(MLUtils._shm_root())))
+        end
+    end
+end
+
 MLUtils.close_dataloader_pool()
 @test nprocs() == 1

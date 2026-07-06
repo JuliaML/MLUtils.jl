@@ -6,3 +6,4 @@ docs/build
 .vscode
 /test.jl
 .CondaPkg
+__pycache__
