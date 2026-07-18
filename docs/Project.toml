@@ -6,3 +6,6 @@ MLUtils = "f1d291b0-491e-4a28-83b9-f70985020b54"
 
 [sources]
 MLUtils = {path = ".."}
+
+[compat]
+MLCore = "1.1.0"
