@@ -216,8 +216,13 @@ function rrule(::typeof(chunk), x::AbstractArray; size, dims::Int=ndims(x))
     idxs = _partition_idxs(x, size, dims)
     y = [_selectdim(x, dims, i) for i in idxs]
     valdims = Val(dims)
-    # TODO avoid capturing x in the pullback
-    chunk_pullback(dy) = (NoTangent(), ∇chunk(unthunk(dy), x, idxs, valdims))
+    # Capture lightweight stand-ins for `x` instead of `x` itself, so the input
+    # data isn't kept alive by the pullback: `ProjectTo(x)` carries `x`'s axes
+    # and restores its structure, and `similar(x, 0)` carries `x`'s array/element
+    # type (for allocating the gradient) without holding any data.
+    project = ProjectTo(x)
+    xproto = similar(x, 0)
+    chunk_pullback(dy) = (NoTangent(), ∇chunk(unthunk(dy), project, xproto, idxs, valdims))
 
     return y, chunk_pullback
 end
@@ -238,15 +243,20 @@ end
 @non_differentiable _partition_idxs(::Any...)
 
 # Similar to ∇eachslice  https://github.com/JuliaDiff/ChainRules.jl/blob/8108a77a96af5d4b0c460aac393e44f8943f3c5e/src/rulesets/Base/indexing.jl#L77
-function ∇chunk(dys_raw, x, idxs, vd::Val{dim}) where {dim}
+# `project` is `ProjectTo(x)` and `xproto` is `similar(x, 0)`, both derived from
+# the original input `x`. Together they supply `x`'s axes, array type and element
+# type, so we never need to capture `x` (and its data) itself.
+function ∇chunk(dys_raw, project::ProjectTo, xproto, idxs, vd::Val{dim}) where {dim}
     dys = unthunk.(unthunk(dys_raw))  # https://github.com/FluxML/Zygote.jl/pull/966#issuecomment-2569227272
     i1 = findfirst(dy -> !(dy isa AbstractZero), dys)
     if i1 === nothing  # all slices are Zero!
-        return _zero_fill!(similar(x, float(eltype(x))))
+        return project(_zero_fill!(similar(xproto, float(eltype(xproto)), project.axes)))
     end
-    T = promote_type(eltype(dys[i1]), eltype(x))
-    # The whole point of this gradient is that we can allocate one `dx` array:
-    dx = similar(x, T)
+    T = promote_type(eltype(dys[i1]), eltype(xproto))
+    # The whole point of this gradient is that we can allocate one `dx` array.
+    # `xproto` gives it `x`'s array type and `project.axes` its shape, without
+    # needing `x` itself; `project` then restores `x`'s structure.
+    dx = similar(xproto, T, project.axes)
     for (k, i) in enumerate(idxs)
         slice = _selectdim(dx, dim, i)
         if dys[k] isa AbstractZero
@@ -255,19 +265,19 @@ function ∇chunk(dys_raw, x, idxs, vd::Val{dim}) where {dim}
             copyto!(slice, dys[k])
         end
     end
-    return ProjectTo(x)(dx)
+    return project(dx)
 end
 
 _zero_fill!(dx::AbstractArray{<:Number}) = fill!(dx, zero(eltype(dx)))
 _zero_fill!(dx::AbstractArray) = map!(zero, dx, dx)
 
-function rrule(::typeof(∇chunk), dys, x, idxs, vd::Val{dim}) where dim
+function rrule(::typeof(∇chunk), dys, project, xproto, idxs, vd::Val{dim}) where dim
     n = length(dys)
     function ∇∇chunk(dz_raw)
         dz = chunk(unthunk(dz_raw), n; dims=dim)
-        return (NoTangent(), dz, NoTangent(), NoTangent(), NoTangent())
+        return (NoTangent(), dz, NoTangent(), NoTangent(), NoTangent(), NoTangent())
     end
-    return ∇chunk(dys, x, idxs, vd), ∇∇chunk
+    return ∇chunk(dys, project, xproto, idxs, vd), ∇∇chunk
 end
 
 """

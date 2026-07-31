@@ -105,7 +105,11 @@ end
     l = chunk(x, 2)
     dl = randn!.(collect.(l))
     idxs = MLUtils._partition_idxs(x, cld(size(x, dims), n), dims)
-    test_zygote(MLUtils.∇chunk, dl, x, idxs, Val(dims), check_inferred=false)
+    # `project`/`xproto` stand in for `x` in `∇chunk`; they are non-differentiable,
+    # so hold them fixed while checking the gradient wrt `dl`.
+    project = ProjectTo(x)
+    xproto = similar(x, 0)
+    test_zygote(MLUtils.∇chunk, dl, project ⊢ NoTangent(), xproto ⊢ NoTangent(), idxs, Val(dims), check_inferred=false)
 
 
     if CUDA.functional()
