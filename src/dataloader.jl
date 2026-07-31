@@ -313,16 +313,18 @@ end
 
 Base.length(d::DataLoader) = numobs(d._data)
 Base.size(d::DataLoader) = (length(d),)
-Base.IteratorEltype(d::DataLoader) = Base.EltypeUnknown()
 
-## This causes error in some cases of `collect(loader)`
-# function Base.eltype(e::DataLoader)
-#     eltype(if e.batchsize > 0
-#         BatchView(e.data; e.batchsize, e.partial)
-#     else
-#         e.data
-#     end)
-# end
+# A `DataLoader` iterates the batches (or observations) of the wrapped
+# `BatchView`/`ObsView`, so its element type is exactly that of `d._data`, which
+# is built with the loader's actual `collate`. (An earlier attempt rebuilt a
+# `BatchView` *without* `collate` here, producing an inconsistent eltype.)
+Base.eltype(::Type{<:DataLoader{T}}) where {T} = eltype(T)
+
+# Keep `IteratorEltype` as `EltypeUnknown`: for containers whose per-batch
+# `getobs` is not fully inferable (e.g. `Dict`), the type above is only a
+# supertype of the real batches, so we let `collect` narrow the element type
+# from the batches themselves rather than pre-committing to the wider type.
+Base.IteratorEltype(::Type{<:DataLoader}) = Base.EltypeUnknown()
 
 """
     mapobs(f, d::DataLoader)
