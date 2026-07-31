@@ -6,7 +6,7 @@
     d = DataLoader(X2, batchsize=2)
     @test @inferred(first(d)) isa Array
     batches = collect(d)
-    @test_broken  eltype(d) == typeof(X2)
+    @test eltype(d) == typeof(X2)
     @test eltype(batches) == typeof(X2)
     @test length(batches) == length(d) == 3
     @test size(batches) == size(d) == (3,)
@@ -17,7 +17,7 @@
     d = DataLoader(X2, batchsize=2, partial=false)
     @inferred first(d)
     batches = collect(d)
-    @test_broken eltype(d) == typeof(X2)
+    @test eltype(d) == typeof(X2)
     @test length(batches) == 2
     @test batches[1] == X2[:,1:2]
     @test batches[2] == X2[:,3:4]
@@ -25,7 +25,7 @@
     d = DataLoader((X2,), batchsize=2, partial=false)
     @inferred first(d)
     batches = collect(d)
-    @test_broken eltype(d) == Tuple{typeof(X2)}
+    @test eltype(d) == Tuple{typeof(X2)}
     @test eltype(batches) == Tuple{typeof(X2)}
     @test length(batches) == 2
     @test batches[1] == (X2[:,1:2],)
@@ -34,7 +34,7 @@
     d = DataLoader((X2, Y2), batchsize=2)
     @inferred first(d)
     batches = collect(d)
-    @test_broken eltype(d) == Tuple{typeof(X2), typeof(Y2)}
+    @test eltype(d) == Tuple{typeof(X2), typeof(Y2)}
     @test eltype(batches) == Tuple{typeof(X2), typeof(Y2)}
     @test length(batches) == 3
     @test length(batches[1]) == 2
@@ -51,7 +51,7 @@
     d = DataLoader((x=X2, y=Y2), batchsize=2)
     @inferred first(d)
     batches = collect(d)
-    @test_broken eltype(d) == NamedTuple{(:x, :y), Tuple{typeof(X2), typeof(Y2)}}
+    @test eltype(d) == NamedTuple{(:x, :y), Tuple{typeof(X2), typeof(Y2)}}
     @test eltype(batches) == NamedTuple{(:x, :y), Tuple{typeof(X2), typeof(Y2)}}
     @test length(batches) == 3
     @test length(batches[1]) == 2
@@ -115,6 +115,7 @@
     @testset "Dict" begin
         data = Dict("x" => rand(2,4), "y" => rand(4))
         dloader = DataLoader(data, batchsize=2)
+        # heterogeneous value types => `getobs(::Dict)` is not inferred (see #227 B)
         @test_broken eltype(dloader) == Dict{String, Array{Float64}}
         c = collect(dloader)
         @test eltype(c) == Dict{String, Array{Float64}}
@@ -123,7 +124,8 @@
 
         data = Dict("x" => rand(2,4), "y" => rand(2,4))
         dloader = DataLoader(data, batchsize=2)
-        @test_broken eltype(dloader) == Dict{String, Matrix{Float64}}
+        # homogeneous (concrete) value type => `getobs(::Dict)` is inferred
+        @test eltype(dloader) == Dict{String, Matrix{Float64}}
         @test eltype(collect(dloader)) == Dict{String, Matrix{Float64}}
     end
 

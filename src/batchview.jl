@@ -189,7 +189,7 @@ function _getbatch!(buffer, A::BatchView{TElem,TData,Val{nothing}}, obsindices) 
 end
 
 Base.parent(A::BatchView) = A.data
-Base.eltype(::BatchView{Tel}) where Tel = Tel
+Base.eltype(::Type{<:BatchView{Tel}}) where Tel = Tel
 
 # override AbstractDataContainer default
 Base.iterate(A::BatchView, state = 1) =
