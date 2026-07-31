@@ -18,4 +18,5 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 CUDA = "6.2.1"
+DataFrames = "1.8.2"
 HuggingFaceDatasets = ">=0.4"
