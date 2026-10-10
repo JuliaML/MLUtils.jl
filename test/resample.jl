@@ -24,11 +24,18 @@
     @test size(ox) == (2, 9)
     @test size(oy) == (9,)
     @test ox[:,1:5] == x
-    @test ox[:,6] == ox[:,7] == x[:,5]
-    @test ox[:,8] == ox[:,9] == x[:,4]
+    # repeated samples are grouped by class, in order of first appearance in `y2`
+    @test ox[:,6] == ox[:,7] == x[:,4]
+    @test ox[:,8] == ox[:,9] == x[:,5]
     @test oy[1:5] == ya
-    @test oy[6] == oy[7] == ya[5]
-    @test oy[8] == oy[9] == ya[4]
+    @test oy[6] == oy[7] == ya[4]
+    @test oy[8] == oy[9] == ya[5]
+
+    # same with the minority classes swapped, so that the order above
+    # cannot be an accident of the `Dict` iteration order
+    y3 = ["c", "c", "c", "b", "a"]
+    _, oy = oversample(x, y3, shuffle=false)
+    @test oy == [y3; "b"; "b"; "a"; "a"]
 end
 
 @testset "undersample" begin
