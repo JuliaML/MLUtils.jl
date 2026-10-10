@@ -98,7 +98,9 @@ function splitobs(rng::AbstractRNG, data; at,
         end
         idxs_groups = group_indices(stratified)
         idxs_splits = ntuple(i -> Int[], length(at)+1)
-        for (lbl, idxs) in idxs_groups
+        # visit the groups in order of first appearance, since the iteration
+        # order of a `Dict` is unspecified and changes across julia versions
+        for idxs in sort!(collect(values(idxs_groups)), by=first)
             new_idxs_splits = splitobs(idxs; at, shuffle=false)
             for i in 1:length(idxs_splits)
                 append!(idxs_splits[i], new_idxs_splits[i])

@@ -106,4 +106,11 @@ end
     d1, d2 = splitobs(data, at=1., stratified=data.b)
     @test d1.b == [0,0,0,0,1,1,1,1,1,1]
     @test d2.b == []
+
+    # same with the labels swapped, so that the order above
+    # cannot be an accident of the `Dict` iteration order
+    b = [1,1,1,1,0,0,0,0,0,0]
+    d1, d2 = splitobs(b, at=0.5, stratified=b)
+    @test d1 == [1,1,0,0,0]
+    @test d2 == [1,1,0,0,0]
 end
