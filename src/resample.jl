@@ -19,7 +19,7 @@ The `classes` input is an array with the same length as `numobs(data)`.
 The convenience parameter `shuffle` determines if the
 resulting data will be shuffled after its creation; if it is not
 shuffled then all the repeated samples will be together at the
-end, sorted by class. Defaults to `true`.
+end, grouped by class in order of first appearance. Defaults to `true`.
 
 The random number generator `rng` can be optionally passed as the
 first argument. 
@@ -91,8 +91,10 @@ function oversample(rng::AbstractRNG, data, classes; fraction=1, shuffle::Bool=t
 
     # firstly we will start by keeping everything
     inds = collect(1:numobs(data))
-    
-    for (lbl, inds_for_lbl) in lm
+
+    # visit the classes in order of first appearance, since the iteration
+    # order of a `Dict` is unspecified and changes across julia versions
+    for inds_for_lbl in sort!(collect(values(lm)), by=first)
         num_extra_needed = fraccount - length(inds_for_lbl)
         while num_extra_needed > length(inds_for_lbl)
             num_extra_needed -= length(inds_for_lbl)
