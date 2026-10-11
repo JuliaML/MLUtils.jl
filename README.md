@@ -11,19 +11,19 @@
 
 - An extensible dataset interface  (`numobs`, `getobs`, `getobs!`). Just import [MLCore.jl](https://github.com/JuliaML/MLCore.jl) to extend.
 - Data iteration and dataloaders (`eachobs` and `DataLoader`).
-- Lazy data views (`obsview`). 
+- Lazy data views (`obsview`).
 - Resampling procedures (`undersample` and `oversample`).
-- Train/test splits (`splitobs`, stratified split) 
+- Train/test splits (`splitobs`, stratified split)
 - Data partitioning and aggregation tools (`batch`, `batch_sequence`, `unbatch`, `chunk`, `group_counts`, `group_indices`).
 - Folds for cross-validation (`kfolds`, `leavepout`).
-- Datasets lazy tranformations (`mapobs`, `filterobs`, `groupobs`, `joinobs`, `shuffleobs`).
-- Toy datasets for demonstration purpose. 
+- Datasets lazy transformations (`mapobs`, `filterobs`, `groupobs`, `joinobs`, `shuffleobs`).
+- Toy datasets for demonstration purpose.
 - Other data handling utilities (`flatten`, `normalise`, `unsqueeze`, `stack`, `unstack`, `slidingwindow`).
 
 ## Examples
 
-Let us take a look at a hello world example to get a feeling for 
-how to use this package in a typical ML scenario. 
+Let us take a look at a hello world example to get a feeling for
+how to use this package in a typical ML scenario.
 
 ```julia
 using MLUtils
@@ -57,14 +57,14 @@ end
 
 In the above code snippet, the inner loop for `eachobs` is the
 only place where data other than indices is actually being
-copied. In fact, while `x` and `y` are materialized arrays, 
-all the rest are data views. 
+copied. In fact, while `x` and `y` are materialized arrays,
+all the rest are data views.
 
 ## Historical Notes
 
-*MLUtils.jl* brings together functionalities previously found in [LearnBase.jl](https://github.com/JuliaML/LearnBase.jl) , [MLDataPattern.jl](https://github.com/JuliaML/MLDataPattern.jl) and [MLLabelUtils.jl](https://github.com/JuliaML/MLLabelUtils.jl). These packages are now discontinued. 
+*MLUtils.jl* brings together functionalities previously found in [LearnBase.jl](https://github.com/JuliaML/LearnBase.jl) , [MLDataPattern.jl](https://github.com/JuliaML/MLDataPattern.jl) and [MLLabelUtils.jl](https://github.com/JuliaML/MLLabelUtils.jl). These packages are now discontinued.
 
-Other features were ported from the deep learning library [Flux.jl](https://github.com/FluxML/Flux.jl), as they are of general use. 
+Other features were ported from the deep learning library [Flux.jl](https://github.com/FluxML/Flux.jl), as they are of general use.
 
 ## Alternatives and Related Packages
 

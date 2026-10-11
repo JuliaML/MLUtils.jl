@@ -7,7 +7,7 @@ Compute the train/validation assignments for `k` repartitions of
 first vector contains the index-vectors for the training subsets,
 and the second vector the index-vectors for the validation subsets
 respectively. A general rule of thumb is to use either `k = 5` or
-`k = 10`. 
+`k = 10`.
 
 Each observation is assigned to the validation subset once (and
 only once). Thus, a union over all validation index-vectors
@@ -220,7 +220,7 @@ data is copied until [`getobs`](@ref) is invoked.
 ```julia
 for (train, val) in leavepout(X, p=2)
     # if numobs(X) is dividable by 2,
-    # then numobs(val) will be 2 for each iteraton,
+    # then numobs(val) will be 2 for each iteration,
     # otherwise it may be 3 for the first few iterations.
 end
 ```

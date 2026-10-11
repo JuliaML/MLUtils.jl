@@ -8,12 +8,12 @@ actual data.
 
 The main purpose for the existence of `ObsView` is to delay
 data access and movement until an actual batch of data (or single
-observation) is needed for some computation. This is particularily
+observation) is needed for some computation. This is particularly
 useful when the data is not located in memory, but on the hard
 drive or some remote location. In such a scenario one wants to
 load the required data only when needed.
 
-Any data access is delayed until `getindex` is called, 
+Any data access is delayed until `getindex` is called,
 and even `getindex` returns the result of
 [`obsview`](@ref) which in general avoids data movement until
 [`getobs`](@ref) is called.
@@ -200,7 +200,7 @@ Base.parent(x::ObsView) = x.data
     obsview(data, [indices])
 
 Return a lazy view of the observations in `data` that
-correspond to the given `indices`. No data will be copied. 
+correspond to the given `indices`. No data will be copied.
 
 By default the return is an [`ObsView`](@ref), although this can be
 overloaded for custom types of `data` that want to provide
@@ -235,7 +235,7 @@ obsview(A::SubArray) = A
     obsview(data::AbstractArray, idxs, [obsdim])
 
 Return a view of the array `data` that correspond to the given
-indices `idxs`. If `obsdim` of type [`ObsDim`](@ref) is provided, the observation 
+indices `idxs`. If `obsdim` of type [`ObsDim`](@ref) is provided, the observation
 dimension of the array is assumed to be along that dimension, otherwise
 it is assumed to be the last dimension.
 
@@ -318,5 +318,3 @@ end
 function obsview(tup::Union{Tuple, NamedTuple}, indices)
     return map(data -> obsview(data, indices), tup)
 end
-
-

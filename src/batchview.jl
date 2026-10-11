@@ -12,9 +12,9 @@ be ignored if `partial=false`. If  `partial=true` instead
 the last batch-size can be slightly smaller.
 
 If used as an iterator, the object will iterate over the dataset
-once, effectively denoting an epoch. 
+once, effectively denoting an epoch.
 
-Any data access is delayed until iteration or indexing is perfomed. 
+Any data access is delayed until iteration or indexing is performed.
 The [`getobs`](@ref MLUtils.getobs) function is called on the data object to retrieve the
 observations.
 
@@ -35,10 +35,10 @@ interface. See [`ObsView`](@ref) for more info.
 - **`partial`** : If `partial=false` and the number of observations is
     not divisible by the batch-size, then the last mini-batch is dropped.
 
-- **`collate`**: Defines the batching behavior. 
-    - If `nothing` (default), a batch is `getobs(data, indices)`. 
-    - If `false`, each batch is `[getobs(data, i) for i in indices]`. 
-    - If `true`, applies MLUtils to the vector of observations in a batch, 
+- **`collate`**: Defines the batching behavior.
+    - If `nothing` (default), a batch is `getobs(data, indices)`.
+    - If `false`, each batch is `[getobs(data, i) for i in indices]`.
+    - If `true`, applies MLUtils to the vector of observations in a batch,
       recursively collating arrays in the last dimensions. See [`MLUtils.batch`](@ref) for more information
       and examples.
     - If a custom function, it will be used in place of `MLUtils.batch`. It should take a vector of observations as input.
