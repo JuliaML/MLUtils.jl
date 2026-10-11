@@ -16,8 +16,8 @@ julia> splitobs(100, at=(0.1, 0.4))
 """
 splitobs(n::Int; at) = _splitobs(n, at)
 
-_splitobs(n::Int, at::Integer) = _splitobs(n::Int, at / n) 
-_splitobs(n::Int, at::NTuple{N, <:Integer}) where {N} = _splitobs(n::Int, at ./ n) 
+_splitobs(n::Int, at::Integer) = _splitobs(n::Int, at / n)
+_splitobs(n::Int, at::NTuple{N, <:Integer}) where {N} = _splitobs(n::Int, at ./ n)
 _splitobs(n::Int, at::Tuple{}) = (1:n,)
 
 function _splitobs(n::Int, at::AbstractFloat)
@@ -29,7 +29,7 @@ end
 function _splitobs(n::Int, at::NTuple{N,<:AbstractFloat}) where N
     at1 = first(at)
     a, b = _splitobs(n::Int, at1)
-    n1 = a.stop 
+    n1 = a.stop
     n2 = b.stop
     at2 = Base.tail(at) .* n ./ (n2 - n1)
     rest = map(x -> n1 .+ x, _splitobs(n2-n1, at2))
@@ -46,7 +46,7 @@ The argument `at` specifies how to split the data:
 - When `at` is a number between 0 and 1, this specifies the proportion in the first subset.
 - When `at` is an integer, it specifies the number of observations in the first subset.
 - When `at` is a tuple, entries specifies the number or proportion in each subset, except
-  for the last which will contain the remaning observations. 
+  for the last which will contain the remaining observations.
   The number of returned subsets is `length(at)+1`.
 
 If `shuffle=true`, randomly permute the observations before splitting.
@@ -55,7 +55,7 @@ A random number generator `rng` can be optionally passed as the first argument.
 If `stratified` is not `nothing`, it should be an array of labels with the same length as the data.
 The observations will be split in such a way that the proportion of each label is preserved in each subset.
 
-Supports any datatype implementing [`numobs`](@ref). 
+Supports any datatype implementing [`numobs`](@ref).
 
 It relies on [`obsview`](@ref) to create views of the data.
 
@@ -82,8 +82,8 @@ julia> splitobs(1:10, at=0.5, stratified=[0,0,0,0,1,1,1,1,1,1]) # 2 zeros and 3 
 """
 splitobs(data; kws...) = splitobs(Random.default_rng(), data; kws...)
 
-function splitobs(rng::AbstractRNG, data; at, 
-        shuffle::Bool=false, 
+function splitobs(rng::AbstractRNG, data; at,
+        shuffle::Bool=false,
         stratified::Union{Nothing,AbstractVector}=nothing)
     n = numobs(data)
     at = _normalize_at(n, at)
