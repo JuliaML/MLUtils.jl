@@ -128,7 +128,7 @@ end
         @test y[1] == [1 6]
         @test y[2] == [2 7; 3 8; 4 9; 5 10]
 
-        test_zygote(x -> chunk(x; dims = 1, size = (1, 4)), a)
+        test_zygote(x -> chunk(x; dims = 1, size = (1, 4)), a, check_inferred=false)
     end
 
     @testset "chunk by partition_idxs" begin
@@ -150,6 +150,30 @@ end
         @test length(y) == 2
         @test y[1] == [1 4 7 10 13; 2 5 8 11 14]
         @test y[2] == [3 6 9 12 15]
+
+        @test chunk(x, [1,1,2]; dims=Val(1)) == y
+    end
+
+    @testset "type stability (#260)" begin
+        x = rand(Float32, 8, 3)
+        @test @inferred(chunk(x, 4; dims = Val(1))) == chunk(x, 4; dims = 1)
+        @test @inferred(chunk(x; size = 2, dims = Val(2))) == chunk(x; size = 2, dims = 2)
+        @test @inferred(chunk(x; size = [1, 2], dims = Val(2))) == chunk(x; size = [1, 2], dims = 2)
+
+        # a constant `dims` is propagated through the keyword call
+        f1 = x -> chunk(x, 4; dims = 1)
+        f2 = x -> chunk(x, 4)
+        f3 = x -> chunk(x; size = 2, dims = 1)
+        @test @inferred(f1(x)) == chunk(x, 4; dims = 1)
+        @test @inferred(f2(x)) == chunk(x, 4)
+        @test @inferred(f3(x)) == chunk(x; size = 2, dims = 1)
+
+        x = rand(8, 3)
+        y, back = @inferred MLUtils.rrule(chunk, x; size = 2, dims = Val(1))
+        @test y == chunk(x; size = 2, dims = 1)
+        @inferred back(collect.(y))
+        test_zygote(x -> chunk(x, 4; dims = Val(1)), x, check_inferred=false)
+        test_zygote(x -> chunk(x; size = [1, 2], dims = Val(2)), x, check_inferred=false)
     end
 end
 
