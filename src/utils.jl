@@ -94,8 +94,10 @@ The parts contain the same number of elements except possibly for the last one t
 In case `size` is a collection of integers instead, the elements of `x` are split into chunks of
 the given sizes.
 
-If `x` is an array, `dims` can be used to specify along which dimension to 
-split (defaults to the last dimension).
+If `x` is an array, `dims` can be used to specify along which dimension to
+split (defaults to the last dimension). `dims` can be an integer or a `Val`;
+pass `dims = Val(d)` to make the return type inferable when `d` is not a
+compile-time constant.
 
 # Examples
 
@@ -156,12 +158,19 @@ chunk(x; size::Int) = collect(Iterators.partition(x, size))
 
 chunk(x, n::Int) = chunk(x; size = cld(length(x), n))
 
-chunk(x::AbstractArray, n::Int; dims::Int=ndims(x)) = chunk(x; size = cld(size(x, dims), n), dims)
+Base.@constprop :aggressive chunk(x::AbstractArray, n::Int; dims::Union{Int,Val}=ndims(x)) =
+    chunk(x; size = cld(size(x, _unval(dims)), n), dims)
 
-function chunk(x::AbstractArray; size, dims::Int=ndims(x))
-    idxs = _partition_idxs(x, size, dims)
-    return [_selectdim(x, dims, i) for i in idxs]
+# `@constprop` and the `Val` barrier in `_chunk` let a constant `dims` infer the view type
+Base.@constprop :aggressive function chunk(x::AbstractArray; size, dims::Union{Int,Val}=ndims(x))
+    idxs = _partition_idxs(x, size, _unval(dims))
+    return _chunk(x, idxs, Val(_unval(dims)))
 end
+
+_chunk(x::AbstractArray, idxs, vd::Val) = [_selectdim(x, vd, i) for i in idxs]
+
+_unval(d::Int) = d
+_unval(::Val{d}) where {d} = d
 
 
 """
@@ -206,16 +215,17 @@ end
 # work around https://github.com/JuliaML/MLUtils.jl/issues/103
 _selectdim(x::AbstractArray, dims::Int, i) = selectdim(x, dims, i)
 _selectdim(x::AbstractArray, dims::Int, i::UnitRange) = _selectdim(x, Val(dims), i)
+_selectdim(x::AbstractArray, ::Val{dims}, i) where {dims} = selectdim(x, dims, i)
 
 function _selectdim(x::AbstractArray{T,N}, ::Val{dims}, i::UnitRange) where {T,N,dims}
     return view(x, ntuple(_ -> Colon(), dims-1)..., i, ntuple(_ -> Colon(), N-dims)...)
 end
 
-function rrule(::typeof(chunk), x::AbstractArray; size, dims::Int=ndims(x))
+function rrule(::typeof(chunk), x::AbstractArray; size, dims::Union{Int,Val}=ndims(x))
     # This is the implementation of chunk
-    idxs = _partition_idxs(x, size, dims)
-    y = [_selectdim(x, dims, i) for i in idxs]
-    valdims = Val(dims)
+    idxs = _partition_idxs(x, size, _unval(dims))
+    valdims = Val(_unval(dims))
+    y = _chunk(x, idxs, valdims)
     # Capture lightweight stand-ins for `x` instead of `x` itself, so the input
     # data isn't kept alive by the pullback: `ProjectTo(x)` carries `x`'s axes
     # and restores its structure, and `similar(x, 0)` carries `x`'s array/element
@@ -274,7 +284,7 @@ _zero_fill!(dx::AbstractArray) = map!(zero, dx, dx)
 function rrule(::typeof(∇chunk), dys, project, xproto, idxs, vd::Val{dim}) where dim
     n = length(dys)
     function ∇∇chunk(dz_raw)
-        dz = chunk(unthunk(dz_raw), n; dims=dim)
+        dz = chunk(unthunk(dz_raw), n; dims=vd)
         return (NoTangent(), dz, NoTangent(), NoTangent(), NoTangent(), NoTangent())
     end
     return ∇chunk(dys, project, xproto, idxs, vd), ∇∇chunk
