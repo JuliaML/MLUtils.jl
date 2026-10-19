@@ -96,6 +96,8 @@ export batched_searchsortedfirst,
        randn_like,
        rescale,
        rpad_constant,
+       sample_categorical,
+       sample_logits,
        stack, # in Base since julia v1.9
        topk,
        trues_like,

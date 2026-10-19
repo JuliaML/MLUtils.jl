@@ -82,6 +82,8 @@ group_indices
 normalise
 rescale
 rpad_constant
+sample_categorical
+sample_logits
 topk
 unbatch
 unsqueeze

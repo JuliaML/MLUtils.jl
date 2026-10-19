@@ -357,3 +357,71 @@ end
         end
     end
 end
+@testset "sample_logits" begin
+    # deterministic cases
+    logits = [1.0 5.0 0.0; 3.0 0.0 0.0; 2.0 1.0 9.0]
+    @test sample_logits(logits; temperature=0) == [2 1 3]
+    @test sample_logits(logits; k=1) == [2 1 3]
+    @test sample_logits(logits; p=1e-3) == [2 1 3]
+    @test sample_logits(permutedims(logits); dims=2, temperature=0) == reshape([2, 1, 3], 3, 1)
+    @test sample_logits([1.0, 3.0, 2.0]; temperature=0) == [2]
+    @test sample_logits([1.0, 3.0, 2.0]; k=1, p=0.5) == [2]
+    @test sample_categorical([0.0 0.0; 1.0 0.0; 0.0 3.0]) == [2 3]
+
+    # the output has the shape of argmax(x; dims)
+    x = randn(Float32, 4, 5, 6)
+    for dims in 1:3
+        idx = sample_logits(x; dims, k=2, p=0.9)
+        @test idx isa Array{Int,3}
+        @test size(idx) == size(argmax(x; dims))
+        @test all(1 .<= idx .<= size(x, dims))
+    end
+    @test sample_logits(Xoshiro(1), x; k=3) == sample_logits(Xoshiro(1), x; k=3)
+    @test sample_categorical(Xoshiro(1), abs.(x)) == sample_categorical(Xoshiro(1), abs.(x))
+
+    # the frequencies match the target distribution
+    softmax(z) = (e = exp.(z .- maximum(z)); e ./ sum(e))
+    freqs(idx) = [count(==(i), idx) / length(idx) for i in 1:6]
+    l = [2.0, 1.0, 0.5, -1.0, 0.0, 1.5]   # softmax(l) ≈ [0.42, 0.15, 0.09, 0.02, 0.06, 0.25]
+    top2 = softmax(ifelse.(l .>= 1.5, l, -Inf))
+    top3 = softmax(ifelse.(l .>= 1.0, l, -Inf))
+    L = repeat(l, 1, 100_000)
+    rng = Xoshiro(0)
+    @test freqs(sample_logits(rng, L)) ≈ softmax(l) atol=0.01
+    @test freqs(sample_logits(rng, permutedims(L); dims=2)) ≈ softmax(l) atol=0.01
+    @test freqs(sample_logits(rng, L; temperature=0.5)) ≈ softmax(2l) atol=0.01
+    @test freqs(sample_logits(rng, L; k=3)) ≈ top3 atol=0.01
+    @test freqs(sample_logits(rng, L; k=3, temperature=2)) ≈ softmax(ifelse.(l .>= 1.0, l / 2, -Inf)) atol=0.01
+    @test freqs(sample_logits(rng, L; p=0.7)) ≈ top3 atol=0.01
+    # top-p applies to the top-k distribution: p=0.72 keeps 2 of the top 4, but 3 of all 6
+    @test freqs(sample_logits(rng, L; k=4, p=0.72)) ≈ top2 atol=0.01
+    @test freqs(sample_logits(rng, Float16.(L); k=3)) ≈ top3 atol=0.01
+    @test all(in((1, 2, 6)), sample_logits(rng, L; k=3))
+    @test freqs(sample_categorical(rng, L .- minimum(l))) ≈ (l .- minimum(l)) ./ 10 atol=0.01
+
+    @test_throws ArgumentError sample_logits(logits; k=0)
+    @test_throws ArgumentError sample_logits(logits; p=0)
+    @test_throws ArgumentError sample_logits(logits; p=1.5)
+    @test_throws ArgumentError sample_logits(logits; temperature=-1)
+
+    @test Zygote.gradient(z -> sum(sample_logits(z)), randn(3, 4)) == (nothing,)
+
+    if CUDA.functional()
+        CUDA.allowscalar(false)
+        try
+            Lg = cu(L)
+            for idx in (sample_logits(Lg; k=4, p=0.72),
+                        sample_logits(CUDA.default_rng(), Lg; k=4, p=0.72),
+                        permutedims(sample_logits(permutedims(Lg); dims=2, k=4, p=0.72)))
+                @test idx isa CuArray{Int}
+                @test freqs(Array(idx)) ≈ top2 atol=0.01
+            end
+            @test Array(sample_logits(cu(logits); temperature=0)) == [2 1 3]
+            idx = sample_categorical(cu(L .- minimum(l)))
+            @test idx isa CuArray{Int}
+            @test freqs(Array(idx)) ≈ (l .- minimum(l)) ./ 10 atol=0.01
+        finally
+            CUDA.allowscalar(true)
+        end
+    end
+end

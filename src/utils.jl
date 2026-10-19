@@ -872,3 +872,152 @@ function rrule(::typeof(topk), x::AbstractArray, k::Integer; dims::Integer=1, re
     end
     return (vals, inds), topk_pullback
 end
+
+"""
+    sample_logits([rng], logits; dims=1, k=nothing, p=nothing, temperature=1) -> indices
+
+Draw one index from each slice of `logits` along dimension `dims`, with probabilities
+`softmax(logits ./ temperature; dims)`. This is the sampling step of text generation
+from a language model, batched over sequences.
+
+The returned `indices` have the size of `logits`, except along `dims` where they have
+size 1, as for `argmax(logits; dims)`. Each index is a position along `dims`.
+
+# Keyword arguments
+
+- `dims`: the dimension of the categories.
+- `k`: if given, only the `k` largest logits of each slice can be drawn (top-k sampling).
+- `p`: if given, only the smallest set of largest logits whose total probability
+  reaches `p` can be drawn (top-p or nucleus sampling). The probabilities are computed
+  after applying `temperature` and `k`.
+- `temperature`: the logits are divided by `temperature` before sampling. Values below 1
+  sharpen the distribution, values above 1 flatten it. `temperature=0` returns the index
+  of the largest logit (greedy decoding).
+
+Ties at the `k`-th largest logit or at the top-`p` threshold are all kept.
+
+The sample is drawn with the Gumbel-max trick, using only broadcasting, sorting and
+reductions along `dims`, so it runs on GPU arrays without scalar indexing. Logits are
+converted to at least `Float32` precision. This function is not differentiable.
+
+With Reactant, pass an `rng` such as `Reactant.ReactantRNG()` to the compiled function.
+Otherwise the seed is fixed at compile time and every call returns the same sample.
+
+See also [`sample_categorical`](@ref) and [`topk`](@ref).
+
+# Examples
+
+```jldoctest
+julia> logits = [1.0 5.0 0.0; 3.0 0.0 0.0; 2.0 1.0 9.0];  # 3 categories, 3 samples
+
+julia> sample_logits(logits; temperature=0)
+1×3 Matrix{Int64}:
+ 2  1  3
+
+julia> sample_logits(logits; k=1)
+1×3 Matrix{Int64}:
+ 2  1  3
+
+julia> sample_logits(logits'; dims=2, k=1)
+3×1 Matrix{Int64}:
+ 2
+ 1
+ 3
+```
+
+A generation loop for a language model `model` that maps a `(seq_len, batch)` matrix
+of tokens to `(vocab_size, seq_len, batch)` logits:
+
+```julia
+for _ in 1:max_new_tokens
+    logits = model(tokens)[:, end, :]
+    tokens = vcat(tokens, sample_logits(logits; k=50, temperature=0.8))
+end
+```
+"""
+sample_logits(logits::AbstractArray; kws...) = _sample_logits(nothing, logits; kws...)
+sample_logits(rng::AbstractRNG, logits::AbstractArray; kws...) = _sample_logits(rng, logits; kws...)
+
+function _sample_logits(rng, logits::AbstractArray; dims::Integer=1,
+                        k::Union{Nothing,Integer}=nothing, p::Union{Nothing,Real}=nothing,
+                        temperature::Real=1)
+    k === nothing || k >= 1 || throw(ArgumentError("k=$k must be positive"))
+    p === nothing || 0 < p <= 1 || throw(ArgumentError("p=$p must be in the interval (0, 1]"))
+    temperature >= 0 || throw(ArgumentError("temperature=$temperature must be non-negative"))
+    n = size(logits, dims)
+    x = _float32up(logits)
+    temperature == 0 && return _argmax_along(x, dims)
+    if temperature != 1
+        x = x ./ eltype(x)(temperature)
+    end
+    k = k === nothing || k >= n ? nothing : k
+    p = p === nothing || p == 1 ? nothing : p
+    if k !== nothing || p !== nothing
+        s = _sort(x, dims, true)
+        if k !== nothing
+            thr = minimum(ifelse.(_positions(s, dims) .<= k, s, typemax(eltype(s))); dims)
+            x = _mask_below(x, thr)
+            s = _mask_below(s, thr)
+        end
+        if p !== nothing  # keep a logit while the mass of the larger ones is below p
+            q = NNlib.softmax(s; dims)
+            before = cumsum(q; dims) .- q
+            thr = minimum(ifelse.(before .< p, s, typemax(eltype(s))); dims)
+            x = _mask_below(x, thr)
+        end
+    end
+    # some RNGs (e.g. CURAND) draw from (0, 1] and u = 1 would give infinite noise
+    u = min.(_rand_like(rng, x), prevfloat(one(eltype(x))))
+    return _argmax_along(x .- log.(.-log.(u)), dims)
+end
+
+# Float16 and BFloat16 are too coarse for the Gumbel noise.
+_float32up(x::AbstractArray) = promote_type(float(eltype(x)), Float32).(x)
+
+_rand_like(::Nothing, x) = rand_like(x)
+_rand_like(rng::AbstractRNG, x) = rand_like(rng, x)
+
+_sort(x::AbstractVector, dims::Integer, rev::Bool) = sort(x; rev)
+_sort(x::AbstractArray, dims::Integer, rev::Bool) = sort(x; dims, rev)
+
+_mask_below(x, thr) = ifelse.(x .>= thr, x, typemin(eltype(x)))
+
+# 1:n laid along `dims`, to broadcast against `x`. Use it in a fused broadcast
+# with `x`, so that it is not materialized on the CPU when `x` is a GPU array.
+function _positions(x::AbstractArray, dims::Integer)
+    n = size(x, dims)
+    return reshape(1:n, ntuple(d -> d == dims ? n : 1, ndims(x)))
+end
+
+# Position of the first maximum along `dims`. Not `argmax(x; dims)`, which returns
+# CartesianIndices on CPU and GPU, but linear indices under Reactant.
+_argmax_along(x, dims) =
+    minimum(ifelse.(x .== maximum(x; dims), _positions(x, dims), typemax(Int)); dims)
+
+"""
+    sample_categorical([rng], probs; dims=1) -> indices
+
+Draw one index from each slice of `probs` along dimension `dims`, with probabilities
+proportional to the entries of the slice. The entries must be non-negative, but they
+need not sum to one.
+
+The returned `indices` have the size of `probs`, except along `dims` where they have
+size 1. Equivalent to `sample_logits(rng, log.(probs); dims)`, see [`sample_logits`](@ref).
+
+# Examples
+
+```jldoctest
+julia> probs = [0.0 0.0; 1.0 0.0; 0.0 3.0];
+
+julia> sample_categorical(probs)
+1×2 Matrix{Int64}:
+ 2  3
+```
+"""
+sample_categorical(probs::AbstractArray; dims::Integer=1) =
+    _sample_logits(nothing, log.(_float32up(probs)); dims)
+sample_categorical(rng::AbstractRNG, probs::AbstractArray; dims::Integer=1) =
+    _sample_logits(rng, log.(_float32up(probs)); dims)
+
+@non_differentiable sample_logits(::Any...)
+@non_differentiable sample_categorical(::Any...)
