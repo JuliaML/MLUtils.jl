@@ -881,7 +881,7 @@ function rrule(::typeof(topk), x::AbstractArray, k::Integer; dims::Integer=1, re
 end
 
 """
-    sample_logits([rng], logits; dims=1, n=1, replace=false, k=nothing, p=nothing, temperature=1) -> indices
+    sample_logits([rng], logits; dims=1, n=1, replace=true, k=nothing, p=nothing, temperature=1) -> indices
 
 Draw `n` indices from each slice of `logits` along dimension `dims`, with probabilities
 `softmax(logits ./ temperature; dims)`. This is the sampling step of text generation
@@ -895,11 +895,11 @@ size `n`. Each index is a position along `dims`. For `n=1` the shape is that of
 
 - `dims`: the dimension of the categories.
 - `n`: the number of draws per slice.
-- `replace`: if `false`, the `n` indices of a slice are distinct and come in the order
-  of drawing them one at a time, each from the categories not drawn yet. Then `n` cannot
-  exceed `size(logits, dims)`, and if fewer than `n` categories can be drawn (because
-  of `k`, `p` or logits equal to `-Inf`), the remaining indices are excluded categories.
-  If `true`, the `n` draws are independent.
+- `replace`: if `true`, the `n` draws are independent. If `false`, the `n` indices of a
+  slice are distinct and come in the order of drawing them one at a time, each from the
+  categories not drawn yet. Then `n` cannot exceed `size(logits, dims)`, and if fewer
+  than `n` categories can be drawn (because of `k`, `p` or logits equal to `-Inf`), the
+  remaining indices are excluded categories.
 - `k`: if given, only the `k` largest logits of each slice can be drawn (top-k sampling).
 - `p`: if given, only the smallest set of largest logits whose total probability
   reaches `p` can be drawn (top-p or nucleus sampling). The probabilities are computed
@@ -938,7 +938,7 @@ julia> sample_logits(logits'; dims=2, k=1)
  1
  3
 
-julia> sample_logits(logits; n=2, temperature=0)
+julia> sample_logits(logits; n=2, replace=false, temperature=0)
 2×3 Matrix{Int64}:
  2  1  3
  3  3  2
@@ -958,7 +958,7 @@ sample_logits(logits::AbstractArray; kws...) = _sample_logits(nothing, logits; k
 sample_logits(rng::AbstractRNG, logits::AbstractArray; kws...) = _sample_logits(rng, logits; kws...)
 
 function _sample_logits(rng, logits::AbstractArray; dims::Integer=1, n::Integer=1,
-                        replace::Bool=false, k::Union{Nothing,Integer}=nothing,
+                        replace::Bool=true, k::Union{Nothing,Integer}=nothing,
                         p::Union{Nothing,Real}=nothing, temperature::Real=1)
     m = size(logits, dims)
     n >= 1 || throw(ArgumentError("n=$n must be positive"))
@@ -1035,7 +1035,7 @@ _argmax_along(x, dims) =
 _top_along(x, n, dims) = n == 1 ? _argmax_along(x, dims) : last(topk(x, n; dims))
 
 """
-    sample_categorical([rng], probs; dims=1, n=1, replace=false) -> indices
+    sample_categorical([rng], probs; dims=1, n=1, replace=true) -> indices
 
 Draw `n` indices from each slice of `probs` along dimension `dims`, with probabilities
 proportional to the entries of the slice. The entries must be non-negative, but they
@@ -1059,7 +1059,7 @@ sample_categorical(probs::AbstractArray; kws...) = _sample_categorical(nothing, 
 sample_categorical(rng::AbstractRNG, probs::AbstractArray; kws...) =
     _sample_categorical(rng, probs; kws...)
 
-_sample_categorical(rng, probs; dims::Integer=1, n::Integer=1, replace::Bool=false) =
+_sample_categorical(rng, probs; dims::Integer=1, n::Integer=1, replace::Bool=true) =
     _sample_logits(rng, log.(_float32up(probs)); dims, n, replace)
 
 @non_differentiable sample_logits(::Any...)
