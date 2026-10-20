@@ -291,7 +291,7 @@ function rrule(::typeof(∇chunk), dys, project, xproto, idxs, vd::Val{dim}) whe
 end
 
 """
-    group_counts(x)
+    group_counts(x) -> Dict
 
 Count the number of times that each element of `x` appears.
 
@@ -299,10 +299,12 @@ See also [`group_indices`](@ref)
 # Examples
 
 ```jldoctest
-julia> group_counts(['a', 'b', 'b'])
-Dict{Char, Int64} with 2 entries:
-  'a' => 1
-  'b' => 2
+julia> counts = group_counts(['a', 'b', 'b']);
+
+julia> sort(collect(counts))  # a Dict has no defined order
+2-element Vector{Pair{Char, Int64}}:
+ 'a' => 1
+ 'b' => 2
 ```
 """
 function group_counts(x)
@@ -326,11 +328,13 @@ See also [`group_counts`](@ref).
 ```jldoctest
 julia> x = [:yes, :no, :maybe, :yes];
 
-julia> group_indices(x)
-Dict{Symbol, Vector{Int64}} with 3 entries:
-  :yes   => [1, 4]
-  :maybe => [3]
-  :no    => [2]
+julia> indices = group_indices(x);
+
+julia> sort(collect(indices))  # a Dict has no defined order
+3-element Vector{Pair{Symbol, Vector{Int64}}}:
+ :maybe => [3]
+    :no => [2]
+   :yes => [1, 4]
 ```
 """
 function group_indices(classes::T) where T<:AbstractVector
