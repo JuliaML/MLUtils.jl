@@ -317,6 +317,9 @@ end
         end
     end
 
+    topk_dims(x, dims) = topk(x, 2; dims)
+    @test @inferred(topk_dims(x, 2)) isa Tuple{Matrix{Float64}, Matrix{Int}}
+
     # argument checking
     @test_throws ArgumentError topk([1, 2, 3], 0)
     @test_throws ArgumentError topk([1, 2, 3], 4)
@@ -352,6 +355,108 @@ end
             gc = Zygote.gradient(z -> sum(abs2, first(topk(z, 3; dims=1))), x)[1]
             @test gg isa CuArray
             @test Array(gg) ≈ gc
+        finally
+            CUDA.allowscalar(true)
+        end
+    end
+end
+@testset "sample_logits" begin
+    # deterministic cases
+    logits = [1.0 5.0 0.0; 3.0 0.0 2.0; 2.0 1.0 9.0]
+    @test sample_logits(logits; temperature=0) == [2 1 3]
+    @test sample_logits(logits; k=1) == [2 1 3]
+    @test sample_logits(logits; p=1e-3) == [2 1 3]
+    @test sample_logits(permutedims(logits); dims=2, temperature=0) == reshape([2, 1, 3], 3, 1)
+    @test sample_logits([1.0, 3.0, 2.0]; temperature=0) == [2]
+    @test sample_logits([1.0, 3.0, 2.0]; k=1, p=0.5) == [2]
+    @test sample_categorical([0.0 0.0; 1.0 0.0; 0.0 3.0]) == [2 3]
+    @test sample_logits(logits; n=2, temperature=0) == [2 1 3; 2 1 3]
+    @test sample_logits(logits; n=2, temperature=0, replace=false) == [2 1 3; 3 3 2]
+    @test sample_categorical([0.0 0.0; 1.0 0.0; 0.0 3.0]; n=3) == [2 3; 2 3; 2 3]
+
+    # the output has the shape of argmax(x; dims), with size n along dims
+    x = randn(Float32, 4, 5, 6)
+    for dims in 1:3
+        idx = sample_logits(x; dims, k=2, p=0.9)
+        @test idx isa Array{Int,3}
+        @test size(idx) == size(argmax(x; dims))
+        @test all(1 .<= idx .<= size(x, dims))
+        for replace in (false, true)
+            idx = sample_logits(x; dims, n=3, replace, k=3)
+            @test idx isa Array{Int,3}
+            @test size(idx) == Base.setindex(size(x), 3, dims)
+            @test all(1 .<= idx .<= size(x, dims))
+        end
+    end
+    @test size(sample_logits(logits; n=5)) == (5, 3)
+    @test all(c -> sort(c) == 1:10, eachcol(sample_logits(randn(10, 1000); n=10, replace=false)))
+    sample_dims(x, dims) = sample_logits(x; dims, n=2, k=3, p=0.9)
+    @test @inferred(sample_dims(x, 2)) isa Array{Int,3}
+    @test sample_logits(Xoshiro(1), x; k=3) == sample_logits(Xoshiro(1), x; k=3)
+    @test sample_categorical(Xoshiro(1), abs.(x)) == sample_categorical(Xoshiro(1), abs.(x))
+
+    # the frequencies match the target distribution
+    softmax(z) = (e = exp.(z .- maximum(z)); e ./ sum(e))
+    freqs(idx) = [count(==(i), idx) / length(idx) for i in 1:6]
+    l = [2.0, 1.0, 0.5, -1.0, 0.0, 1.5]   # softmax(l) ≈ [0.42, 0.15, 0.09, 0.02, 0.06, 0.25]
+    top2 = softmax(ifelse.(l .>= 1.5, l, -Inf))
+    top3 = softmax(ifelse.(l .>= 1.0, l, -Inf))
+    L = repeat(l, 1, 100_000)
+    rng = Xoshiro(0)
+    @test freqs(sample_logits(rng, L)) ≈ softmax(l) atol=0.01
+    @test freqs(sample_logits(rng, permutedims(L); dims=2)) ≈ softmax(l) atol=0.01
+    @test freqs(sample_logits(rng, L; temperature=0.5)) ≈ softmax(2l) atol=0.01
+    @test freqs(sample_logits(rng, L; k=3)) ≈ top3 atol=0.01
+    @test freqs(sample_logits(rng, L; k=3, temperature=2)) ≈ softmax(ifelse.(l .>= 1.0, l / 2, -Inf)) atol=0.01
+    @test freqs(sample_logits(rng, L; p=0.7)) ≈ top3 atol=0.01
+    # top-p applies to the top-k distribution: p=0.72 keeps 2 of the top 4, but 3 of all 6
+    @test freqs(sample_logits(rng, L; k=4, p=0.72)) ≈ top2 atol=0.01
+    @test freqs(sample_logits(rng, Float16.(L); k=3)) ≈ top3 atol=0.01
+    @test all(in((1, 2, 6)), sample_logits(rng, L; k=3))
+    @test freqs(sample_categorical(rng, L .- minimum(l))) ≈ (l .- minimum(l)) ./ 10 atol=0.01
+
+    # joint frequencies of the first two of n draws
+    q = softmax(l)
+    joint(idx) = [count(c -> c[1] == i && c[2] == j, eachcol(idx)) / size(idx, 2) for i in 1:6, j in 1:6]
+    joint_norep = [i == j ? 0.0 : q[i] * q[j] / (1 - q[i]) for i in 1:6, j in 1:6]
+    @test joint(sample_logits(rng, L; n=2)) ≈ q * q' atol=0.01
+    @test joint(sample_logits(rng, L; n=2, replace=false)) ≈ joint_norep atol=0.01
+    @test joint(sample_logits(rng, L; n=3, replace=false)) ≈ joint_norep atol=0.01
+    @test joint(permutedims(sample_logits(rng, permutedims(L); dims=2, n=2, replace=false))) ≈ joint_norep atol=0.01
+    @test all(c -> sort(c) == [1, 6], eachcol(sample_logits(rng, L; n=2, k=2, replace=false)))
+    @test freqs(vec(sample_categorical(rng, L .- minimum(l); n=2))) ≈ (l .- minimum(l)) ./ 10 atol=0.01
+
+    @test_throws ArgumentError sample_logits(logits; k=0)
+    @test_throws ArgumentError sample_logits(logits; p=0)
+    @test_throws ArgumentError sample_logits(logits; p=1.5)
+    @test_throws ArgumentError sample_logits(logits; temperature=-1)
+    @test_throws ArgumentError sample_logits(logits; n=0)
+    @test_throws ArgumentError sample_logits(logits; n=4, replace=false)
+
+    @test Zygote.gradient(z -> sum(sample_logits(z)), randn(3, 4)) == (nothing,)
+
+    if CUDA.functional()
+        CUDA.allowscalar(false)
+        try
+            Lg = cu(L)
+            for idx in (sample_logits(Lg; k=4, p=0.72),
+                        sample_logits(CUDA.default_rng(), Lg; k=4, p=0.72),
+                        permutedims(sample_logits(permutedims(Lg); dims=2, k=4, p=0.72)))
+                @test idx isa CuArray{Int}
+                @test freqs(Array(idx)) ≈ top2 atol=0.01
+            end
+            @test Array(sample_logits(cu(logits); temperature=0)) == [2 1 3]
+            @test Array(sample_logits(cu(logits); n=2, temperature=0)) == [2 1 3; 2 1 3]
+            @test Array(sample_logits(cu(logits); n=2, temperature=0, replace=false)) == [2 1 3; 3 3 2]
+            idx = sample_logits(Lg; n=2, replace=false)
+            @test idx isa CuArray{Int}
+            @test joint(Array(idx)) ≈ joint_norep atol=0.01
+            idx = sample_logits(Lg; n=2)
+            @test idx isa CuArray{Int}
+            @test joint(Array(idx)) ≈ q * q' atol=0.01
+            idx = sample_categorical(cu(L .- minimum(l)))
+            @test idx isa CuArray{Int}
+            @test freqs(Array(idx)) ≈ (l .- minimum(l)) ./ 10 atol=0.01
         finally
             CUDA.allowscalar(true)
         end

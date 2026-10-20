@@ -291,7 +291,7 @@ function rrule(::typeof(∇chunk), dys, project, xproto, idxs, vd::Val{dim}) whe
 end
 
 """
-    group_counts(x)
+    group_counts(x) -> Dict
 
 Count the number of times that each element of `x` appears.
 
@@ -299,10 +299,12 @@ See also [`group_indices`](@ref)
 # Examples
 
 ```jldoctest
-julia> group_counts(['a', 'b', 'b'])
-Dict{Char, Int64} with 2 entries:
-  'a' => 1
-  'b' => 2
+julia> counts = group_counts(['a', 'b', 'b']);
+
+julia> sort(collect(counts))  # a Dict has no defined order
+2-element Vector{Pair{Char, Int64}}:
+ 'a' => 1
+ 'b' => 2
 ```
 """
 function group_counts(x)
@@ -326,11 +328,13 @@ See also [`group_counts`](@ref).
 ```jldoctest
 julia> x = [:yes, :no, :maybe, :yes];
 
-julia> group_indices(x)
-Dict{Symbol, Vector{Int64}} with 3 entries:
-  :yes   => [1, 4]
-  :maybe => [3]
-  :no    => [2]
+julia> indices = group_indices(x);
+
+julia> sort(collect(indices))  # a Dict has no defined order
+3-element Vector{Pair{Symbol, Vector{Int64}}}:
+ :maybe => [3]
+    :no => [2]
+   :yes => [1, 4]
 ```
 """
 function group_indices(classes::T) where T<:AbstractVector
@@ -833,7 +837,7 @@ function topk(x::AbstractArray, k::Integer; dims::Integer=1, rev::Bool=true)
     n = size(x, dims)
     1 <= k <= n || throw(ArgumentError("k=$k must be in the range 1:size(x, dims)=$n"))
     perm = _sortperm(x, dims, rev)
-    lin = copy(selectdim(perm, dims, 1:k))   # linear indices of the top-k slices
+    lin = _first_along(perm, k, dims)   # linear indices of the top-k slices
     vals = x[lin]
     inds = _idx_along_dim(lin, size(x), dims)
     return vals, inds
@@ -843,10 +847,13 @@ end
 _sortperm(x::AbstractVector, dims::Integer, rev::Bool) = sortperm(x; rev)
 _sortperm(x::AbstractArray, dims::Integer, rev::Bool) = sortperm(x; dims, rev)
 
+# The first `k` slices along `dims`. Unlike `selectdim`, inferable for non-constant `dims`.
+_first_along(x, k, dims) = x[ntuple(d -> d == dims ? (1:k) : (1:size(x, d)), ndims(x))...]
+
 # Convert linear indices `lin` into x to positions along dimension `dims`.
 # Fully broadcasted so it stays on the GPU.
 function _idx_along_dim(lin, sz::Dims, dims::Integer)
-    stride = prod(sz[1:dims-1])              # 1 when dims == 1
+    stride = prod(ntuple(d -> d < dims ? sz[d] : 1, length(sz)))   # 1 when dims == 1
     dimsize = sz[dims]
     return @. mod(div(lin - 1, stride), dimsize) + 1
 end
@@ -857,7 +864,7 @@ function rrule(::typeof(topk), x::AbstractArray, k::Integer; dims::Integer=1, re
     n = size(x, dims)
     1 <= k <= n || throw(ArgumentError("k=$k must be in the range 1:size(x, dims)=$n"))
     perm = _sortperm(x, dims, rev)
-    lin = copy(selectdim(perm, dims, 1:k))
+    lin = _first_along(perm, k, dims)
     vals = x[lin]
     inds = _idx_along_dim(lin, size(x), dims)
     function topk_pullback(Δ)
@@ -872,3 +879,188 @@ function rrule(::typeof(topk), x::AbstractArray, k::Integer; dims::Integer=1, re
     end
     return (vals, inds), topk_pullback
 end
+
+"""
+    sample_logits([rng], logits; dims=1, n=1, replace=true, k=nothing, p=nothing, temperature=1) -> indices
+
+Draw `n` indices from each slice of `logits` along dimension `dims`, with probabilities
+`softmax(logits ./ temperature; dims)`. This is the sampling step of text generation
+from a language model, batched over sequences.
+
+The returned `indices` have the size of `logits`, except along `dims` where they have
+size `n`. Each index is a position along `dims`. For `n=1` the shape is that of
+`argmax(logits; dims)`.
+
+# Keyword arguments
+
+- `dims`: the dimension of the categories.
+- `n`: the number of draws per slice.
+- `replace`: if `true`, the `n` draws are independent. If `false`, the `n` indices of a
+  slice are distinct and come in the order of drawing them one at a time, each from the
+  categories not drawn yet. Then `n` cannot exceed `size(logits, dims)`, and if fewer
+  than `n` categories can be drawn (because of `k`, `p` or logits equal to `-Inf`), the
+  remaining indices are excluded categories.
+- `k`: if given, only the `k` largest logits of each slice can be drawn (top-k sampling).
+- `p`: if given, only the smallest set of largest logits whose total probability
+  reaches `p` can be drawn (top-p or nucleus sampling). The probabilities are computed
+  after applying `temperature` and `k`.
+- `temperature`: the logits are divided by `temperature` before sampling. Values below 1
+  sharpen the distribution, values above 1 flatten it. `temperature=0` returns the
+  indices of the largest logits (greedy decoding).
+
+Ties at the `k`-th largest logit or at the top-`p` threshold are all kept.
+
+The sample is drawn with the Gumbel-max trick, using only broadcasting, sorting and
+reductions along `dims`, so it runs on GPU arrays without scalar indexing. Logits are
+converted to at least `Float32` precision. This function is not differentiable.
+
+With Reactant, pass an `rng` such as `Reactant.ReactantRNG()` to the compiled function.
+Otherwise the seed is fixed at compile time and every call returns the same sample.
+
+See also [`sample_categorical`](@ref) and [`topk`](@ref).
+
+# Examples
+
+```jldoctest
+julia> logits = [1.0 5.0 0.0; 3.0 0.0 2.0; 2.0 1.0 9.0];  # 3 categories, 3 samples
+
+julia> sample_logits(logits; temperature=0)
+1×3 Matrix{Int64}:
+ 2  1  3
+
+julia> sample_logits(logits; k=1)
+1×3 Matrix{Int64}:
+ 2  1  3
+
+julia> sample_logits(logits'; dims=2, k=1)
+3×1 Matrix{Int64}:
+ 2
+ 1
+ 3
+
+julia> sample_logits(logits; n=2, replace=false, temperature=0)
+2×3 Matrix{Int64}:
+ 2  1  3
+ 3  3  2
+```
+
+A generation loop for a language model `model` that maps a `(seq_len, batch)` matrix
+of tokens to `(vocab_size, seq_len, batch)` logits:
+
+```julia
+for _ in 1:max_new_tokens
+    logits = model(tokens)[:, end, :]
+    tokens = vcat(tokens, sample_logits(logits; k=50, temperature=0.8))
+end
+```
+"""
+sample_logits(logits::AbstractArray; kws...) = _sample_logits(nothing, logits; kws...)
+sample_logits(rng::AbstractRNG, logits::AbstractArray; kws...) = _sample_logits(rng, logits; kws...)
+
+function _sample_logits(rng, logits::AbstractArray; dims::Integer=1, n::Integer=1,
+                        replace::Bool=true, k::Union{Nothing,Integer}=nothing,
+                        p::Union{Nothing,Real}=nothing, temperature::Real=1)
+    m = size(logits, dims)
+    n >= 1 || throw(ArgumentError("n=$n must be positive"))
+    replace || n <= m ||
+        throw(ArgumentError("n=$n draws without replacement exceed size(logits, dims)=$m"))
+    k === nothing || k >= 1 || throw(ArgumentError("k=$k must be positive"))
+    p === nothing || 0 < p <= 1 || throw(ArgumentError("p=$p must be in the interval (0, 1]"))
+    temperature >= 0 || throw(ArgumentError("temperature=$temperature must be non-negative"))
+    x = _float32up(logits)
+    if temperature == 0
+        replace && n > 1 &&
+            return repeat(_argmax_along(x, dims); outer=ntuple(d -> d == dims ? n : 1, ndims(x)))
+        return _top_along(x, n, dims)
+    end
+    if temperature != 1
+        x = x ./ eltype(x)(temperature)
+    end
+    k = k === nothing || k >= m ? nothing : k
+    p = p === nothing || p == 1 ? nothing : p
+    if k !== nothing || p !== nothing
+        s = _sort(x, dims, true)
+        if k !== nothing
+            thr = minimum(ifelse.(_positions(s, dims) .<= k, s, typemax(eltype(s))); dims)
+            x = _mask_below(x, thr)
+            s = _mask_below(s, thr)
+        end
+        if p !== nothing  # keep a logit while the mass of the larger ones is below p
+            q = NNlib.softmax(s; dims)
+            before = cumsum(q; dims) .- q
+            thr = minimum(ifelse.(before .< p, s, typemax(eltype(s))); dims)
+            x = _mask_below(x, thr)
+        end
+    end
+    # Gumbel-max: argmax(x .+ g) is a draw from softmax(x), and the n largest entries
+    # of x .+ g are n draws without replacement.
+    if replace && n > 1  # independent noise for each draw, along a new dimension dims + 1
+        x = unsqueeze(x; dims = dims + 1)
+        z = x .+ _gumbel(rng, x, Base.setindex(size(x), n, dims + 1))
+        return dropdims(_argmax_along(z, dims); dims)
+    end
+    return _top_along(x .+ _gumbel(rng, x, size(x)), n, dims)
+end
+
+# Float16 and BFloat16 are too coarse for the Gumbel noise.
+_float32up(x::AbstractArray) = promote_type(float(eltype(x)), Float32).(x)
+
+function _gumbel(rng, x::AbstractArray, sz::Dims)
+    # some RNGs (e.g. CURAND) draw from (0, 1] and u = 1 would give infinite noise
+    u = min.(_rand_like(rng, x, sz), prevfloat(one(eltype(x))))
+    return .-log.(.-log.(u))
+end
+
+_rand_like(::Nothing, x, sz) = rand_like(x, sz)
+_rand_like(rng::AbstractRNG, x, sz) = rand_like(rng, x, sz)
+
+_sort(x::AbstractVector, dims::Integer, rev::Bool) = sort(x; rev)
+_sort(x::AbstractArray, dims::Integer, rev::Bool) = sort(x; dims, rev)
+
+_mask_below(x, thr) = ifelse.(x .>= thr, x, typemin(eltype(x)))
+
+# 1:n laid along `dims`, to broadcast against `x`. Use it in a fused broadcast
+# with `x`, so that it is not materialized on the CPU when `x` is a GPU array.
+function _positions(x::AbstractArray, dims::Integer)
+    n = size(x, dims)
+    return reshape(1:n, ntuple(d -> d == dims ? n : 1, ndims(x)))
+end
+
+# Position of the first maximum along `dims`. Not `argmax(x; dims)`, which returns
+# CartesianIndices on CPU and GPU, but linear indices under Reactant.
+_argmax_along(x, dims) =
+    minimum(ifelse.(x .== maximum(x; dims), _positions(x, dims), typemax(Int)); dims)
+
+# Positions of the n largest entries along `dims`, in decreasing order.
+_top_along(x, n, dims) = n == 1 ? _argmax_along(x, dims) : last(topk(x, n; dims))
+
+"""
+    sample_categorical([rng], probs; dims=1, n=1, replace=true) -> indices
+
+Draw `n` indices from each slice of `probs` along dimension `dims`, with probabilities
+proportional to the entries of the slice. The entries must be non-negative, but they
+need not sum to one.
+
+The returned `indices` have the size of `probs`, except along `dims` where they have
+size `n`. Equivalent to `sample_logits(rng, log.(probs); dims, n, replace)`, see
+[`sample_logits`](@ref).
+
+# Examples
+
+```jldoctest
+julia> probs = [0.0 0.0; 1.0 0.0; 0.0 3.0];
+
+julia> sample_categorical(probs)
+1×2 Matrix{Int64}:
+ 2  3
+```
+"""
+sample_categorical(probs::AbstractArray; kws...) = _sample_categorical(nothing, probs; kws...)
+sample_categorical(rng::AbstractRNG, probs::AbstractArray; kws...) =
+    _sample_categorical(rng, probs; kws...)
+
+_sample_categorical(rng, probs; dims::Integer=1, n::Integer=1, replace::Bool=true) =
+    _sample_logits(rng, log.(_float32up(probs)); dims, n, replace)
+
+@non_differentiable sample_logits(::Any...)
+@non_differentiable sample_categorical(::Any...)
