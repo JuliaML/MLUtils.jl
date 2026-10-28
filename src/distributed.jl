@@ -26,7 +26,23 @@
 # `shm` is a `ShmSession` (pack collated batches into shared memory) or `nothing` (serialize as
 # before). Packing happens *inside* the closure, on the worker, so only the small skeleton crosses
 # `remotecall_fetch`. The `nothing` pre-warm sentinel is untouched (no batch, so nothing to pack).
-_worker_closure(collate, data, shm) = idxs -> idxs === nothing ? nothing : shm_pack(_worker_getbatch(collate, data, idxs), shm)
+#
+# Distributed runs every remote call with `invokelatest`, so a redefinition landing on a worker
+# mid-epoch would leak into it. The batch is therefore run with `invoke_in_world` at the world age
+# the worker had when the epoch began; `worlds[i]` is that age for worker `pids[i]` (see `_worker_worlds`).
+# This is a flat vector rather than a `Dict` keyed by pid: the `Dict` measurably slowed every call.
+function _worker_closure(collate, data, shm, pids)
+    return function (worlds, idxs)
+        idxs === nothing && return nothing
+        world = worlds[findfirst(==(Distributed.myid()), pids)]
+        return Base.invoke_in_world(world, _worker_batch, collate, data, idxs, shm)
+    end
+end
+
+_worker_batch(collate, data, idxs, shm) = shm_pack(_worker_getbatch(collate, data, idxs), shm)
+
+# Current world age of each worker, taken once `iterate` has finished shipping definitions to them.
+_worker_worlds(pids) = asyncmap(pid -> remotecall_fetch(Base.get_world_counter, pid), pids)
 
 # Mirror `BatchView`'s `_getbatch` collate semantics, but starting from the raw data
 # container and a set of *original* observation indices computed on the main process.
@@ -454,6 +470,7 @@ function _distributed_loader(d::DataLoader)
     # `d._cache` is the loader-lifetime key under which the lease is held, so the workers
     # are released back to the pool automatically once this loader is garbage-collected.
     cache = d._cache[]
+    world = Base.get_world_counter()
     if cache === nothing || !_pool_alive(cache.pids)
         pids = _lease_workers(d.num_workers, d._cache)
         _load_modules_on_workers(d.data, collate, pids)  # import referenced packages…
@@ -463,7 +480,7 @@ function _distributed_loader(d::DataLoader)
         # session dir's lifetime is tied to `d._cache` via a finalizer (see `_shm_session_create`);
         # `nothing` (shm off, unsupported platform, or mkdir failure) degrades to serialization.
         shmses = d.shm ? _shm_session_create(d._cache) : nothing
-        f = _worker_closure(collate, d.data, shmses)
+        f = _worker_closure(collate, d.data, shmses, pids)
         # Prime the pool from the consumer's task: first-touch each worker here so `d.data`
         # is serialized on this task (not the GIL-less feeder below) and cached remotely.
         # The feeder then ships only cached refs + index sets — it never serializes `d.data`
@@ -472,11 +489,18 @@ function _distributed_loader(d::DataLoader)
         # across workers instead of N sequential round-trips). Each of the `length(pids)`
         # concurrent calls does `take!(pool)` on the freshly built `cpool`, draining it so
         # every call lands on a distinct worker → each worker first-touched exactly once.
-        asyncmap(_ -> remotecall_fetch(f, cpool, nothing), 1:length(pids); ntasks = length(pids))
-        cache = (pids = pids, cpool = cpool, f = f, shm = shmses)
+        asyncmap(_ -> remotecall_fetch(f, cpool, nothing, nothing), 1:length(pids); ntasks = length(pids))
+        cache = (pids = pids, cpool = cpool, f = f, shm = shmses, world = world)
+        d._cache[] = cache
+    elseif cache.world != world
+        # Methods were (re)defined on main since the workers were last synced — typically Revise
+        # applying an edit — so refresh their copies of the `Main` definitions. `data` stays cached.
+        _ship_worker_defs(d.data, collate, cache.pids)
+        cache = (; cache..., world)
         d._cache[] = cache
     end
     pids, cpool, f, shmses = cache.pids, cache.cpool, cache.f, cache.shm
+    worlds = _worker_worlds(pids)
 
     nworkers = max(length(pids), 1)
     ch = Channel(nworkers)   # bounded prefetch → overlap + backpressure
@@ -485,7 +509,7 @@ function _distributed_loader(d::DataLoader)
             # Unpack (mmap + immediate unlink) before `put!`, so the backing files are freed even
             # if `put!` throws on a channel the consumer already closed. Unpacking touches no
             # Python, so keeping it on the feeder task preserves the GIL isolation of the pre-warm.
-            asyncmap(idxs -> put!(ch, shm_unpack(remotecall_fetch(f, cpool, idxs), shmses)), idxsets; ntasks = nworkers)
+            asyncmap(idxs -> put!(ch, shm_unpack(remotecall_fetch(f, cpool, worlds, idxs), shmses)), idxsets; ntasks = nworkers)
             close(ch)
         catch e
             # A worker `getobs` failure is surfaced to the consumer's `take!`; but if the
