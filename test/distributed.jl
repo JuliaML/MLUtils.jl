@@ -303,6 +303,60 @@ end
     MLUtils.close_dataloader_pool()
 end
 
+# Revise-style edits (JuliaML/MLUtils.jl#267): re-`include`ing a file redefines a `Main` function on
+# the main process in a new world, as Revise does. The next `iterate` must follow it on the reused
+# workers, and an epoch must keep the definitions it started with — Distributed runs remote calls
+# with `invokelatest`, which would otherwise let a redefinition on a worker leak into a live epoch.
+@testset "Main redefinitions between and during epochs (#267)" begin
+    path = tempname() * ".jl"
+    redefine(name, k) = (write(path, "$name(x) = x .+ $k\n"); include(path))
+    collectvals(dl) = sort(reduce(vcat, collect(dl)))
+
+    @testset "edit between epochs reaches the reused workers" begin
+        MLUtils.close_dataloader_pool()
+        redefine(:_rev_a, 100)
+        dl = DataLoader(mapobs(_rev_a, collect(1:8)); batchsize=2, num_workers=2, collate=true)
+        @test collectvals(dl) == collect(101:108)
+        world = dl._cache[].world
+        @test collectvals(dl) == collect(101:108)
+        @test dl._cache[].world == world        # nothing redefined → nothing re-shipped
+        redefine(:_rev_a, 200)
+        @test collectvals(dl) == collect(201:208)
+        @test dl._cache[].world > world
+    end
+
+    @testset "redefinition on the workers does not leak into a live epoch" begin
+        MLUtils.close_dataloader_pool()
+        redefine(:_rev_b, 100)
+        dl = DataLoader(mapobs(_rev_b, collect(1:40)); batchsize=1, num_workers=2, collate=true)
+        vals = Int[]
+        for (i, b) in enumerate(dl)
+            i == 1 && Distributed.remotecall_eval(Main, dl._cache[].pids, :(_rev_b(x) = x .+ 200))
+            append!(vals, b)
+        end
+        @test sort(vals) == collect(101:140)
+        @test collectvals(dl) == collect(201:240)   # the next epoch starts from the new definition
+    end
+
+    @testset "re-shipping for a new epoch does not disturb a live one" begin
+        MLUtils.close_dataloader_pool()
+        redefine(:_rev_c, 100)
+        dl = DataLoader(mapobs(_rev_c, collect(1:40)); batchsize=1, num_workers=2, collate=true)
+        old, new = Int[], Int[]
+        for (i, b) in enumerate(dl)
+            if i == 1
+                redefine(:_rev_c, 200)
+                append!(new, collectvals(dl))   # nested epoch over the same workers
+            end
+            append!(old, b)
+        end
+        @test sort(old) == collect(101:140)
+        @test new == collect(201:240)
+    end
+
+    MLUtils.close_dataloader_pool()
+end
+
 # Shared-memory batch transport under `num_workers`. Gated on `_shm_supported()` (Unix only);
 # on Windows CI only the validation/printing tests in `test/shmem.jl` and the unchanged
 # serialized path run. The threshold is lowered so the small test batches actually pack — set
@@ -330,7 +384,8 @@ end
                 # whitebox transport-proof: the cached closure packs the batch into a skeleton —
                 # a `ShmHandle` for a collated dense array, a `ShmVector` for the collate=false
                 # vector-of-observations (whose small per-obs columns ride inside it).
-                sk = dl._cache[].f([1, 2, 3, 4, 5])
+                cache = dl._cache[]
+                sk = remotecall_fetch(cache.f, first(cache.pids), MLUtils._worker_worlds(cache.pids), [1, 2, 3, 4, 5])
                 @test sk isa (coll === false ? MLUtils.ShmVector : MLUtils.ShmHandle)
             end
 
