@@ -13,10 +13,9 @@ The vector `names` contains the names of the features (i.e. rows of `X`)
 [1] Fisher, Ronald A. "The use of multiple measurements in taxonomic problems." Annals of eugenics 7.2 (1936): 179-188.
 """
 function load_iris()
-    path = joinpath(DATAPATH, "iris.csv")
-    raw_csv = readdlm(path, ',')
-    X = convert(Matrix{Float64}, raw_csv[:, 1:4]')
-    y = convert(Vector{String}, raw_csv[:, 5])
+    rows = [split(l, ',') for l in eachline(joinpath(DATAPATH, "iris.csv")) if !isempty(l)]
+    X = [parse(Float64, r[i]) for i in 1:4, r in rows]
+    y = [String(r[5]) for r in rows]
     vars = ["Sepal length", "Sepal width", "Petal length", "Petal width"]
     return X, y, vars
 end

@@ -6,7 +6,7 @@ using Distributed: Distributed, addprocs, rmprocs, CachingPool, remotecall_fetch
 import Mmap
 import CodeTracking
 using InteractiveUtils: methodswith
-using ShowCases: ShowLimit
+using PrecompileTools: @setup_workload, @compile_workload
 import StatsBase: sample
 using Tables
 using DataAPI
@@ -111,5 +111,7 @@ export Datasets,
        load_iris
 
 include("deprecations.jl")
+
+include("precompile.jl")
 
 end
